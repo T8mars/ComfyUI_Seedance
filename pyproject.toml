@@ -1,0 +1,10 @@
+[project]
+name = "comfyui_seedance"
+version = "0.1.0"
+description = "ComfyUI nodes for the Seedance 2.0 video generation API (api.seedance.nz)"
+requires-python = ">=3.9"
+dependencies = ["requests>=2.28"]
+
+[tool.comfy]
+PublisherId = "seedance"
+DisplayName = "ComfyUI Seedance"

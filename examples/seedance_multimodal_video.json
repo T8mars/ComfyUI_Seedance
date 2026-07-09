@@ -1,0 +1,122 @@
+{
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [80, 480],
+      "size": [360, 110],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "links": [3], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "Seedance_Config"},
+      "widgets_values": ["https://api.seedance.nz", ""]
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [80, 60],
+      "size": [340, 260],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["person.png", "image"]
+    },
+    {
+      "id": 5,
+      "type": "LoadVideo",
+      "pos": [80, 340],
+      "size": [340, 120],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "VIDEO", "type": "VIDEO", "links": [2], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "LoadVideo"},
+      "widgets_values": ["scene.mp4"]
+    },
+    {
+      "id": 2,
+      "type": "Seedance_MultimodalVideo",
+      "pos": [520, 100],
+      "size": [440, 640],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "image1", "type": "IMAGE", "link": 1},
+        {"name": "image2", "type": "IMAGE", "link": null},
+        {"name": "image3", "type": "IMAGE", "link": null},
+        {"name": "image4", "type": "IMAGE", "link": null},
+        {"name": "image5", "type": "IMAGE", "link": null},
+        {"name": "image6", "type": "IMAGE", "link": null},
+        {"name": "image7", "type": "IMAGE", "link": null},
+        {"name": "image8", "type": "IMAGE", "link": null},
+        {"name": "image9", "type": "IMAGE", "link": null},
+        {"name": "video1", "type": "VIDEO", "link": 2},
+        {"name": "video2", "type": "VIDEO", "link": null},
+        {"name": "video3", "type": "VIDEO", "link": null},
+        {"name": "audio1", "type": "AUDIO", "link": null},
+        {"name": "audio2", "type": "AUDIO", "link": null},
+        {"name": "audio3", "type": "AUDIO", "link": null},
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "link": 3}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": [4], "slot_index": 0},
+        {"name": "video_url", "type": "STRING", "links": null},
+        {"name": "task_id", "type": "STRING", "links": null},
+        {"name": "response", "type": "STRING", "links": null}
+      ],
+      "properties": {"Node name for S&R": "Seedance_MultimodalVideo"},
+      "widgets_values": [
+        "seedance-2.0-mini-multi",
+        "把@Video 1 中的场景作为背景，让@Image 1 中的人物走进画面",
+        "5",
+        "720p",
+        "adaptive",
+        true,
+        -1,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveVideo",
+      "pos": [1040, 260],
+      "size": [400, 300],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "video", "type": "VIDEO", "link": 4}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveVideo"},
+      "widgets_values": ["video/seedance", "auto", "auto"]
+    }
+  ],
+  "links": [
+    [1, 4, 0, 2, 0, "IMAGE"],
+    [2, 5, 0, 2, 9, "VIDEO"],
+    [3, 1, 0, 2, 15, "SEEDANCE_CONFIG"],
+    [4, 2, 0, 3, 0, "VIDEO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

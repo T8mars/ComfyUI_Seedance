@@ -1,0 +1,93 @@
+{
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [80, 340],
+      "size": [360, 110],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "links": [2], "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "Seedance_Config"},
+      "widgets_values": ["https://api.seedance.nz", ""]
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [80, 60],
+      "size": [340, 260],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["example.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "Seedance_ImageToVideo",
+      "pos": [520, 120],
+      "size": [420, 460],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "first_image", "type": "IMAGE", "link": 1},
+        {"name": "last_image", "type": "IMAGE", "link": null},
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "link": 2}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": [3], "slot_index": 0},
+        {"name": "video_url", "type": "STRING", "links": null},
+        {"name": "task_id", "type": "STRING", "links": null},
+        {"name": "response", "type": "STRING", "links": null}
+      ],
+      "properties": {"Node name for S&R": "Seedance_ImageToVideo"},
+      "widgets_values": [
+        "seedance-2.0-mini-i2v",
+        "camera slowly zooms in, gentle wind, natural motion",
+        "5",
+        "720p",
+        "adaptive",
+        true,
+        -1,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveVideo",
+      "pos": [1020, 220],
+      "size": [400, 300],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "video", "type": "VIDEO", "link": 3}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveVideo"},
+      "widgets_values": ["video/seedance", "auto", "auto"]
+    }
+  ],
+  "links": [
+    [1, 4, 0, 2, 0, "IMAGE"],
+    [2, 1, 0, 2, 2, "SEEDANCE_CONFIG"],
+    [3, 2, 0, 3, 0, "VIDEO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
