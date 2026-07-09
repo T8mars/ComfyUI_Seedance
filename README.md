@@ -3,7 +3,7 @@
 https://www.runninghub.ai/?inviteCode=rh-v1121  
 # 在线工作流国内版：  
 https://www.runninghub.cn/?inviteCode=rh-v1121  
-# 👋🏻 Welcome to Zhenzhen
+# 👋🏻 Welcome to 贞贞的SD2
 
 <img src="https://github.com/T8mars/Comfyui-zhenzhen/blob/main/pic/1.png" width="30%" alt="My favorite girl">
 My favorite girl Go YounJung
