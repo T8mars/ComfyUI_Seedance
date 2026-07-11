@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 config/.env
+SKILL.md
+skill.md
