@@ -14,13 +14,15 @@ My favorite girl Go YounJung
 
 # ComfyUI_Seedance
 
-Seedance 2.0 视频生成 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 视频生成与 Seedream 图片生成 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件把文生视频、图生视频、多模态视频整理成 3 个生成节点，并提供 1 个 API 配置节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供文生视频、图生视频、多模态视频，以及 Seedream v5 Pro 文生图/图像编辑节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
 
 ## 功能特点
 
 - 支持文生视频、图生视频、多模态视频
+- 支持 Seedream v5 Pro 文生图和图像编辑
+- 图像编辑支持 1 到 10 张参考图
 - 内置 18 个 Seedance 2.0 模型变体
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
@@ -38,14 +40,24 @@ Seedance 2.0 视频生成 API 的 ComfyUI 节点插件，默认接入 [api.seeda
 | `Seedance 文生视频 (Text to Video)` | 纯文本生成视频 | `model`、`prompt`、时长、分辨率、比例 |
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
+| `Seedream v5 Pro 图像生成/编辑` | 无参考图时使用 `seedream-v5-pro-t2i`，有参考图时使用 `seedream-v5-pro-i2i` | `prompt`、分辨率、输出格式、可选参考图 |
 
-所有生成节点都会输出：
+视频生成节点输出：
 
 | 输出 | 说明 |
 | --- | --- |
 | `video` | 已下载到本地的结果视频，可继续连接保存或预览节点 |
 | `video_url` | API 返回的视频直链 |
 | `task_id` | 远端任务 ID |
+| `response` | 完整 JSON 响应文本 |
+
+图片节点输出：
+
+| 输出 | 说明 |
+| --- | --- |
+| `image` | 已下载并转换为 ComfyUI `IMAGE` 的结果，可连接预览或保存节点 |
+| `image_url` | API 返回的临时图片直链 |
+| `task_id` | 远端图片任务 ID |
 | `response` | 完整 JSON 响应文本 |
 
 ## 安装
@@ -123,6 +135,14 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 4. 运行工作流。
 5. 将 `video` 输出连接到 `SaveVideo` 或其他视频节点。
 
+图片生成或编辑：
+
+1. 添加 `Seedream v5 Pro 图像生成/编辑`。
+2. 填写 5 到 2000 字符的 `prompt`。
+3. 不连接参考图时执行文生图；连接 `image1` 到 `image10` 中任意参考图时执行图像编辑。
+4. 选择 `1k`、`2k`，或选择 `custom` 后设置 `width` 和 `height`。
+5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
+
 示例工作流位于：
 
 - `examples/seedance_text_to_video.json`
@@ -147,6 +167,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 - `i2v`：图生视频
 - `multi`：多模态视频
 
+图片节点不连接参考图时提交 `seedream-v5-pro-t2i`，连接参考图时提交 `seedream-v5-pro-i2i`。图片请求使用独立的 `/v1/image/generations` 端点，不会改写或复用现有 Seedance 视频模型名。
+
 建议第一次测试先用 `mini` 档、短时长、低分辨率，确认效果和成本后再切换高规格模型。
 
 ## 参数说明
@@ -166,6 +188,17 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 `native1080p` 和 `native4k` 仅支持 Standard 档模型，插件会在提交前校验。
 
 `1080p`、`2k`、`4k` 属于从 720p 超分的输出档位，可能产生额外按秒计费。
+
+图片节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `prompt` | 必填，5 到 2000 字符 |
+| `resolution` | `1k`、`2k` 或 `custom`；选择预设时 API 会忽略宽高 |
+| `width` / `height` | 仅 `custom` 时提交，范围 240 到 8192 |
+| `output_format` | `png` 或 `jpeg` |
+| `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 ## 多模态提示词
 
@@ -206,6 +239,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 - 轮询任务时，会容忍短暂网络错误、非 200 响应和 JSON 解析失败。
 - 上传素材遇到 API 限流时，会等待后继续重试。
 - 下载结果视频失败时会自动重试。
+- 图片任务使用独立状态规则轮询：`SUCCESS` 成功、`FAILURE` 失败，并自动下载临时结果直链。
+- 下载图片失败时会自动重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - `skip_error=True` 时会生成一个错误占位视频，方便批量流程继续往下跑。
 
 ## 常见问题

@@ -1,9 +1,12 @@
 """
-HTTP client for the Seedance video generation API (new-api gateway).
+HTTP client for the Seedance video and Seedream image generation APIs.
 
 Endpoints:
   POST {base_url}/v1/videos              submit task
   GET  {base_url}/v1/videos/{task_id}    poll task
+  POST {base_url}/v1/image/generations   submit image task
+  GET  {base_url}/v1/image/generations/{task_id}
+                                             poll image task
   POST {base_url}/v1/files/upload        upload reference media (multipart)
 
 Reliability rules:
@@ -442,6 +445,215 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
     raise SeedanceAPIError(
         f"Task completed but no video URL in response: {_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Image generation
+# ---------------------------------------------------------------------------
+
+_IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "IN_PROGRESS"}
+
+
+def submit_image_task(
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Seedream_Image",
+) -> str:
+    """POST /v1/image/generations and return the image task id."""
+    url = f"{config['base_url']}/v1/image/generations"
+    _log(logger_prefix, f"Submit -> POST /v1/image/generations model={payload.get('model')}")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
+            time.sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"]),
+                json=payload,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as e:
+            last_error = RuntimeError(f"Submit network error: {_network_error_text(e)}")
+            _log(logger_prefix, f"Submit network error (attempt {attempt + 1}): {type(e).__name__}")
+            continue
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: {_extract_error_message(data, response.text[:200])}"
+            )
+            _log(logger_prefix, f"Submit HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
+            continue
+
+        if response.status_code != 200:
+            raise SeedanceAPIError(
+                f"Image submit rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+
+        task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
+        if not task_id:
+            raise SeedanceAPIError(f"No image task id in submit response: {_truncate(response.text, 300)}")
+
+        _log(logger_prefix, f"  Submit success: task_id={task_id}")
+        return str(task_id)
+
+    raise RuntimeError(f"Image submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+
+
+def poll_image_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Seedream_Image",
+) -> Dict[str, Any]:
+    """Poll an image task until ``data.status`` is SUCCESS or FAILURE."""
+    url = f"{config['base_url']}/v1/image/generations/{task_id}"
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+
+    _log(logger_prefix, f"Poll image -> task_id={task_id}, interval={poll_interval}s, max={max_poll_time}s")
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"Image task exceeded {max_poll_time}s, polling stopped [task_id: {task_id}] | "
+                f"图片任务超过 {max_poll_time}s，已停止轮询"
+            )
+
+        time.sleep(poll_interval)
+
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as e:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Image poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): {type(e).__name__}")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Image polling failed after repeated network errors [task_id: {task_id}]")
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Image poll HTTP {response.status_code} ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"Image polling failed: HTTP {response.status_code} repeatedly [task_id: {task_id}]"
+                )
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Image poll JSON parse error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Image polling failed: invalid JSON repeatedly [task_id: {task_id}]")
+            continue
+
+        task_data = response_data.get("data") if isinstance(response_data, dict) else None
+        if not isinstance(task_data, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Image polling response has no data object [task_id: {task_id}]")
+            continue
+
+        consecutive_failures = 0
+        status = str(task_data.get("status") or "").strip().upper()
+        progress = _coerce_progress(task_data.get("progress"))
+
+        if status != last_status:
+            _log(logger_prefix, f"  Image poll: status={status}, progress={progress}, elapsed={int(elapsed)}s")
+            last_status = status
+
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status == "SUCCESS":
+            _log(logger_prefix, f"  Image task completed in {int(elapsed)}s")
+            return response_data
+
+        if status == "FAILURE":
+            reason = task_data.get("fail_reason") or _extract_error_message(task_data, "image generation failed")
+            raise SeedanceAPIError(f"Image task failed: {reason} [task_id: {task_id}]")
+
+        if status and status not in _IMAGE_RUNNING_STATUSES:
+            _log(logger_prefix, f"  Unknown image status '{status}', continue polling...")
+
+
+def extract_image_url(final_response: Dict[str, Any]) -> str:
+    """Extract the documented image URL from a successful task response."""
+    task_data = final_response.get("data")
+    if isinstance(task_data, dict):
+        result_url = task_data.get("result_url")
+        if result_url:
+            return str(result_url)
+
+        upstream_data = task_data.get("data")
+        if isinstance(upstream_data, dict):
+            content = upstream_data.get("content")
+            if isinstance(content, dict) and content.get("image_url"):
+                return str(content["image_url"])
+
+    raise SeedanceAPIError(
+        f"Image task completed but no image URL in response: "
+        f"{_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
+    )
+
+
+def download_image(
+    url: str,
+    timeout: int = 300,
+    max_retries: int = 3,
+    logger_prefix: str = "Seedream_Image",
+) -> Any:
+    """Download a result image and return a ComfyUI IMAGE tensor [1,H,W,3]."""
+    from io import BytesIO
+
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    _log(logger_prefix, f"Download image -> {_truncate(url, 200)}")
+    last_error: Optional[Exception] = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = _session().get(url, timeout=timeout)
+            response.raise_for_status()
+            with Image.open(BytesIO(response.content)) as image:
+                rgb = image.convert("RGB")
+                array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
+            tensor = torch.from_numpy(array).unsqueeze(0)
+            _log(logger_prefix, f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]}")
+            return tensor
+        except Exception as e:
+            last_error = e
+            _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+
+    raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
 
 
 # ---------------------------------------------------------------------------

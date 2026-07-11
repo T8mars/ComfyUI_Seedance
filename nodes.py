@@ -17,9 +17,13 @@ from typing import Any, Dict, List, Optional, Tuple
 from .core.config import get_config, DEFAULT_BASE_URL
 from .core.client import (
     SeedanceAPIError,
+    download_image,
     download_video,
+    extract_image_url,
     extract_video_url,
+    poll_image_task,
     poll_task,
+    submit_image_task,
     submit_task,
     upload_media,
 )
@@ -64,6 +68,14 @@ PROMPT_MAX_LENGTH = 20480
 MAX_MULTI_IMAGES = 9
 MAX_MULTI_VIDEOS = 3
 MAX_MULTI_AUDIOS = 3
+
+SEEDREAM_T2I_MODEL = "seedream-v5-pro-t2i"
+SEEDREAM_I2I_MODEL = "seedream-v5-pro-i2i"
+SEEDREAM_RESOLUTIONS = ["1k", "2k", "custom"]
+SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
+SEEDREAM_PROMPT_MIN_LENGTH = 5
+SEEDREAM_PROMPT_MAX_LENGTH = 2000
+MAX_SEEDREAM_IMAGES = 10
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -525,6 +537,190 @@ class SeedanceMultimodalVideo(SeedanceVideoNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Seedream image generation and editing
+# ---------------------------------------------------------------------------
+
+class SeedreamV5ProImage:
+    """Text-to-image without references, image editing with 1-10 references."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{i}": ("IMAGE", {
+                "tooltip": f"Optional editing reference image {i} of {MAX_SEEDREAM_IMAGES}. | 可选编辑参考图 {i}。",
+            })
+            for i in range(1, MAX_SEEDREAM_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Prompt, 5-2000 characters. | 提示词，长度 5-2000 字符。",
+                }),
+                "resolution": (SEEDREAM_RESOLUTIONS, {
+                    "default": "2k",
+                    "tooltip": "1k/2k use the API preset; custom uses width and height. | 1k/2k 使用预设，custom 使用宽高。",
+                }),
+                "width": ("INT", {
+                    "default": 1024,
+                    "min": 240,
+                    "max": 8192,
+                    "step": 8,
+                    "tooltip": "Used only when resolution is custom. | 仅 custom 分辨率时生效。",
+                }),
+                "height": ("INT", {
+                    "default": 1024,
+                    "min": 240,
+                    "max": 8192,
+                    "step": 8,
+                    "tooltip": "Used only when resolution is custom. | 仅 custom 分辨率时生效。",
+                }),
+                "output_format": (SEEDREAM_OUTPUT_FORMATS, {
+                    "default": "png",
+                    "tooltip": "Result file format. | 输出图片格式。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        prompt=None,
+        resolution=None,
+        width=None,
+        height=None,
+        output_format=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        if not SEEDREAM_PROMPT_MIN_LENGTH <= len(prompt_text) <= SEEDREAM_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt must contain {SEEDREAM_PROMPT_MIN_LENGTH}-{SEEDREAM_PROMPT_MAX_LENGTH} "
+                f"characters (got {len(prompt_text)}) | 提示词长度必须为 "
+                f"{SEEDREAM_PROMPT_MIN_LENGTH}-{SEEDREAM_PROMPT_MAX_LENGTH} 字符"
+            )
+        if resolution not in SEEDREAM_RESOLUTIONS:
+            return f"unsupported resolution: {resolution}"
+        if output_format not in SEEDREAM_OUTPUT_FORMATS:
+            return f"unsupported output_format: {output_format}"
+        if resolution == "custom":
+            if width is None or not 240 <= int(width) <= 8192:
+                return "custom width must be between 240 and 8192"
+            if height is None or not 240 <= int(height) <= 8192:
+                return "custom height must be between 240 and 8192"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Seedream_v5_pro_image"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(self, prompt: str, resolution: str, width: int, height: int, output_format: str, images: List[str]):
+        metadata: Dict[str, Any] = {"output_format": output_format}
+        if resolution == "custom":
+            metadata.update({"width": int(width), "height": int(height)})
+        else:
+            metadata["resolution"] = resolution
+
+        payload: Dict[str, Any] = {
+            "model": SEEDREAM_I2I_MODEL if images else SEEDREAM_T2I_MODEL,
+            "prompt": prompt,
+            "metadata": metadata,
+        }
+        if images:
+            payload["images"] = images
+        return payload
+
+    def execute(
+        self,
+        prompt: str,
+        resolution: str,
+        width: int,
+        height: int,
+        output_format: str,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt_text,
+            resolution=resolution,
+            width=width,
+            height=height,
+            output_format=output_format,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        references = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_SEEDREAM_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        image_urls: List[str] = []
+        for done, (slot, tensor) in enumerate(references, start=1):
+            image_url = upload_media(
+                image_to_png_bytes(tensor),
+                f"seedream_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            image_urls.append(image_url)
+            self._update_progress(pbar, done / len(references) * 15)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(
+            prompt_text, resolution, width, height, output_format, image_urls
+        )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -533,6 +729,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_TextToVideo": SeedanceTextToVideo,
     "Seedance_ImageToVideo": SeedanceImageToVideo,
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
+    "Seedream_V5_Pro_Image": SeedreamV5ProImage,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -540,4 +737,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
+    "Seedream_V5_Pro_Image": "Seedream v5 Pro 图像生成/编辑",
 }
