@@ -345,6 +345,50 @@ class NewModelNodeTests(unittest.TestCase):
         self.assertEqual(payload["images"], ["https://cdn.test/start.png"])
         self.assertNotIn("prompt", payload)
 
+    def test_happyhorse_reference_to_video_payload_keeps_reference_images(self):
+        node = nodes.HappyHorseVideo()
+        payload = node.build_payload(
+            {
+                "model": nodes.HAPPYHORSE_R2V_MODEL,
+                "prompt": "Use 图1 as the character and 图2 as the scene",
+                "seconds": "6",
+                "resolution": "720p",
+                "ratio": "9:16",
+            },
+            {
+                "images": [
+                    "https://cdn.test/character.png",
+                    "https://cdn.test/scene.png",
+                    "https://cdn.test/style.png",
+                ]
+            },
+        )
+
+        self.assertEqual(payload["model"], "happyhorse-1.1-r2v")
+        self.assertEqual(
+            payload["images"],
+            [
+                "https://cdn.test/character.png",
+                "https://cdn.test/scene.png",
+                "https://cdn.test/style.png",
+            ],
+        )
+        self.assertEqual(payload["prompt"], "Use 图1 as the character and 图2 as the scene")
+
+    def test_happyhorse_reference_to_video_requires_reference_image(self):
+        node = nodes.HappyHorseVideo()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {
+                    "model": nodes.HAPPYHORSE_R2V_MODEL,
+                    "prompt": "",
+                    "seconds": "6",
+                    "resolution": "720p",
+                    "ratio": "adaptive",
+                },
+                {},
+            )
+
     def test_happyhorse_validation_rejects_seedance_only_settings(self):
         self.assertIsNot(
             nodes.HappyHorseVideo.VALIDATE_INPUTS(
@@ -361,6 +405,15 @@ class NewModelNodeTests(unittest.TestCase):
                 prompt="valid prompt",
                 seconds="4",
                 resolution="2k",
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.HappyHorseVideo.VALIDATE_INPUTS(
+                model=nodes.HAPPYHORSE_R2V_MODEL,
+                prompt="",
+                seconds="6",
+                resolution="720p",
             ),
             True,
         )

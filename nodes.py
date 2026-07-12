@@ -84,9 +84,11 @@ MAX_SEEDREAM_IMAGES = 10
 
 HAPPYHORSE_T2V_MODEL = "happyhorse-1.1-t2v"
 HAPPYHORSE_I2V_MODEL = "happyhorse-1.1-i2v"
-HAPPYHORSE_MODELS = [HAPPYHORSE_T2V_MODEL, HAPPYHORSE_I2V_MODEL]
+HAPPYHORSE_R2V_MODEL = "happyhorse-1.1-r2v"
+HAPPYHORSE_MODELS = [HAPPYHORSE_T2V_MODEL, HAPPYHORSE_I2V_MODEL, HAPPYHORSE_R2V_MODEL]
 HAPPYHORSE_RESOLUTIONS = ["720p", "1080p"]
 HAPPYHORSE_SECONDS = [str(s) for s in range(3, 16)]
+MAX_HAPPYHORSE_R2V_IMAGES = 9
 
 DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
 DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
@@ -436,17 +438,42 @@ class SeedanceImageToVideo(SeedanceVideoNodeBase):
 # ---------------------------------------------------------------------------
 
 class HappyHorseVideo(SeedanceVideoNodeBase):
-    """HappyHorse 1.1 text-to-video and image-to-video via /v1/videos."""
+    """HappyHorse 1.1 t2v/i2v/r2v via /v1/videos."""
 
     @classmethod
     def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            "first_image": ("IMAGE", {
+                "tooltip": (
+                    "Required for happyhorse-1.1-i2v, and image 1 / 图1 for "
+                    "happyhorse-1.1-r2v. | i2v 必填；r2v 中作为图1。"
+                ),
+            })
+        }
+        for i in range(2, MAX_HAPPYHORSE_R2V_IMAGES + 1):
+            optional[f"reference_image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Optional r2v reference image {i}; prompt can mention 图{i}. "
+                    f"Gaps are compacted to connected order. | r2v 可选参考图 {i}，"
+                    f"提示词可写图{i}；跳号会按连接顺序压缩。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
         return {
             "required": {
                 "model": (HAPPYHORSE_MODELS, {
                     "default": HAPPYHORSE_T2V_MODEL,
                     "tooltip": (
-                        "HappyHorse 1.1 task type. t2v uses prompt only; i2v requires first_image. | "
-                        "HappyHorse 1.1 任务类型：t2v 只用提示词，i2v 需要首帧图。"
+                        "HappyHorse 1.1 task type. t2v uses prompt only; i2v uses first_image; "
+                        "r2v uses 1-9 reference images. | t2v 只用提示词；i2v 使用首帧图；"
+                        "r2v 使用 1-9 张参考图。"
                     ),
                 }),
                 "prompt": _prompt_input(required=False),
@@ -463,18 +490,7 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
                     "tooltip": "Aspect ratio forwarded as metadata.ratio for upstream aspectRatio mapping. | 画幅会通过 metadata.ratio 映射给上游 aspectRatio。",
                 }),
             },
-            "optional": {
-                "first_image": ("IMAGE", {
-                    "tooltip": "Required only when model is happyhorse-1.1-i2v. | 仅 i2v 模型必填。",
-                }),
-                "api_config": ("SEEDANCE_CONFIG", {
-                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
-                }),
-                "skip_error": ("BOOLEAN", {
-                    "default": False,
-                    "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
-                }),
-            },
+            "optional": optional,
         }
 
     @classmethod
@@ -495,26 +511,59 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
     def _log_prefix(self) -> str:
         return "HappyHorse_1_1_video"
 
+    def _gather_r2v_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = []
+        first_image = kwargs.get("first_image")
+        if first_image is not None:
+            slots.append((1, first_image))
+        for i in range(2, MAX_HAPPYHORSE_R2V_IMAGES + 1):
+            value = kwargs.get(f"reference_image{i}")
+            if value is not None:
+                slots.append((i, value))
+
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: r2v image slots {connected} have gaps; "
+                f"they will be compacted to imageUrls order 1..{len(connected)}."
+            )
+        return slots
+
     def collect_media(self, kwargs, config, progress_cb):
-        if kwargs.get("model") != HAPPYHORSE_I2V_MODEL:
+        model = kwargs.get("model")
+        if model == HAPPYHORSE_T2V_MODEL:
             return {}
 
-        first_image = kwargs.get("first_image")
-        if first_image is None:
-            raise SeedanceAPIError(
+        if model == HAPPYHORSE_I2V_MODEL:
+            image_slots = [(1, kwargs.get("first_image"))] if kwargs.get("first_image") is not None else []
+            required_message = (
                 "first_image is required for happyhorse-1.1-i2v | "
                 "happyhorse-1.1-i2v 必须连接首帧图"
             )
+        else:
+            image_slots = self._gather_r2v_images(kwargs)
+            required_message = (
+                "at least one reference image is required for happyhorse-1.1-r2v | "
+                "happyhorse-1.1-r2v 至少需要 1 张参考图"
+            )
 
-        url = upload_media(
-            image_to_png_bytes(first_image),
-            "happyhorse_first_frame.png",
-            "image/png",
-            config,
-            logger_prefix=self._log_prefix,
-        )
-        progress_cb(1.0)
-        return {"images": [url]}
+        if not image_slots:
+            raise SeedanceAPIError(
+                required_message
+            )
+
+        urls = []
+        for done, (slot, image) in enumerate(image_slots, start=1):
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"happyhorse_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            urls.append(url)
+            progress_cb(done / len(image_slots))
+        return {"images": urls}
 
     def build_payload(self, kwargs, media):
         model = kwargs["model"]
@@ -539,9 +588,10 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
         images = media.get("images") or []
         if not images:
             raise SeedanceAPIError(
-                "first_image is required for happyhorse-1.1-i2v | HappyHorse 图生视频必须连接首帧图"
+                "reference image is required for HappyHorse image/reference-to-video | "
+                "HappyHorse 图生视频/参考图生视频必须连接参考图"
             )
-        payload["images"] = images[:1]
+        payload["images"] = images[:1] if model == HAPPYHORSE_I2V_MODEL else images[:MAX_HAPPYHORSE_R2V_IMAGES]
         if prompt:
             payload["prompt"] = prompt
         return payload

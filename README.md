@@ -25,12 +25,12 @@ Seedance 2.0 / HappyHorse 视频生成、Seedream 图片生成与 Doubao Seed Au
 ## 功能特点
 
 - 支持文生视频、图生视频、多模态视频
-- 支持 HappyHorse 1.1 文生视频和图生视频
+- 支持 HappyHorse 1.1 文生视频、图生视频和参考图生视频
 - 支持 Seedream v5 Pro 文生图和图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 图像编辑支持 1 到 10 张参考图
 - 内置 18 个 Seedance 2.0 模型变体
-- 新增 2 个 HappyHorse 1.1 视频模型和 1 个 Doubao Seed Audio 模型
+- 新增 3 个 HappyHorse 1.1 视频模型和 1 个 Doubao Seed Audio 模型
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -48,7 +48,7 @@ Seedance 2.0 / HappyHorse 视频生成、Seedream 图片生成与 Doubao Seed Au
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
 | `Seedream v5 Pro 图像生成/编辑` | 无参考图时使用 `seedream-v5-pro-t2i`，有参考图时使用 `seedream-v5-pro-i2i` | `prompt`、分辨率、输出格式、可选参考图 |
-| `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频或 `happyhorse-1.1-i2v` 图生视频 | `model`、`prompt`、时长、分辨率、可选首帧图 |
+| `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 
 视频生成节点输出：
@@ -150,7 +150,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Seedance 文生视频 (Text to Video)`：只用文本生成视频
    - `Seedance 图生视频 (Image to Video)`：用首帧图、可选尾帧图生成视频
    - `Seedance 多模态视频 (Multimodal Video)`：混合图片、视频、音频参考
-   - `HappyHorse 1.1 视频生成`：在 `happyhorse-1.1-t2v` 和 `happyhorse-1.1-i2v` 间切换
+   - `HappyHorse 1.1 视频生成`：在 `happyhorse-1.1-t2v`、`happyhorse-1.1-i2v` 和 `happyhorse-1.1-r2v` 间切换
 3. 选择 `model`，设置 `seconds`、`resolution`、`ratio`。
 4. 运行工作流。
 5. 将 `video` 输出连接到 `SaveVideo` 或其他视频节点。
@@ -203,6 +203,7 @@ HappyHorse 节点使用同一个 `/v1/videos` 视频端点：
 | --- | --- | --- |
 | `happyhorse-1.1-t2v` | 文生视频 | `prompt` 必填，`seconds` 为 3 到 15 秒，不支持 `-1` |
 | `happyhorse-1.1-i2v` | 图生视频 | 必须连接 `first_image`，只使用首张图；`prompt` 可选 |
+| `happyhorse-1.1-r2v` | 参考图生视频 | `first_image` 作为图1，`reference_image2` 到 `reference_image9` 作为图2到图9；至少 1 张，最多 9 张；`prompt` 可写“图1/图2” |
 
 HappyHorse 仅支持 `720p` 和 `1080p`，`ratio` 会作为 `metadata.ratio` 传入，由 API 映射到上游 `aspectRatio`。
 
@@ -243,12 +244,13 @@ HappyHorse 节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | `happyhorse-1.1-t2v` 或 `happyhorse-1.1-i2v` |
-| `prompt` | 文生视频必填，图生视频可选 |
+| `model` | `happyhorse-1.1-t2v`、`happyhorse-1.1-i2v` 或 `happyhorse-1.1-r2v` |
+| `prompt` | 文生视频必填，图生视频/参考图生视频可选；r2v 可用“图1/图2”引用参考图 |
 | `seconds` | 3 到 15 秒，不支持 `-1` |
 | `resolution` | `720p` 或 `1080p` |
 | `ratio` | 画幅比例，透传为 `metadata.ratio` |
-| `first_image` | 仅 `happyhorse-1.1-i2v` 必填 |
+| `first_image` | `happyhorse-1.1-i2v` 必填；`happyhorse-1.1-r2v` 中作为图1 |
+| `reference_image2` ... `reference_image9` | 仅 `happyhorse-1.1-r2v` 使用，可选参考图2到图9 |
 
 Doubao Seed Audio 参数：
 
