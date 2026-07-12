@@ -24,7 +24,6 @@ Reliability rules:
 
 import json
 import os
-import ssl
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -38,29 +37,12 @@ class SeedanceAPIError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# HTTP session with OS trust store support
+# HTTP session
 #
-# Bundled certifi CA files in portable Python builds are often too old for
-# newer Let's Encrypt intermediates, which makes cert verification fail even
-# though browsers/curl (OS trust store) accept the site. When ``truststore``
-# is available we verify against the OS trust store instead, matching
-# browser behavior. SEEDANCE_SSL_VERIFY=0 disables verification entirely as
-# a last-resort escape hatch.
+# Keep runtime dependencies minimal: requests uses its bundled/default CA
+# handling, SEEDANCE_CA_BUNDLE can point to a custom CA file, and
+# SEEDANCE_SSL_VERIFY=0 disables verification as a last-resort escape hatch.
 # ---------------------------------------------------------------------------
-
-class _TruststoreAdapter(requests.adapters.HTTPAdapter):
-    def __init__(self, ssl_context):
-        self._ssl_context = ssl_context
-        super().__init__()
-
-    def init_poolmanager(self, *args, **kwargs):
-        kwargs["ssl_context"] = self._ssl_context
-        return super().init_poolmanager(*args, **kwargs)
-
-    def proxy_manager_for(self, *args, **kwargs):
-        kwargs["ssl_context"] = self._ssl_context
-        return super().proxy_manager_for(*args, **kwargs)
-
 
 _session_singleton: Optional[requests.Session] = None
 
@@ -71,6 +53,7 @@ def _session() -> requests.Session:
         return _session_singleton
 
     session = requests.Session()
+    ca_bundle = os.environ.get("SEEDANCE_CA_BUNDLE", "").strip()
 
     if os.environ.get("SEEDANCE_SSL_VERIFY", "").strip().lower() in ("0", "false", "no"):
         session.verify = False
@@ -80,16 +63,9 @@ def _session() -> requests.Session:
         except Exception:
             pass
         print("[Seedance] WARNING: SSL verification disabled via SEEDANCE_SSL_VERIFY=0")
-    else:
-        try:
-            import truststore
-            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            session.mount("https://", _TruststoreAdapter(ctx))
-            print("[Seedance] Using OS trust store for SSL verification (truststore)")
-        except ImportError:
-            pass  # fall back to requests/certifi default
-        except Exception as e:
-            print(f"[Seedance] truststore setup failed, using certifi default: {e}")
+    elif ca_bundle:
+        session.verify = ca_bundle
+        print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
 
     _session_singleton = session
     return session
@@ -103,11 +79,12 @@ def _network_error_text(e: Exception) -> str:
     text = f"{type(e).__name__}: {e}"
     if isinstance(e, requests.exceptions.SSLError):
         text += (
-            " | SSL certificate verification failed. Fix: install the 'truststore' "
-            "package into ComfyUI's Python (pip install truststore) to use the OS "
-            "trust store, or set env SEEDANCE_SSL_VERIFY=0 to skip verification. | "
-            "SSL 证书校验失败：请在 ComfyUI 的 Python 环境安装 truststore 包"
-            "（使用系统信任库），或设置环境变量 SEEDANCE_SSL_VERIFY=0 跳过校验。"
+            " | SSL certificate verification failed. Fix: update certifi/requests "
+            "in ComfyUI's Python, set SEEDANCE_CA_BUNDLE to a CA bundle file, or set "
+            "SEEDANCE_SSL_VERIFY=0 to skip verification temporarily. | "
+            "SSL 证书校验失败：请更新 ComfyUI Python 环境中的 certifi/requests，"
+            "或设置 SEEDANCE_CA_BUNDLE 指向证书包；临时排障可设置 "
+            "SEEDANCE_SSL_VERIFY=0 跳过校验。"
         )
     return text
 

@@ -1,5 +1,6 @@
 import io
 import importlib.util
+import builtins
 import sys
 import unittest
 from pathlib import Path
@@ -69,6 +70,24 @@ CONFIG = {
 
 
 class ImageClientTests(unittest.TestCase):
+    def test_session_does_not_require_truststore(self):
+        real_import = builtins.__import__
+
+        def guarded_import(name, *args, **kwargs):
+            if name == "truststore":
+                raise AssertionError("truststore should not be imported")
+            return real_import(name, *args, **kwargs)
+
+        old_singleton = client._session_singleton
+        client._session_singleton = None
+        try:
+            with patch.object(builtins, "__import__", side_effect=guarded_import):
+                session = client._session()
+        finally:
+            client._session_singleton = old_singleton
+
+        self.assertIsNotNone(session)
+
     def test_image_submit_uses_image_endpoint(self):
         session = FakeSession(
             post_response=FakeResponse(data={"id": "image-task", "task_id": "image-task"})

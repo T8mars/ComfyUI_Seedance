@@ -294,6 +294,7 @@ Doubao Seed Audio 参数：
 | `SEEDANCE_MAX_POLL_TIME` | `1800` | 最大轮询时间，单位秒 |
 | `SEEDANCE_TIMEOUT` | `60` | 提交任务请求超时，单位秒 |
 | `SEEDANCE_UPLOAD_TIMEOUT` | `180` | 上传素材请求超时，单位秒 |
+| `SEEDANCE_CA_BUNDLE` | 空 | 可选，自定义 CA 证书包路径，用于证书链排障 |
 | `SEEDANCE_SSL_VERIFY` | `1` | 设为 `0` 可关闭 SSL 校验，仅建议临时排障使用 |
 
 ## 稳定性策略
@@ -327,13 +328,15 @@ ComfyUI/custom_nodes/ComfyUI_Seedance
 
 ### SSL 证书错误
 
-先尝试在 ComfyUI 使用的 Python 环境中安装 `truststore`：
+插件不依赖 `truststore`。默认使用 `requests` 的证书校验链路。
+
+如果遇到证书错误，先尝试在 ComfyUI 使用的 Python 环境中更新基础网络依赖：
 
 ```bash
-python -m pip install truststore
+python -m pip install -U requests certifi
 ```
 
-如果仍然无法连接，可以临时设置 `SEEDANCE_SSL_VERIFY=0` 跳过 SSL 校验。
+也可以设置 `SEEDANCE_CA_BUNDLE` 指向自定义 CA 证书包。仍然无法连接时，可以临时设置 `SEEDANCE_SSL_VERIFY=0` 跳过 SSL 校验。
 
 ### `native1080p` 或 `native4k` 被拒绝
 
