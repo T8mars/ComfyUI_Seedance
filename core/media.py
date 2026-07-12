@@ -137,6 +137,13 @@ def audio_to_wav_bytes(audio: dict) -> bytes:
     return buf.getvalue()
 
 
+def make_silent_audio(sample_rate: int = 24000, duration_seconds: float = 1.0) -> dict:
+    """Build a tiny silent ComfyUI AUDIO object for skip_error workflows."""
+    samples = max(1, int(sample_rate * duration_seconds))
+    waveform = torch.zeros((1, 1, samples), dtype=torch.float32)
+    return {"waveform": waveform, "sample_rate": int(sample_rate)}
+
+
 # ---------------------------------------------------------------------------
 # Error placeholders (for skip_error=True)
 # ---------------------------------------------------------------------------

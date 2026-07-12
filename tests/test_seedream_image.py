@@ -1,4 +1,5 @@
 import io
+import importlib.util
 import sys
 import unittest
 from pathlib import Path
@@ -8,10 +9,23 @@ import torch
 from PIL import Image
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PACKAGE_ROOT.parent))
 
-from ComfyUI_Seedance import nodes
-from ComfyUI_Seedance.core import client
+try:
+    from ComfyUI_Seedance import nodes
+    from ComfyUI_Seedance.core import client
+except ModuleNotFoundError:
+    spec = importlib.util.spec_from_file_location(
+        "ComfyUI_Seedance",
+        PACKAGE_ROOT / "__init__.py",
+        submodule_search_locations=[str(PACKAGE_ROOT)],
+    )
+    package = importlib.util.module_from_spec(spec)
+    sys.modules["ComfyUI_Seedance"] = package
+    spec.loader.exec_module(package)
+    from ComfyUI_Seedance import nodes
+    from ComfyUI_Seedance.core import client
 
 
 class FakeResponse:
@@ -133,6 +147,62 @@ class ImageClientTests(unittest.TestCase):
         self.assertAlmostEqual(float(tensor[0, 0, 0, 0]), 1.0)
 
 
+class AudioClientTests(unittest.TestCase):
+    def test_audio_submit_uses_audio_endpoint(self):
+        session = FakeSession(
+            post_response=FakeResponse(data={"id": "audio-task", "task_id": "audio-task"})
+        )
+        with patch.object(client, "_session", return_value=session):
+            task_id = client.submit_audio_task(
+                {"model": nodes.DOUBAO_SEED_AUDIO_MODEL, "prompt": "valid audio prompt"},
+                CONFIG,
+            )
+
+        self.assertEqual(task_id, "audio-task")
+        self.assertEqual(
+            session.post_calls[0][0],
+            "https://example.test/v1/audio/generations",
+        )
+
+    def test_audio_poll_reads_documented_nested_status_and_url(self):
+        response = {
+            "code": "success",
+            "data": {
+                "task_id": "audio-task",
+                "status": "SUCCESS",
+                "progress": "100%",
+                "result_url": "https://cdn.test/result.wav",
+            },
+        }
+        session = FakeSession(get_responses=[FakeResponse(data=response)])
+        progress = []
+        with patch.object(client, "_session", return_value=session), patch.object(
+            client.time, "sleep", return_value=None
+        ):
+            result = client.poll_audio_task(
+                "audio-task", CONFIG, on_progress=progress.append
+            )
+
+        self.assertEqual(result, response)
+        self.assertEqual(progress, [100])
+        self.assertEqual(client.extract_audio_url(result), "https://cdn.test/result.wav")
+        self.assertEqual(
+            session.get_calls[0][0],
+            "https://example.test/v1/audio/generations/audio-task",
+        )
+
+    def test_extract_audio_url_supports_documented_content_fallback(self):
+        response = {
+            "data": {
+                "status": "SUCCESS",
+                "data": {"content": {"audio_url": "https://cdn.test/fallback.mp3"}},
+            }
+        }
+        self.assertEqual(
+            client.extract_audio_url(response), "https://cdn.test/fallback.mp3"
+        )
+
+
 class ImageNodeTests(unittest.TestCase):
     def test_payload_omits_images_for_text_to_image(self):
         node = nodes.SeedreamV5ProImage()
@@ -217,6 +287,123 @@ class ImageNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+
+class NewModelNodeTests(unittest.TestCase):
+    def test_happyhorse_text_to_video_payload(self):
+        node = nodes.HappyHorseVideo()
+        payload = node.build_payload(
+            {
+                "model": nodes.HAPPYHORSE_T2V_MODEL,
+                "prompt": "a short cinematic horse ride",
+                "seconds": "4",
+                "resolution": "720p",
+                "ratio": "16:9",
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "happyhorse-1.1-t2v")
+        self.assertEqual(payload["seconds"], "4")
+        self.assertEqual(payload["prompt"], "a short cinematic horse ride")
+        self.assertEqual(payload["metadata"], {"resolution": "720p", "ratio": "16:9"})
+        self.assertNotIn("images", payload)
+
+    def test_happyhorse_image_to_video_payload_uses_first_image_only(self):
+        node = nodes.HappyHorseVideo()
+        payload = node.build_payload(
+            {
+                "model": nodes.HAPPYHORSE_I2V_MODEL,
+                "prompt": "",
+                "seconds": "5",
+                "resolution": "1080p",
+                "ratio": "adaptive",
+            },
+            {"images": ["https://cdn.test/start.png", "https://cdn.test/ignored.png"]},
+        )
+
+        self.assertEqual(payload["model"], "happyhorse-1.1-i2v")
+        self.assertEqual(payload["images"], ["https://cdn.test/start.png"])
+        self.assertNotIn("prompt", payload)
+
+    def test_happyhorse_validation_rejects_seedance_only_settings(self):
+        self.assertIsNot(
+            nodes.HappyHorseVideo.VALIDATE_INPUTS(
+                model=nodes.HAPPYHORSE_T2V_MODEL,
+                prompt="valid prompt",
+                seconds="-1",
+                resolution="720p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HappyHorseVideo.VALIDATE_INPUTS(
+                model=nodes.HAPPYHORSE_T2V_MODEL,
+                prompt="valid prompt",
+                seconds="4",
+                resolution="2k",
+            ),
+            True,
+        )
+
+    def test_doubao_audio_payload_with_speaker(self):
+        node = nodes.DoubaoSeedAudio()
+        payload = node._build_payload(
+            prompt="gentle rain falling outside",
+            speaker="zh_male_shaonianzixin_uranus_bigtts",
+            output_format="wav",
+            sample_rate="24000",
+            speech_rate=0,
+            loudness_rate=0,
+            pitch_rate=0,
+            image_urls=[],
+            audio_urls=[],
+        )
+
+        self.assertEqual(payload["model"], "doubao-seed-audio-1.0")
+        self.assertEqual(payload["prompt"], "gentle rain falling outside")
+        self.assertEqual(
+            payload["metadata"]["speaker"],
+            "zh_male_shaonianzixin_uranus_bigtts",
+        )
+        self.assertEqual(payload["metadata"]["format"], "wav")
+        self.assertNotIn("images", payload)
+
+    def test_doubao_audio_payload_with_reference_audios(self):
+        node = nodes.DoubaoSeedAudio()
+        payload = node._build_payload(
+            prompt="match the voice and read calmly",
+            speaker="",
+            output_format="mp3",
+            sample_rate="32000",
+            speech_rate=10,
+            loudness_rate=-5,
+            pitch_rate=2,
+            image_urls=[],
+            audio_urls=["https://cdn.test/a.wav", "https://cdn.test/b.wav"],
+        )
+
+        self.assertEqual(
+            payload["metadata"]["audio_urls"],
+            ["https://cdn.test/a.wav", "https://cdn.test/b.wav"],
+        )
+        self.assertNotIn("speaker", payload["metadata"])
+        self.assertEqual(payload["metadata"]["sample_rate"], "32000")
+
+    def test_doubao_audio_rejects_mixed_reference_modes(self):
+        node = nodes.DoubaoSeedAudio()
+        with self.assertRaises(client.SeedanceAPIError):
+            node._build_payload(
+                prompt="valid audio prompt",
+                speaker="speaker-id",
+                output_format="wav",
+                sample_rate="24000",
+                speech_rate=0,
+                loudness_rate=0,
+                pitch_rate=0,
+                image_urls=[],
+                audio_urls=["https://cdn.test/a.wav"],
+            )
 
 
 if __name__ == "__main__":

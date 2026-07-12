@@ -1,6 +1,6 @@
 """
-ComfyUI_Seedance - ComfyUI nodes for Seedance video and Seedream image
-generation APIs (api.seedance.nz, powered by new-api).
+ComfyUI_Seedance - ComfyUI nodes for Seedance/HappyHorse video,
+Seedream image, and Doubao Seed Audio APIs (api.seedance.nz).
 """
 
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS

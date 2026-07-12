@@ -17,12 +17,16 @@ from typing import Any, Dict, List, Optional, Tuple
 from .core.config import get_config, DEFAULT_BASE_URL
 from .core.client import (
     SeedanceAPIError,
+    download_audio,
     download_image,
     download_video,
+    extract_audio_url,
     extract_image_url,
     extract_video_url,
+    poll_audio_task,
     poll_image_task,
     poll_task,
+    submit_audio_task,
     submit_image_task,
     submit_task,
     upload_media,
@@ -30,6 +34,7 @@ from .core.client import (
 from .core.media import (
     audio_to_wav_bytes,
     image_to_png_bytes,
+    make_silent_audio,
     make_error_video,
     video_to_bytes,
 )
@@ -76,6 +81,19 @@ SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
 SEEDREAM_PROMPT_MIN_LENGTH = 5
 SEEDREAM_PROMPT_MAX_LENGTH = 2000
 MAX_SEEDREAM_IMAGES = 10
+
+HAPPYHORSE_T2V_MODEL = "happyhorse-1.1-t2v"
+HAPPYHORSE_I2V_MODEL = "happyhorse-1.1-i2v"
+HAPPYHORSE_MODELS = [HAPPYHORSE_T2V_MODEL, HAPPYHORSE_I2V_MODEL]
+HAPPYHORSE_RESOLUTIONS = ["720p", "1080p"]
+HAPPYHORSE_SECONDS = [str(s) for s in range(3, 16)]
+
+DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
+DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
+DOUBAO_SAMPLE_RATES = ["8000", "16000", "24000", "32000", "44100"]
+DOUBAO_PROMPT_MIN_LENGTH = 5
+DOUBAO_PROMPT_MAX_LENGTH = 2048
+MAX_DOUBAO_REFERENCE_AUDIOS = 3
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -414,6 +432,122 @@ class SeedanceImageToVideo(SeedanceVideoNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# HappyHorse 1.1 video
+# ---------------------------------------------------------------------------
+
+class HappyHorseVideo(SeedanceVideoNodeBase):
+    """HappyHorse 1.1 text-to-video and image-to-video via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (HAPPYHORSE_MODELS, {
+                    "default": HAPPYHORSE_T2V_MODEL,
+                    "tooltip": (
+                        "HappyHorse 1.1 task type. t2v uses prompt only; i2v requires first_image. | "
+                        "HappyHorse 1.1 任务类型：t2v 只用提示词，i2v 需要首帧图。"
+                    ),
+                }),
+                "prompt": _prompt_input(required=False),
+                "seconds": (HAPPYHORSE_SECONDS, {
+                    "default": "4",
+                    "tooltip": "HappyHorse supports 3-15 seconds and does not support -1. | 支持 3-15 秒，不支持 -1。",
+                }),
+                "resolution": (HAPPYHORSE_RESOLUTIONS, {
+                    "default": "720p",
+                    "tooltip": "HappyHorse supports 720p or 1080p. | HappyHorse 支持 720p 或 1080p。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "adaptive",
+                    "tooltip": "Aspect ratio forwarded as metadata.ratio for upstream aspectRatio mapping. | 画幅会通过 metadata.ratio 映射给上游 aspectRatio。",
+                }),
+            },
+            "optional": {
+                "first_image": ("IMAGE", {
+                    "tooltip": "Required only when model is happyhorse-1.1-i2v. | 仅 i2v 模型必填。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, seconds=None, resolution=None, **kwargs):
+        if model not in (None, *HAPPYHORSE_MODELS):
+            return f"unsupported HappyHorse model: {model}"
+        if resolution is not None and resolution not in HAPPYHORSE_RESOLUTIONS:
+            return "HappyHorse resolution must be 720p or 1080p | HappyHorse 分辨率只能是 720p 或 1080p"
+        if seconds is not None and str(seconds) not in HAPPYHORSE_SECONDS:
+            return "HappyHorse seconds must be 3-15 and cannot be -1 | HappyHorse 时长必须是 3-15 秒，不能用 -1"
+        if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
+        if model == HAPPYHORSE_T2V_MODEL and not str(prompt or "").strip():
+            return "prompt is required for HappyHorse text-to-video | HappyHorse 文生视频必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "HappyHorse_1_1_video"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        if kwargs.get("model") != HAPPYHORSE_I2V_MODEL:
+            return {}
+
+        first_image = kwargs.get("first_image")
+        if first_image is None:
+            raise SeedanceAPIError(
+                "first_image is required for happyhorse-1.1-i2v | "
+                "happyhorse-1.1-i2v 必须连接首帧图"
+            )
+
+        url = upload_media(
+            image_to_png_bytes(first_image),
+            "happyhorse_first_frame.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"images": [url]}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": {
+                "resolution": kwargs["resolution"],
+                "ratio": kwargs["ratio"],
+            },
+        }
+
+        if model == HAPPYHORSE_T2V_MODEL:
+            if not prompt:
+                raise SeedanceAPIError(
+                    "prompt is required for happyhorse-1.1-t2v | HappyHorse 文生视频必须填写提示词"
+                )
+            payload["prompt"] = prompt
+            return payload
+
+        images = media.get("images") or []
+        if not images:
+            raise SeedanceAPIError(
+                "first_image is required for happyhorse-1.1-i2v | HappyHorse 图生视频必须连接首帧图"
+            )
+        payload["images"] = images[:1]
+        if prompt:
+            payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
 # Multimodal Video
 # ---------------------------------------------------------------------------
 
@@ -721,6 +855,329 @@ class SeedreamV5ProImage:
 
 
 # ---------------------------------------------------------------------------
+# Doubao Seed Audio generation
+# ---------------------------------------------------------------------------
+
+class DoubaoSeedAudio:
+    """Asynchronous doubao-seed-audio-1.0 generation via /v1/audio/generations."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            "reference_image": ("IMAGE", {
+                "tooltip": "Optional reference image. Cannot be used with speaker or reference audio. | 可选参考图，不能与音色 ID 或参考音频同时使用。",
+            })
+        }
+        for i in range(1, MAX_DOUBAO_REFERENCE_AUDIOS + 1):
+            optional[f"reference_audio{i}"] = ("AUDIO", {
+                "tooltip": f"Optional reference audio {i} of 3. Cannot be used with speaker or reference image. | 可选参考音频 {i}/3，不能与音色 ID 或参考图同时使用。",
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return 1 second of silence instead of stopping the workflow. | 失败时输出 1 秒静音。",
+        })
+
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Audio prompt, 5-2048 characters. | 音频提示词，5-2048 字符。",
+                }),
+                "speaker": ("STRING", {
+                    "default": "",
+                    "tooltip": "Optional speaker/voice id. Mutually exclusive with reference image/audio. | 可选音色 ID，不能与参考图/参考音频同时使用。",
+                }),
+                "output_format": (DOUBAO_AUDIO_FORMATS, {
+                    "default": "wav",
+                    "tooltip": "Audio file format. wav is easiest for ComfyUI decoding. | 输出格式，wav 最容易被 ComfyUI 解码。",
+                }),
+                "sample_rate": (DOUBAO_SAMPLE_RATES, {
+                    "default": "24000",
+                    "tooltip": "Output sample rate. | 输出采样率。",
+                }),
+                "speech_rate": ("INT", {
+                    "default": 0, "min": -50, "max": 100, "step": 1,
+                    "tooltip": "Speech rate adjustment, -50 to 100. | 语速，-50 到 100。",
+                }),
+                "loudness_rate": ("INT", {
+                    "default": 0, "min": -50, "max": 100, "step": 1,
+                    "tooltip": "Loudness adjustment, -50 to 100. | 音量，-50 到 100。",
+                }),
+                "pitch_rate": ("INT", {
+                    "default": 0, "min": -12, "max": 12, "step": 1,
+                    "tooltip": "Pitch adjustment, -12 to 12. | 音高，-12 到 12。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        prompt=None,
+        output_format=None,
+        sample_rate=None,
+        speech_rate=None,
+        loudness_rate=None,
+        pitch_rate=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        if not DOUBAO_PROMPT_MIN_LENGTH <= len(prompt_text) <= DOUBAO_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt must contain {DOUBAO_PROMPT_MIN_LENGTH}-{DOUBAO_PROMPT_MAX_LENGTH} "
+                f"characters (got {len(prompt_text)}) | 提示词长度必须为 "
+                f"{DOUBAO_PROMPT_MIN_LENGTH}-{DOUBAO_PROMPT_MAX_LENGTH} 字符"
+            )
+        if output_format not in DOUBAO_AUDIO_FORMATS:
+            return f"unsupported output_format: {output_format}"
+        if str(sample_rate) not in DOUBAO_SAMPLE_RATES:
+            return f"unsupported sample_rate: {sample_rate}"
+        for name, value, low, high in (
+            ("speech_rate", speech_rate, -50, 100),
+            ("loudness_rate", loudness_rate, -50, 100),
+            ("pitch_rate", pitch_rate, -12, 12),
+        ):
+            if value is None:
+                continue
+            value_int = int(value)
+            if not low <= value_int <= high:
+                return f"{name} must be between {low} and {high}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Doubao_seed_audio"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_reference_audios(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        return [
+            (i, kwargs.get(f"reference_audio{i}"))
+            for i in range(1, MAX_DOUBAO_REFERENCE_AUDIOS + 1)
+            if kwargs.get(f"reference_audio{i}") is not None
+        ]
+
+    def _validate_reference_modes(self, speaker: str, reference_image: Any, reference_audios: List[Tuple[int, Any]]):
+        modes = [
+            bool(str(speaker or "").strip()),
+            reference_image is not None,
+            bool(reference_audios),
+        ]
+        if sum(1 for enabled in modes if enabled) > 1:
+            raise SeedanceAPIError(
+                "Doubao Seed Audio accepts only one of speaker, reference_image, or reference_audio. | "
+                "Doubao Seed Audio 的 speaker、参考图、参考音频三类只能选择一种。"
+            )
+
+    def _build_payload(
+        self,
+        prompt: str,
+        speaker: str,
+        output_format: str,
+        sample_rate: str,
+        speech_rate: int,
+        loudness_rate: int,
+        pitch_rate: int,
+        image_urls: List[str],
+        audio_urls: List[str],
+    ) -> Dict[str, Any]:
+        self._validate_reference_modes(speaker, image_urls[0] if image_urls else None, [(i, url) for i, url in enumerate(audio_urls, 1)])
+        metadata: Dict[str, Any] = {
+            "format": output_format,
+            "sample_rate": str(sample_rate),
+            "speech_rate": int(speech_rate),
+            "loudness_rate": int(loudness_rate),
+            "pitch_rate": int(pitch_rate),
+        }
+
+        speaker_text = str(speaker or "").strip()
+        if speaker_text:
+            metadata["speaker"] = speaker_text
+        if audio_urls:
+            metadata["audio_urls"] = audio_urls[:MAX_DOUBAO_REFERENCE_AUDIOS]
+
+        payload: Dict[str, Any] = {
+            "model": DOUBAO_SEED_AUDIO_MODEL,
+            "prompt": prompt,
+            "metadata": metadata,
+        }
+        if image_urls:
+            payload["images"] = image_urls[:1]
+        return payload
+
+    def _upload_references(self, kwargs, config, progress_cb):
+        reference_image = kwargs.get("reference_image")
+        reference_audios = self._connected_reference_audios(kwargs)
+        speaker = str(kwargs.get("speaker") or "").strip()
+        self._validate_reference_modes(speaker, reference_image, reference_audios)
+
+        image_urls: List[str] = []
+        audio_urls: List[str] = []
+        total = (1 if reference_image is not None else 0) + len(reference_audios)
+        if total == 0:
+            progress_cb(1.0)
+            return image_urls, audio_urls
+
+        done = 0
+        if reference_image is not None:
+            image_url = upload_media(
+                image_to_png_bytes(reference_image),
+                "doubao_seed_audio_reference.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            image_urls.append(image_url)
+            done += 1
+            progress_cb(done / total)
+
+        for i, audio in reference_audios:
+            audio_url = upload_media(
+                audio_to_wav_bytes(audio),
+                f"doubao_seed_audio_reference_{i}.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            audio_urls.append(audio_url)
+            done += 1
+            progress_cb(done / total)
+
+        return image_urls, audio_urls
+
+    def _make_error_result(self, error_msg: str, sample_rate: str = "24000") -> Dict:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        audio = make_silent_audio(int(sample_rate or 24000), 1.0)
+        return {
+            "ui": {"text": ["", "", response_str]},
+            "result": (audio, "", "", "", response_str),
+        }
+
+    def execute(
+        self,
+        prompt: str,
+        speaker: str,
+        output_format: str,
+        sample_rate: str,
+        speech_rate: int,
+        loudness_rate: int,
+        pitch_rate: int,
+        api_config=None,
+        skip_error: bool = False,
+        **kwargs,
+    ):
+        try:
+            return self._execute_inner(
+                prompt=prompt,
+                speaker=speaker,
+                output_format=output_format,
+                sample_rate=sample_rate,
+                speech_rate=speech_rate,
+                loudness_rate=loudness_rate,
+                pitch_rate=pitch_rate,
+                api_config=api_config,
+                **kwargs,
+            )
+        except Exception as e:
+            if skip_error:
+                err_msg = f"{self._log_prefix}: {e}"
+                print(f"[{self._log_prefix}] skip_error=True, returning silence: {e}")
+                return self._make_error_result(err_msg, sample_rate)
+            raise
+
+    def _execute_inner(
+        self,
+        prompt: str,
+        speaker: str,
+        output_format: str,
+        sample_rate: str,
+        speech_rate: int,
+        loudness_rate: int,
+        pitch_rate: int,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt_text,
+            output_format=output_format,
+            sample_rate=sample_rate,
+            speech_rate=speech_rate,
+            loudness_rate=loudness_rate,
+            pitch_rate=pitch_rate,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        image_urls, audio_urls = self._upload_references(
+            {**kwargs, "speaker": speaker},
+            config,
+            lambda frac: self._update_progress(pbar, frac * 15),
+        )
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(
+            prompt_text,
+            speaker,
+            output_format,
+            sample_rate,
+            speech_rate,
+            loudness_rate,
+            pitch_rate,
+            image_urls,
+            audio_urls,
+        )
+        task_id = submit_audio_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_audio_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        audio_url = extract_audio_url(final_response)
+        audio, audio_path = download_audio(
+            audio_url,
+            output_format=output_format,
+            sample_rate=int(sample_rate),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [audio_url, audio_path, response_str]},
+            "result": (audio, audio_url, audio_path, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -730,6 +1187,8 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_ImageToVideo": SeedanceImageToVideo,
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
+    "HappyHorse_1_1_Video": HappyHorseVideo,
+    "Doubao_Seed_Audio": DoubaoSeedAudio,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -738,4 +1197,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedream_V5_Pro_Image": "Seedream v5 Pro 图像生成/编辑",
+    "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
+    "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
 }

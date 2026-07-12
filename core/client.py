@@ -1,5 +1,5 @@
 """
-HTTP client for the Seedance video and Seedream image generation APIs.
+HTTP client for the Seedance video, Seedream image, and Seed Audio APIs.
 
 Endpoints:
   POST {base_url}/v1/videos              submit task
@@ -7,6 +7,9 @@ Endpoints:
   POST {base_url}/v1/image/generations   submit image task
   GET  {base_url}/v1/image/generations/{task_id}
                                              poll image task
+  POST {base_url}/v1/audio/generations   submit audio task
+  GET  {base_url}/v1/audio/generations/{task_id}
+                                             poll audio task
   POST {base_url}/v1/files/upload        upload reference media (multipart)
 
 Reliability rules:
@@ -25,6 +28,7 @@ import ssl
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import requests
 
@@ -654,6 +658,321 @@ def download_image(
             _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
 
     raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# Audio generation
+# ---------------------------------------------------------------------------
+
+_AUDIO_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "IN_PROGRESS"}
+
+
+def submit_audio_task(
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Doubao_Seed_Audio",
+) -> str:
+    """POST /v1/audio/generations and return the audio task id."""
+    url = f"{config['base_url']}/v1/audio/generations"
+    _log(logger_prefix, f"Submit -> POST /v1/audio/generations model={payload.get('model')}")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
+            time.sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"]),
+                json=payload,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as e:
+            last_error = RuntimeError(f"Submit network error: {_network_error_text(e)}")
+            _log(logger_prefix, f"Submit network error (attempt {attempt + 1}): {type(e).__name__}")
+            continue
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: {_extract_error_message(data, response.text[:200])}"
+            )
+            _log(logger_prefix, f"Submit HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
+            continue
+
+        if response.status_code != 200:
+            raise SeedanceAPIError(
+                f"Audio submit rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+
+        task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
+        if not task_id:
+            raise SeedanceAPIError(f"No audio task id in submit response: {_truncate(response.text, 300)}")
+
+        _log(logger_prefix, f"  Submit success: task_id={task_id}")
+        return str(task_id)
+
+    raise RuntimeError(f"Audio submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+
+
+def poll_audio_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Doubao_Seed_Audio",
+) -> Dict[str, Any]:
+    """Poll an audio task until ``data.status`` is SUCCESS or FAILURE."""
+    url = f"{config['base_url']}/v1/audio/generations/{task_id}"
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+
+    _log(logger_prefix, f"Poll audio -> task_id={task_id}, interval={poll_interval}s, max={max_poll_time}s")
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"Audio task exceeded {max_poll_time}s, polling stopped [task_id: {task_id}] | "
+                f"音频任务超过 {max_poll_time}s，已停止轮询"
+            )
+
+        time.sleep(poll_interval)
+
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as e:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Audio poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): {type(e).__name__}")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Audio polling failed after repeated network errors [task_id: {task_id}]")
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Audio poll HTTP {response.status_code} ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"Audio polling failed: HTTP {response.status_code} repeatedly [task_id: {task_id}]"
+                )
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            _log(logger_prefix, f"Audio poll JSON parse error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})")
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Audio polling failed: invalid JSON repeatedly [task_id: {task_id}]")
+            continue
+
+        task_data = response_data.get("data") if isinstance(response_data, dict) else None
+        if not isinstance(task_data, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(f"Audio polling response has no data object [task_id: {task_id}]")
+            continue
+
+        consecutive_failures = 0
+        status = str(task_data.get("status") or "").strip().upper()
+        progress = _coerce_progress(task_data.get("progress"))
+
+        if status != last_status:
+            _log(logger_prefix, f"  Audio poll: status={status}, progress={progress}, elapsed={int(elapsed)}s")
+            last_status = status
+
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status == "SUCCESS":
+            _log(logger_prefix, f"  Audio task completed in {int(elapsed)}s")
+            return response_data
+
+        if status == "FAILURE":
+            reason = task_data.get("fail_reason") or _extract_error_message(task_data, "audio generation failed")
+            raise SeedanceAPIError(f"Audio task failed: {reason} [task_id: {task_id}]")
+
+        if status and status not in _AUDIO_RUNNING_STATUSES:
+            _log(logger_prefix, f"  Unknown audio status '{status}', continue polling...")
+
+
+def extract_audio_url(final_response: Dict[str, Any]) -> str:
+    """Extract the documented audio URL from a successful task response."""
+    task_data = final_response.get("data")
+    if isinstance(task_data, dict):
+        result_url = task_data.get("result_url")
+        if result_url:
+            return str(result_url)
+
+        upstream_data = task_data.get("data")
+        if isinstance(upstream_data, dict):
+            content = upstream_data.get("content")
+            if isinstance(content, dict):
+                for key in ("audio_url", "url"):
+                    if content.get(key):
+                        return str(content[key])
+
+    raise SeedanceAPIError(
+        f"Audio task completed but no audio URL in response: "
+        f"{_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
+    )
+
+
+def _guess_audio_extension(url: str, content_type: str, fallback_format: str) -> str:
+    fallback = str(fallback_format or "").strip().lower()
+    if fallback == "ogg_opus":
+        return "ogg"
+    if fallback in {"wav", "mp3", "pcm", "ogg"}:
+        return fallback
+
+    content_type = str(content_type or "").lower()
+    if "mpeg" in content_type or "mp3" in content_type:
+        return "mp3"
+    if "wav" in content_type or "wave" in content_type:
+        return "wav"
+    if "ogg" in content_type or "opus" in content_type:
+        return "ogg"
+    if "pcm" in content_type:
+        return "pcm"
+
+    ext = os.path.splitext(urlparse(url).path)[1].lstrip(".").lower()
+    if ext in {"wav", "mp3", "pcm", "ogg"}:
+        return ext
+    return "wav"
+
+
+def _load_wav_audio(audio_path: str) -> Dict[str, Any]:
+    import wave
+
+    import numpy as np
+    import torch
+
+    with wave.open(audio_path, "rb") as wav:
+        channels = wav.getnchannels()
+        sample_rate = wav.getframerate()
+        sample_width = wav.getsampwidth()
+        raw = wav.readframes(wav.getnframes())
+
+    if sample_width == 1:
+        data = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+        data = (data - 128.0) / 128.0
+    elif sample_width == 2:
+        data = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    elif sample_width == 4:
+        data = np.frombuffer(raw, dtype="<i4").astype(np.float32) / 2147483648.0
+    else:
+        raise RuntimeError(f"Unsupported WAV sample width: {sample_width} bytes")
+
+    data = data.reshape(-1, channels).T
+    waveform = torch.from_numpy(data.copy()).unsqueeze(0)
+    return {"waveform": waveform, "sample_rate": int(sample_rate)}
+
+
+def _load_pcm_audio(audio_path: str, sample_rate: int) -> Dict[str, Any]:
+    import numpy as np
+    import torch
+
+    with open(audio_path, "rb") as f:
+        raw = f.read()
+    data = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    waveform = torch.from_numpy(data.copy()).unsqueeze(0).unsqueeze(0)
+    return {"waveform": waveform, "sample_rate": int(sample_rate)}
+
+
+def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) -> Dict[str, Any]:
+    last_error: Optional[Exception] = None
+    try:
+        import torchaudio
+
+        waveform, loaded_rate = torchaudio.load(audio_path)
+        if waveform.dim() == 1:
+            waveform = waveform.unsqueeze(0)
+        return {"waveform": waveform.unsqueeze(0), "sample_rate": int(loaded_rate)}
+    except Exception as e:
+        last_error = e
+        _log(logger_prefix, f"torchaudio decode unavailable/failed: {type(e).__name__}: {_truncate(str(e), 200)}")
+
+    ext = os.path.splitext(audio_path)[1].lstrip(".").lower()
+    try:
+        if ext == "wav":
+            return _load_wav_audio(audio_path)
+        if ext == "pcm":
+            return _load_pcm_audio(audio_path, sample_rate)
+    except Exception as e:
+        last_error = e
+
+    raise RuntimeError(
+        f"Audio downloaded to {audio_path}, but it could not be decoded into a ComfyUI AUDIO object. "
+        f"Install torchaudio in ComfyUI's Python, or choose output_format=wav. "
+        f"Last decoder error: {last_error}"
+    )
+
+
+def download_audio(
+    url: str,
+    output_format: str = "wav",
+    sample_rate: int = 24000,
+    timeout: int = 300,
+    max_retries: int = 3,
+    logger_prefix: str = "Doubao_Seed_Audio",
+) -> Tuple[Any, str]:
+    """Download result audio into ComfyUI's output dir and return (AUDIO, path)."""
+    try:
+        import folder_paths
+        output_dir = folder_paths.get_output_directory()
+    except ImportError:
+        output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    _log(logger_prefix, f"Download audio -> {_truncate(url, 200)}")
+    last_error: Optional[Exception] = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = _session().get(url, stream=True, timeout=timeout)
+            response.raise_for_status()
+            content_type = (getattr(response, "headers", {}) or {}).get("Content-Type", "")
+            ext = _guess_audio_extension(url, content_type, output_format)
+            audio_path = os.path.join(output_dir, f"seed_audio_{uuid.uuid4().hex[:12]}.{ext}")
+
+            with open(audio_path, "wb") as f:
+                if hasattr(response, "iter_content"):
+                    for chunk in response.iter_content(chunk_size=1 << 16):
+                        if chunk:
+                            f.write(chunk)
+                else:
+                    f.write(response.content)
+
+            size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+            _log(logger_prefix, f"  Downloaded {size_mb:.2f} MB -> {audio_path}")
+            audio = _decode_audio_file(audio_path, int(sample_rate), logger_prefix)
+            return audio, audio_path
+        except Exception as e:
+            last_error = e
+            _log(logger_prefix, f"Audio download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+
+    raise RuntimeError(f"Failed to download audio after {max_retries} attempts: {last_error}")
 
 
 # ---------------------------------------------------------------------------
