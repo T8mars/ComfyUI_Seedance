@@ -29,6 +29,7 @@ Seedance 2.0 / HappyHorse 视频生成、Seedream 图片生成与 Doubao Seed Au
 - 支持 Seedream v5 Pro 文生图和图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 图像编辑支持 1 到 10 张参考图
+- 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 新增 3 个 HappyHorse 1.1 视频模型和 1 个 Doubao Seed Audio 模型
 - 支持国内线路和 `global` 海外线路
