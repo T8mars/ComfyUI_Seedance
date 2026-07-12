@@ -22,6 +22,15 @@ Seedance 2.0 / HappyHorse 视频生成、Seedream 图片生成与 Doubao Seed Au
 
 本插件提供文生视频、图生视频、多模态视频、HappyHorse 1.1 视频、Seedream v5 Pro 文生图/图像编辑，以及 Doubao Seed Audio 1.0 音频生成节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.2.0（2026-07-13）
+
+- 新增 HappyHorse 1.1 文生视频、图生视频和参考图生视频。
+- 新增 Doubao Seed Audio 1.0 异步音频生成，支持音色 ID、参考图或最多 3 段参考音频。
+- 新增 Seedream v5 Pro 文生图/图像编辑和最多 10 张参考图。
+- 除 API 配置节点外，插件节点底部统一提供“获取平价版APIKEY”按钮，且不写入 workflow JSON。
+- 保持既有节点注册键和输入输出顺序不变，旧工作流可继续加载。
+- 已真实验证 Seed Audio 的模型发现、提交、轮询、WAV 下载和 ComfyUI `AUDIO` 解码链路。
+
 ## 功能特点
 
 - 支持文生视频、图生视频、多模态视频
@@ -310,6 +319,7 @@ Doubao Seed Audio 参数：
 - 图片任务使用独立状态规则轮询：`SUCCESS` 成功、`FAILURE` 失败，并自动下载临时结果直链。
 - 下载图片失败时会自动重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - 音频任务使用 `/v1/audio/generations` 独立状态规则轮询，成功后自动下载并返回 ComfyUI `AUDIO`。
+- Seed Audio 已实测可在没有 `torchaudio` 时通过 SciPy 回退解码 24 kHz 双声道 WAV。
 - 如果 `mp3` / `ogg_opus` 无法在本机解码，请安装 `torchaudio`，或把 `output_format` 切回默认 `wav`。
 - 视频节点 `skip_error=True` 时会生成一个错误占位视频；音频节点会返回 1 秒静音，方便批量流程继续往下跑。
 
@@ -348,6 +358,10 @@ python -m pip install -U requests certifi
 ### 多模态上传很慢
 
 API 可能对单个令牌的上传频率限流。插件会自动等待和重试，大素材或多素材工作流开始生成前会更慢一些。
+
+### Seed Audio WAV 显示的时长异常
+
+上游可能返回使用 `0xFFFFFFFF` 流式长度标记的 WAV。部分严格按 RIFF 头读取的软件会显示错误时长或给出长度警告，但插件会按实际数据解码并返回正确的 ComfyUI `AUDIO`。如需在外部软件使用，可先通过 ComfyUI 音频保存节点重新保存。
 
 ## 注意事项
 
