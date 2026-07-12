@@ -328,9 +328,9 @@ ComfyUI/custom_nodes/ComfyUI_Seedance
 
 ### SSL 证书错误
 
-插件不依赖 `truststore`。默认使用 `requests` 的证书校验链路。
+插件不依赖 `truststore`。默认使用 `requests` 的证书校验链路；Windows 上会额外读取系统 ROOT/CA 证书库，以适配 ComfyUI 便携 Python 的证书环境。
 
-如果遇到证书错误，先尝试在 ComfyUI 使用的 Python 环境中更新基础网络依赖：
+如果仍遇到证书错误，先尝试在 ComfyUI 使用的 Python 环境中更新基础网络依赖：
 
 ```bash
 python -m pip install -U requests certifi

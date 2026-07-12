@@ -24,6 +24,7 @@ Reliability rules:
 
 import json
 import os
+import ssl
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -39,12 +40,66 @@ class SeedanceAPIError(RuntimeError):
 # ---------------------------------------------------------------------------
 # HTTP session
 #
-# Keep runtime dependencies minimal: requests uses its bundled/default CA
-# handling, SEEDANCE_CA_BUNDLE can point to a custom CA file, and
-# SEEDANCE_SSL_VERIFY=0 disables verification as a last-resort escape hatch.
+# Keep runtime dependencies minimal. Requests uses its bundled/default CA
+# handling on most systems; on Windows we additionally load the OS certificate
+# store into a standard-library SSLContext, avoiding the truststore dependency.
+# SEEDANCE_CA_BUNDLE can point to a custom CA file, and SEEDANCE_SSL_VERIFY=0
+# disables verification as a last-resort escape hatch.
 # ---------------------------------------------------------------------------
 
+class _SSLContextAdapter(requests.adapters.HTTPAdapter):
+    def __init__(self, ssl_context: ssl.SSLContext):
+        self._ssl_context = ssl_context
+        super().__init__()
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = self._ssl_context
+        return super().init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, *args, **kwargs):
+        kwargs["ssl_context"] = self._ssl_context
+        return super().proxy_manager_for(*args, **kwargs)
+
+    def cert_verify(self, conn, url, verify, cert):
+        if verify is True:
+            conn.cert_reqs = "CERT_REQUIRED"
+            if cert:
+                if isinstance(cert, tuple):
+                    conn.cert_file, conn.key_file = cert
+                else:
+                    conn.cert_file = cert
+            return
+        return super().cert_verify(conn, url, verify, cert)
+
+
 _session_singleton: Optional[requests.Session] = None
+
+
+def _windows_cert_store_context() -> Tuple[Optional[ssl.SSLContext], int]:
+    """Build an SSLContext with Windows ROOT/CA stores, no third-party deps."""
+    if os.name != "nt" or not hasattr(ssl, "enum_certificates"):
+        return None, 0
+
+    context = ssl.create_default_context()
+    pem_certs: List[str] = []
+
+    for store_name in ("ROOT", "CA"):
+        try:
+            certificates = ssl.enum_certificates(store_name)
+        except Exception:
+            continue
+        for cert_bytes, encoding, _trust in certificates:
+            if encoding == "x509_asn":
+                try:
+                    pem_certs.append(ssl.DER_cert_to_PEM_cert(cert_bytes))
+                except Exception:
+                    pass
+
+    if not pem_certs:
+        return None, 0
+
+    context.load_verify_locations(cadata="\n".join(pem_certs))
+    return context, len(pem_certs)
 
 
 def _session() -> requests.Session:
@@ -66,6 +121,11 @@ def _session() -> requests.Session:
     elif ca_bundle:
         session.verify = ca_bundle
         print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
+    else:
+        ssl_context, cert_count = _windows_cert_store_context()
+        if ssl_context is not None:
+            session.mount("https://", _SSLContextAdapter(ssl_context))
+            print(f"[Seedance] Using Windows certificate store ({cert_count} certificates)")
 
     _session_singleton = session
     return session
