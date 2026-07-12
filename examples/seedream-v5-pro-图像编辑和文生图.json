@@ -1,0 +1,377 @@
+{
+  "id": "54aaefcd-c68b-4fff-a2e3-6ff1c041851e",
+  "revision": 0,
+  "last_node_id": 41,
+  "last_link_id": 64,
+  "nodes": [
+    {
+      "id": 26,
+      "type": "easy showAnything",
+      "pos": [
+        1862.6427691058964,
+        551.4764465861616
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 27,
+      "type": "easy showAnything",
+      "pos": [
+        1856.155752819776,
+        716.3230804179848
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 64
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 25,
+      "type": "easy showAnything",
+      "pos": [
+        1795.8780257778324,
+        59.27068313013571
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 24,
+      "type": "SaveImage",
+      "pos": [
+        2163.842479727456,
+        386.95389424333985
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 29,
+      "type": "Seedream_V5_Pro_Image",
+      "pos": [
+        1191.0800389144792,
+        445.6942245919778
+      ],
+      "size": [
+        400,
+        384
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image9",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image10",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "image_url",
+          "type": "STRING",
+          "links": [
+            62
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": [
+            63
+          ]
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": [
+            64
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "84441478a7f5377513e2b170dde88e1674d541bd",
+        "Node name for S&R": "Seedream_V5_Pro_Image"
+      },
+      "widgets_values": [
+        "女人的衣服换成红色",
+        "custom",
+        1024,
+        1024,
+        "png"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "Seedance_Config",
+      "pos": [
+        827.1582314424613,
+        472.70653735999235
+      ],
+      "size": [
+        306.9573415058529,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "84441478a7f5377513e2b170dde88e1674d541bd",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      23,
+      30,
+      0,
+      29,
+      10,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      24,
+      29,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      62,
+      29,
+      1,
+      25,
+      0,
+      "STRING"
+    ],
+    [
+      63,
+      29,
+      2,
+      26,
+      0,
+      "STRING"
+    ],
+    [
+      64,
+      29,
+      3,
+      27,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.5661667176818734,
+      "offset": [
+        -636.6012212457277,
+        -110.56365924960427
+      ]
+    },
+    "frontendVersion": "1.45.20",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
