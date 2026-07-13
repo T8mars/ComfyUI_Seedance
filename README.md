@@ -22,6 +22,12 @@ Seedance 2.0 / HappyHorse 视频生成、Seedream 图片生成与 Doubao Seed Au
 
 本插件提供文生视频、图生视频、多模态视频、HappyHorse 1.1 视频、Seedream v5 Pro 文生图/图像编辑，以及 Doubao Seed Audio 1.0 音频生成节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.2.1（2026-07-14）
+
+- 新增 HappyHorse 1.1 文生视频、图生视频和参考图生视频示例工作流。
+- 新增 Doubao Seed Audio 参考图识别人物和语音克隆示例工作流。
+- 发布示例已移除任务 ID、结果地址和签名上传地址等运行缓存，不会改变节点或连线结构。
+
 ## v0.2.0（2026-07-13）
 
 - 新增 HappyHorse 1.1 文生视频、图生视频和参考图生视频。
@@ -186,6 +192,12 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 - `examples/seedance_text_to_video.json`
 - `examples/seedance_image_to_video.json`
 - `examples/seedance_multimodal_video.json`
+- `examples/seedream-v5-pro-图像编辑和文生图.json`
+- `examples/快乐马happy-horse-1.1文生视频.json`
+- `examples/快乐马happy-horse-1.1图生视频.json`
+- `examples/快乐马happy-horse-1.1参考生视频.json`
+- `examples/seed-audio-1.0音频生成（识别图片人物）.json`
+- `examples/seed-audio-1.0音频生成（语音克隆）.json`
 
 可以直接把 JSON 文件拖进 ComfyUI 加载。
 

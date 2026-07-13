@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -58,9 +59,33 @@ class FrontendExtensionTests(unittest.TestCase):
             workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
-                if node_type.startswith(("Seedance_", "Seedream_")):
+                if node_type.startswith(
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Doubao_")
+                ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)
+
+    def test_example_workflows_do_not_store_runtime_secrets_or_results(self):
+        forbidden_patterns = {
+            "api_key": re.compile(r"sk-[A-Za-z0-9_-]{16,}", re.IGNORECASE),
+            "task_id": re.compile(r"task_[A-Za-z0-9]{16,}", re.IGNORECASE),
+            "signed_url": re.compile(
+                r"(?:q-signature|x-amz-signature|x-tos-signature)=",
+                re.IGNORECASE,
+            ),
+        }
+        for workflow_path in sorted((PLUGIN_ROOT / "examples").glob("*.json")):
+            source = workflow_path.read_text(encoding="utf-8")
+            workflow = json.loads(source)
+            for name, pattern in forbidden_patterns.items():
+                with self.subTest(workflow=workflow_path.name, pattern=name):
+                    self.assertIsNone(pattern.search(source))
+            for node in workflow.get("nodes", []):
+                if node.get("type") != "easy showAnything":
+                    continue
+                for value in node.get("widgets_values", []):
+                    with self.subTest(workflow=workflow_path.name, node=node.get("id")):
+                        self.assertFalse(value)
 
 
 if __name__ == "__main__":
