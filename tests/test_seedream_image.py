@@ -249,6 +249,51 @@ class ImageNodeTests(unittest.TestCase):
             {"width": 1280, "height": 720, "output_format": "jpeg"},
         )
 
+    def test_dola_payload_uses_overseas_text_to_image_model(self):
+        node = nodes.SeedreamV5ProImage()
+        payload = node._build_payload(
+            "valid overseas prompt",
+            "1k",
+            1024,
+            1024,
+            "jpeg",
+            [],
+            nodes.SEEDREAM_FAMILY_DOLA,
+        )
+
+        self.assertEqual(payload["model"], "dola-seedream-5.0-pro-t2i")
+        self.assertNotIn("images", payload)
+        self.assertEqual(payload["metadata"], {"resolution": "1k", "output_format": "jpeg"})
+
+    def test_dola_payload_uses_overseas_image_to_image_model(self):
+        node = nodes.SeedreamV5ProImage()
+        payload = node._build_payload(
+            "edit this image overseas",
+            "1k",
+            1024,
+            1024,
+            "png",
+            ["https://cdn.test/reference.png"],
+            nodes.SEEDREAM_FAMILY_DOLA,
+        )
+
+        self.assertEqual(payload["model"], "dola-seedream-5.0-pro-i2i")
+        self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(payload["metadata"], {"resolution": "1k", "output_format": "png"})
+
+    def test_rejects_unknown_seedream_model_family(self):
+        self.assertIsNot(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="valid",
+                resolution="1k",
+                width=1024,
+                height=1024,
+                output_format="png",
+                model_family="unknown-family",
+            ),
+            True,
+        )
+
     def test_execute_uploads_reference_and_returns_image_outputs(self):
         node = nodes.SeedreamV5ProImage()
         result_tensor = torch.zeros((1, 4, 4, 3), dtype=torch.float32)
@@ -309,6 +354,107 @@ class ImageNodeTests(unittest.TestCase):
 
 
 class NewModelNodeTests(unittest.TestCase):
+    def test_wan27_spicy_i2v_payload_minimal(self):
+        node = nodes.Wan27SpicyImageToVideo()
+        payload = node.build_payload(
+            {
+                "prompt": "gentle camera movement",
+                "seconds": "2",
+                "resolution": "720p",
+                "negative_prompt": "",
+                "audio_url": "",
+                "prompt_extend": False,
+                "seed": -1,
+            },
+            {"images": ["https://cdn.test/start.png", "https://cdn.test/ignored.png"]},
+        )
+
+        self.assertEqual(payload["model"], "wan-2.7-spicy-i2v")
+        self.assertEqual(payload["seconds"], "2")
+        self.assertEqual(payload["images"], ["https://cdn.test/start.png"])
+        self.assertEqual(payload["prompt"], "gentle camera movement")
+        self.assertEqual(payload["metadata"], {"resolution": "720p"})
+
+    def test_wan27_spicy_i2v_payload_forwards_optional_metadata(self):
+        node = nodes.Wan27SpicyImageToVideo()
+        payload = node.build_payload(
+            {
+                "prompt": "",
+                "seconds": "15",
+                "resolution": "1080p",
+                "negative_prompt": "blur, low quality",
+                "audio_url": "https://cdn.test/driving.wav",
+                "prompt_extend": True,
+                "seed": 42,
+            },
+            {"images": ["https://cdn.test/start.png"]},
+        )
+
+        self.assertEqual(payload["model"], "wan-2.7-spicy-i2v")
+        self.assertNotIn("prompt", payload)
+        self.assertEqual(
+            payload["metadata"],
+            {
+                "resolution": "1080p",
+                "negative_prompt": "blur, low quality",
+                "audio_url": "https://cdn.test/driving.wav",
+                "prompt_extend": True,
+                "seed": 42,
+            },
+        )
+
+    def test_wan27_spicy_i2v_validation_matches_documented_limits(self):
+        self.assertIs(
+            nodes.Wan27SpicyImageToVideo.VALIDATE_INPUTS(
+                prompt="",
+                seconds="2",
+                resolution="720p",
+                audio_url="",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Wan27SpicyImageToVideo.VALIDATE_INPUTS(
+                prompt="",
+                seconds="-1",
+                resolution="720p",
+                audio_url="",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Wan27SpicyImageToVideo.VALIDATE_INPUTS(
+                prompt="",
+                seconds="2",
+                resolution="480p",
+                audio_url="",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Wan27SpicyImageToVideo.VALIDATE_INPUTS(
+                prompt="",
+                seconds="2",
+                resolution="720p",
+                audio_url="not-a-url",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Wan27SpicyImageToVideo.VALIDATE_INPUTS(
+                prompt="",
+                seconds="2",
+                resolution="720p",
+                audio_url="",
+                seed=2147483648,
+            ),
+            True,
+        )
+
     def test_happyhorse_text_to_video_payload(self):
         node = nodes.HappyHorseVideo()
         payload = node.build_payload(

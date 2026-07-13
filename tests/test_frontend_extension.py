@@ -49,6 +49,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_MultimodalVideo",
             "Seedream_V5_Pro_Image",
             "HappyHorse_1_1_Video",
+            "Wan_2_7_Spicy_I2V",
             "Doubao_Seed_Audio",
         }
         self.assertTrue(expected.issubset(node_names))

@@ -1,10 +1,11 @@
 """
-ComfyUI nodes for the Seedance video generation API (api.seedance.nz).
+ComfyUI nodes for Seedance, HappyHorse, Wan, Seedream, Dola Seedream,
+and Doubao Seed Audio APIs (api.seedance.nz).
 
-Node layout: 18 API models = 2 regions (cn / global-) x 3 tiers
-(standard / fast / mini) x 3 task types (t2v / i2v / multi). The task type
-decides the node's input signature, so we expose exactly 3 generation nodes
-(one per task type) with a 6-entry model dropdown, plus one config node.
+Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
+HappyHorse and Wan use dedicated video nodes, Seedream and Dola Seedream share
+one image node with a model-family selector, and Doubao Seed Audio uses its
+own audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
 download result, with a ComfyUI progress bar driven by the API's progress
@@ -76,6 +77,15 @@ MAX_MULTI_AUDIOS = 3
 
 SEEDREAM_T2I_MODEL = "seedream-v5-pro-t2i"
 SEEDREAM_I2I_MODEL = "seedream-v5-pro-i2i"
+DOLA_SEEDREAM_T2I_MODEL = "dola-seedream-5.0-pro-t2i"
+DOLA_SEEDREAM_I2I_MODEL = "dola-seedream-5.0-pro-i2i"
+SEEDREAM_FAMILY_DOMESTIC = "seedream-v5-pro (domestic)"
+SEEDREAM_FAMILY_DOLA = "dola-seedream-5.0-pro (overseas)"
+SEEDREAM_MODEL_FAMILIES = [SEEDREAM_FAMILY_DOMESTIC, SEEDREAM_FAMILY_DOLA]
+SEEDREAM_MODEL_PAIRS = {
+    SEEDREAM_FAMILY_DOMESTIC: (SEEDREAM_T2I_MODEL, SEEDREAM_I2I_MODEL),
+    SEEDREAM_FAMILY_DOLA: (DOLA_SEEDREAM_T2I_MODEL, DOLA_SEEDREAM_I2I_MODEL),
+}
 SEEDREAM_RESOLUTIONS = ["1k", "2k", "custom"]
 SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
 SEEDREAM_PROMPT_MIN_LENGTH = 5
@@ -89,6 +99,10 @@ HAPPYHORSE_MODELS = [HAPPYHORSE_T2V_MODEL, HAPPYHORSE_I2V_MODEL, HAPPYHORSE_R2V_
 HAPPYHORSE_RESOLUTIONS = ["720p", "1080p"]
 HAPPYHORSE_SECONDS = [str(s) for s in range(3, 16)]
 MAX_HAPPYHORSE_R2V_IMAGES = 9
+
+WAN27_SPICY_I2V_MODEL = "wan-2.7-spicy-i2v"
+WAN27_SPICY_RESOLUTIONS = ["720p", "1080p"]
+WAN27_SPICY_SECONDS = [str(s) for s in range(2, 16)]
 
 DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
 DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
@@ -148,9 +162,9 @@ def _common_widgets() -> Dict[str, tuple]:
         "resolution": (RESOLUTIONS, {
             "default": "720p",
             "tooltip": (
-                "1080p/2k/4k are upscaled from 720p with a per-second surcharge; "
-                "native1080p/native4k are Standard-tier only. | 1080p/2k/4k 为超分档"
-                "（按秒加收附加费），native 档仅 Standard 模型支持。"
+                "1080p/2k/4k are upscaled output tiers; native1080p/native4k "
+                "are Standard-tier only. | 1080p/2k/4k 为超分输出档，native 档"
+                "仅 Standard 模型支持。"
             ),
         }),
         "ratio": (RATIOS, {
@@ -598,6 +612,147 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Wan 2.7 Spicy image-to-video
+# ---------------------------------------------------------------------------
+
+class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
+    """Wan 2.7 Spicy i2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {
+            "api_config": ("SEEDANCE_CONFIG", {
+                "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+            }),
+            "skip_error": ("BOOLEAN", {
+                "default": False,
+                "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+            }),
+        }
+
+        return {
+            "required": {
+                "first_image": ("IMAGE", {
+                    "tooltip": "Required first frame image; sent as images[0]. | 必填首帧图，作为 images[0] 提交。",
+                }),
+                "prompt": _prompt_input(required=False),
+                "seconds": (WAN27_SPICY_SECONDS, {
+                    "default": "2",
+                    "tooltip": "Wan 2.7 Spicy supports 2-15 seconds. | Wan 2.7 Spicy 支持 2-15 秒。",
+                }),
+                "resolution": (WAN27_SPICY_RESOLUTIONS, {
+                    "default": "720p",
+                    "tooltip": "Wan 2.7 Spicy supports 720p or 1080p. | Wan 2.7 Spicy 支持 720p 或 1080p。",
+                }),
+                "negative_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Optional negative prompt forwarded to metadata. | 可选反向提示词，透传到 metadata。",
+                }),
+                "audio_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "Optional public audio URL forwarded to metadata.audio_url. | 可选公网音频 URL，透传到 metadata.audio_url。",
+                }),
+                "prompt_extend": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Optional prompt expansion flag forwarded to metadata.prompt_extend. | 可选提示词扩展开关，透传到 metadata.prompt_extend。",
+                }),
+                "seed": ("INT", {
+                    "default": -1,
+                    "min": -1,
+                    "max": 2147483647,
+                    "step": 1,
+                    "tooltip": "-1 = random seed; non-negative values are forwarded to metadata.seed. | -1 表示随机种子，非负整数透传到 metadata.seed。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        negative_prompt=None,
+        audio_url=None,
+        seed=None,
+        **kwargs,
+    ):
+        if seconds is not None and str(seconds) not in WAN27_SPICY_SECONDS:
+            return "Wan 2.7 Spicy seconds must be 2-15 | Wan 2.7 Spicy 时长必须是 2-15 秒"
+        if resolution is not None and resolution not in WAN27_SPICY_RESOLUTIONS:
+            return "Wan 2.7 Spicy resolution must be 720p or 1080p | Wan 2.7 Spicy 分辨率只能是 720p 或 1080p"
+        if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
+        if negative_prompt is not None and len(str(negative_prompt)) > PROMPT_MAX_LENGTH:
+            return f"negative_prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(negative_prompt))})"
+        audio_url_text = str(audio_url or "").strip()
+        if audio_url_text and not audio_url_text.startswith(("http://", "https://")):
+            return "audio_url must be an http(s) URL | audio_url 必须是 http(s) URL"
+        if seed is not None:
+            try:
+                seed_value = int(seed)
+            except (TypeError, ValueError):
+                return "seed must be an integer | seed 必须是整数"
+            if not -1 <= seed_value <= 2147483647:
+                return "seed must be -1 to 2147483647 | seed 必须在 -1 到 2147483647 之间"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Wan_2_7_spicy_i2v"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        first_image = kwargs.get("first_image")
+        if first_image is None:
+            raise SeedanceAPIError("first_image is required for wan-2.7-spicy-i2v | Wan 2.7 Spicy 必须连接首帧图")
+
+        url = upload_media(
+            image_to_png_bytes(first_image),
+            "wan27_spicy_first_frame.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"images": [url]}
+
+    def build_payload(self, kwargs, media):
+        images = media.get("images") or []
+        if not images:
+            raise SeedanceAPIError("first_image is required for wan-2.7-spicy-i2v | Wan 2.7 Spicy 必须连接首帧图")
+
+        metadata: Dict[str, Any] = {"resolution": kwargs["resolution"]}
+        negative_prompt = str(kwargs.get("negative_prompt") or "").strip()
+        if negative_prompt:
+            metadata["negative_prompt"] = negative_prompt
+
+        audio_url = str(kwargs.get("audio_url") or "").strip()
+        if audio_url:
+            metadata["audio_url"] = audio_url
+
+        if bool(kwargs.get("prompt_extend", False)):
+            metadata["prompt_extend"] = True
+
+        seed = kwargs.get("seed", -1)
+        if seed is not None and int(seed) >= 0:
+            metadata["seed"] = int(seed)
+
+        payload: Dict[str, Any] = {
+            "model": WAN27_SPICY_I2V_MODEL,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+            "images": images[:1],
+        }
+
+        prompt = str(kwargs.get("prompt") or "").strip()
+        if prompt:
+            payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
 # Multimodal Video
 # ---------------------------------------------------------------------------
 
@@ -619,9 +774,8 @@ class SeedanceMultimodalVideo(SeedanceVideoNodeBase):
         for i in range(1, MAX_MULTI_VIDEOS + 1):
             optional[f"video{i}"] = ("VIDEO", {
                 "tooltip": (
-                    f"Reference video (MP4 <=50MB), addressed as @Video {i}. Adding a video "
-                    f"switches billing to the cheaper with-video-reference rate. | "
-                    f"参考视频，提示词中用 @Video {i} 指代；带参考视频按低单价档计费。"
+                    f"Reference video (MP4 <=50MB), addressed as @Video {i}. | "
+                    f"参考视频，提示词中用 @Video {i} 指代。"
                 ),
             })
         for i in range(1, MAX_MULTI_AUDIOS + 1):
@@ -774,6 +928,14 @@ class SeedreamV5ProImage:
                     "default": "png",
                     "tooltip": "Result file format. | 输出图片格式。",
                 }),
+                "model_family": (SEEDREAM_MODEL_FAMILIES, {
+                    "default": SEEDREAM_FAMILY_DOMESTIC,
+                    "tooltip": (
+                        "Domestic uses seedream-v5-pro-t2i/i2i; overseas uses "
+                        "dola-seedream-5.0-pro-t2i/i2i. | 国内使用 seedream-v5-pro；"
+                        "海外使用 dola-seedream-5.0-pro。"
+                    ),
+                }),
             },
             "optional": optional,
         }
@@ -786,6 +948,7 @@ class SeedreamV5ProImage:
         width=None,
         height=None,
         output_format=None,
+        model_family=None,
         **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
@@ -799,6 +962,8 @@ class SeedreamV5ProImage:
             return f"unsupported resolution: {resolution}"
         if output_format not in SEEDREAM_OUTPUT_FORMATS:
             return f"unsupported output_format: {output_format}"
+        if model_family is not None and model_family not in SEEDREAM_MODEL_FAMILIES:
+            return f"unsupported model_family: {model_family}"
         if resolution == "custom":
             if width is None or not 240 <= int(width) <= 8192:
                 return "custom width must be between 240 and 8192"
@@ -817,7 +982,20 @@ class SeedreamV5ProImage:
             except Exception:
                 pass
 
-    def _build_payload(self, prompt: str, resolution: str, width: int, height: int, output_format: str, images: List[str]):
+    def _build_payload(
+        self,
+        prompt: str,
+        resolution: str,
+        width: int,
+        height: int,
+        output_format: str,
+        images: List[str],
+        model_family: str = SEEDREAM_FAMILY_DOMESTIC,
+    ):
+        model_pair = SEEDREAM_MODEL_PAIRS.get(model_family or SEEDREAM_FAMILY_DOMESTIC)
+        if not model_pair:
+            raise SeedanceAPIError(f"unsupported model_family: {model_family}")
+
         metadata: Dict[str, Any] = {"output_format": output_format}
         if resolution == "custom":
             metadata.update({"width": int(width), "height": int(height)})
@@ -825,7 +1003,7 @@ class SeedreamV5ProImage:
             metadata["resolution"] = resolution
 
         payload: Dict[str, Any] = {
-            "model": SEEDREAM_I2I_MODEL if images else SEEDREAM_T2I_MODEL,
+            "model": model_pair[1] if images else model_pair[0],
             "prompt": prompt,
             "metadata": metadata,
         }
@@ -840,6 +1018,7 @@ class SeedreamV5ProImage:
         width: int,
         height: int,
         output_format: str,
+        model_family: str = SEEDREAM_FAMILY_DOMESTIC,
         api_config=None,
         **kwargs,
     ):
@@ -850,6 +1029,7 @@ class SeedreamV5ProImage:
             width=width,
             height=height,
             output_format=output_format,
+            model_family=model_family,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -877,7 +1057,7 @@ class SeedreamV5ProImage:
         self._update_progress(pbar, 15)
 
         payload = self._build_payload(
-            prompt_text, resolution, width, height, output_format, image_urls
+            prompt_text, resolution, width, height, output_format, image_urls, model_family
         )
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
@@ -1238,6 +1418,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "HappyHorse_1_1_Video": HappyHorseVideo,
+    "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
 }
 
@@ -1246,7 +1427,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
-    "Seedream_V5_Pro_Image": "Seedream v5 Pro 图像生成/编辑",
+    "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
+    "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
 }

@@ -1,0 +1,375 @@
+{
+  "id": "fdcfc2b2-168f-4f3d-a1d0-6986b802fce5",
+  "revision": 0,
+  "last_node_id": 190,
+  "last_link_id": 265,
+  "nodes": [
+    {
+      "id": 187,
+      "type": "easy showAnything",
+      "pos": [
+        6808.737844307646,
+        1528.3092992276647
+      ],
+      "size": [
+        140,
+        76
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 263
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 186,
+      "type": "easy showAnything",
+      "pos": [
+        6827.74797553897,
+        1379.5399139388649
+      ],
+      "size": [
+        140,
+        76
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 262
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 183,
+      "type": "LoadImage",
+      "pos": [
+        5865.613169712481,
+        1264.5367955761753
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            260
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "F4A03274340542E92F5FED61CDBF2347.png",
+        "image"
+      ]
+    },
+    {
+      "id": 190,
+      "type": "SaveVideo",
+      "pos": [
+        7091.749895089839,
+        1285.7719446494057
+      ],
+      "size": [
+        270,
+        578
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 261
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 188,
+      "type": "easy showAnything",
+      "pos": [
+        6824.657860258197,
+        1679.1681759524784
+      ],
+      "size": [
+        140,
+        76
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 264
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 189,
+      "type": "Wan_2_7_Spicy_I2V",
+      "pos": [
+        6257.427110767832,
+        1306.6066505927936
+      ],
+      "size": [
+        400,
+        394
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "first_image",
+          "type": "IMAGE",
+          "link": 260
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 265
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            261
+          ]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": [
+            262
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": [
+            263
+          ]
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": [
+            264
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "3b47e62e6a573142634ddedc468d531b702db1fb",
+        "Node name for S&R": "Wan_2_7_Spicy_I2V"
+      },
+      "widgets_values": [
+        "a person walks forward slowly, cinematic camera movement",
+        "2",
+        "720p",
+        "",
+        "",
+        false,
+        -1,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 184,
+      "type": "Seedance_Config",
+      "pos": [
+        5890.473519793852,
+        1668.2106545860179
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            265
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "3b47e62e6a573142634ddedc468d531b702db1fb",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      260,
+      183,
+      0,
+      189,
+      0,
+      "IMAGE"
+    ],
+    [
+      261,
+      189,
+      0,
+      190,
+      0,
+      "VIDEO"
+    ],
+    [
+      262,
+      189,
+      1,
+      186,
+      0,
+      "STRING"
+    ],
+    [
+      263,
+      189,
+      2,
+      187,
+      0,
+      "STRING"
+    ],
+    [
+      264,
+      189,
+      3,
+      188,
+      0,
+      "STRING"
+    ],
+    [
+      265,
+      184,
+      0,
+      189,
+      1,
+      "SEEDANCE_CONFIG"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ds": {
+      "scale": 0.9229599817706441,
+      "offset": [
+        -5199.022492622224,
+        -836.7390148894268
+      ]
+    }
+  },
+  "version": 0.4
+}
