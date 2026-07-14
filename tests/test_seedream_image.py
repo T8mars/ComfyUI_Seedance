@@ -354,6 +354,87 @@ class ImageNodeTests(unittest.TestCase):
 
 
 class NewModelNodeTests(unittest.TestCase):
+    def test_zhenzhen_upscaler_payload_uses_single_video_content(self):
+        node = nodes.ZhenzhenUpscalerVideo()
+        payload = node.build_payload(
+            {"resolution": "720p"},
+            {"video_url": "https://cdn.test/source.mp4"},
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-upscaler")
+        self.assertEqual(payload["prompt"], "upscale")
+        self.assertNotIn("seconds", payload)
+        self.assertNotIn("images", payload)
+        self.assertEqual(
+            payload["metadata"],
+            {
+                "resolution": "720p",
+                "content": [
+                    {
+                        "type": "video_url",
+                        "video_url": {"url": "https://cdn.test/source.mp4"},
+                    }
+                ],
+            },
+        )
+
+    def test_zhenzhen_upscaler_validation_accepts_connected_video_runtime_check(self):
+        self.assertIs(
+            nodes.ZhenzhenUpscalerVideo.VALIDATE_INPUTS(
+                video_url="https://cdn.test/source.mp4",
+                resolution="1080p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenUpscalerVideo.VALIDATE_INPUTS(
+                video_url="ftp://cdn.test/source.mp4",
+                resolution="1080p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenUpscalerVideo.VALIDATE_INPUTS(
+                video_url="",
+                resolution="8k",
+                input_video="dummy",
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.ZhenzhenUpscalerVideo.VALIDATE_INPUTS(
+                video_url="",
+                resolution="720p",
+                input_video=None,
+            ),
+            True,
+        )
+
+    def test_zhenzhen_upscaler_uploads_connected_video(self):
+        node = nodes.ZhenzhenUpscalerVideo()
+        progress = []
+        with patch.object(
+            nodes, "video_to_bytes", return_value=(b"fake-mp4", "mp4")
+        ) as to_bytes, patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/uploaded.mp4"
+        ) as upload:
+            media = node.collect_media(
+                {"video_url": "", "input_video": {"file_path": "source.mp4"}},
+                CONFIG,
+                progress.append,
+            )
+
+        to_bytes.assert_called_once()
+        upload.assert_called_once_with(
+            b"fake-mp4",
+            "zhenzhen_upscaler_input.mp4",
+            "video/mp4",
+            CONFIG,
+            logger_prefix="Zhenzhen_upscaler",
+        )
+        self.assertEqual(media, {"video_url": "https://cdn.test/uploaded.mp4"})
+        self.assertEqual(progress, [1.0])
+
     def test_wan27_spicy_i2v_payload_minimal(self):
         node = nodes.Wan27SpicyImageToVideo()
         payload = node.build_payload(

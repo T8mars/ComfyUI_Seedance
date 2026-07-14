@@ -1,0 +1,365 @@
+{
+  "id": "fdcfc2b2-168f-4f3d-a1d0-6986b802fce5",
+  "revision": 0,
+  "last_node_id": 192,
+  "last_link_id": 264,
+  "nodes": [
+    {
+      "id": 190,
+      "type": "LoadVideo",
+      "pos": [
+        5544.220976910337,
+        990.7575929741829
+      ],
+      "size": [
+        270,
+        344
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            259
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "0.6.mp4",
+        "image"
+      ]
+    },
+    {
+      "id": 191,
+      "type": "SaveVideo",
+      "pos": [
+        6556.353328584046,
+        1001.6583668590159
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 260
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 186,
+      "type": "easy showAnything",
+      "pos": [
+        6621.873022089708,
+        1207.1880927370923
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 262
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 187,
+      "type": "easy showAnything",
+      "pos": [
+        6620.031470729063,
+        1378.8242503536496
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 263
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 189,
+      "type": "Zhenzhen_Upscaler_Video",
+      "pos": [
+        6177.159945845133,
+        1106.9792461368854
+      ],
+      "size": [
+        288.9341796875,
+        190
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_video",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 259
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 261
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            260
+          ]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": [
+            262
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": [
+            263
+          ]
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": [
+            264
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "ea1e8ddc6546259b86e8c0438debe22b2b3c6a39",
+        "Node name for S&R": "Zhenzhen_Upscaler_Video"
+      },
+      "widgets_values": [
+        "",
+        "1080p",
+        false
+      ]
+    },
+    {
+      "id": 192,
+      "type": "easy showAnything",
+      "pos": [
+        6612.812547195619,
+        1571.840240028039
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 264
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "625efbfa2fc20c31797dfffcbb41a26b6d91ab7b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 184,
+      "type": "Seedance_Config",
+      "pos": [
+        5573.742822179603,
+        1437.3228563251635
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            261
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "ver": "3b47e62e6a573142634ddedc468d531b702db1fb",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      259,
+      190,
+      0,
+      189,
+      0,
+      "VIDEO"
+    ],
+    [
+      260,
+      189,
+      0,
+      191,
+      0,
+      "VIDEO"
+    ],
+    [
+      261,
+      184,
+      0,
+      189,
+      1,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      262,
+      189,
+      1,
+      186,
+      0,
+      "STRING"
+    ],
+    [
+      263,
+      189,
+      2,
+      187,
+      0,
+      "STRING"
+    ],
+    [
+      264,
+      189,
+      3,
+      192,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ds": {
+      "scale": 1.015255979947707,
+      "offset": [
+        -4871.211106438619,
+        -438.8715330818445
+      ]
+    }
+  },
+  "version": 0.4
+}

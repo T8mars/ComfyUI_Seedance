@@ -1,11 +1,11 @@
 """
-ComfyUI nodes for Seedance, HappyHorse, Wan, Seedream, Dola Seedream,
-and Doubao Seed Audio APIs (api.seedance.nz).
+ComfyUI nodes for Seedance, HappyHorse, Wan, Zhenzhen Upscaler, Seedream,
+Dola Seedream, and Doubao Seed Audio APIs (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
-HappyHorse and Wan use dedicated video nodes, Seedream and Dola Seedream share
-one image node with a model-family selector, and Doubao Seed Audio uses its
-own audio node.
+HappyHorse, Wan, and Zhenzhen Upscaler use dedicated video nodes, Seedream
+and Dola Seedream share one image node with a model-family selector, and
+Doubao Seed Audio uses its own audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
 download result, with a ComfyUI progress bar driven by the API's progress
@@ -104,6 +104,9 @@ WAN27_SPICY_I2V_MODEL = "wan-2.7-spicy-i2v"
 WAN27_SPICY_RESOLUTIONS = ["720p", "1080p"]
 WAN27_SPICY_SECONDS = [str(s) for s in range(2, 16)]
 
+ZHENZHEN_UPSCALER_MODEL = "zhenzhen-upscaler"
+ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
+
 DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
 DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
 DOUBAO_SAMPLE_RATES = ["8000", "16000", "24000", "32000", "44100"]
@@ -137,8 +140,8 @@ def _model_input(models: List[str]) -> tuple:
     return (models, {
         "default": models[0],
         "tooltip": (
-            "standard/fast/mini = quality tiers (mini is cheapest); 'global-' models "
-            "run on overseas infrastructure. | standard/fast/mini 为档位（mini 最便宜），"
+            "standard/fast/mini = quality tiers; 'global-' models "
+            "run on overseas infrastructure. | standard/fast/mini 为档位，"
             "带 global- 的为海外版通道。"
         ),
     })
@@ -750,6 +753,111 @@ class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
         if prompt:
             payload["prompt"] = prompt
         return payload
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Upscaler video super-resolution
+# ---------------------------------------------------------------------------
+
+class ZhenzhenUpscalerVideo(SeedanceVideoNodeBase):
+    """Video super-resolution via zhenzhen-upscaler and /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Optional public MP4 URL. Leave empty when connecting input_video. | "
+                        "可选公网 MP4 直链；连接 input_video 时可留空。"
+                    ),
+                }),
+                "resolution": (ZHENZHEN_UPSCALER_RESOLUTIONS, {
+                    "default": "1080p",
+                    "tooltip": "Target resolution: 720p, 1080p, 2k, or 4k. | 目标分辨率：720p、1080p、2k 或 4k。",
+                }),
+            },
+            "optional": {
+                "input_video": ("VIDEO", {
+                    "tooltip": "Optional local ComfyUI video to upload for upscaling. | 可选本地 ComfyUI 视频，节点会先上传再超分。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video_url=None, resolution=None, **kwargs):
+        if resolution is not None and resolution not in ZHENZHEN_UPSCALER_RESOLUTIONS:
+            return (
+                "Zhenzhen Upscaler resolution must be 720p, 1080p, 2k, or 4k | "
+                "Zhenzhen Upscaler 分辨率只能是 720p、1080p、2k 或 4k"
+            )
+        url_text = str(video_url or "").strip()
+        if url_text and not url_text.startswith(("http://", "https://")):
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) URL"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_upscaler"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        video_url = str(kwargs.get("video_url") or "").strip()
+        if video_url:
+            progress_cb(1.0)
+            return {"video_url": video_url}
+
+        input_video = kwargs.get("input_video")
+        if input_video is None:
+            raise SeedanceAPIError(
+                "connect input_video or provide video_url for zhenzhen-upscaler | "
+                "zhenzhen-upscaler 需要连接 input_video 或填写 video_url"
+            )
+
+        video_bytes, ext = video_to_bytes(input_video)
+        video_mime = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+        }.get(ext, "video/mp4")
+        url = upload_media(
+            video_bytes,
+            f"zhenzhen_upscaler_input.{ext}",
+            video_mime,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"video_url": url}
+
+    def build_payload(self, kwargs, media):
+        video_url = str(media.get("video_url") or "").strip()
+        if not video_url:
+            raise SeedanceAPIError(
+                "video_url is required for zhenzhen-upscaler | zhenzhen-upscaler 必须提供视频直链"
+            )
+
+        return {
+            "model": ZHENZHEN_UPSCALER_MODEL,
+            "prompt": "upscale",
+            "metadata": {
+                "resolution": kwargs["resolution"],
+                "content": [
+                    {
+                        "type": "video_url",
+                        "video_url": {"url": video_url},
+                    }
+                ],
+            },
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -1419,6 +1527,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "HappyHorse_1_1_Video": HappyHorseVideo,
     "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
+    "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
 }
 
@@ -1430,5 +1539,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
+    "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
 }
