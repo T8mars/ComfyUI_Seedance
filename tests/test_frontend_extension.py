@@ -50,6 +50,11 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedream_V5_Pro_Image",
             "HappyHorse_1_1_Video",
             "Wan_2_7_Spicy_I2V",
+            "Kling_Video",
+            "Kling_Edit_Video",
+            "Hailuo_2_3_Video",
+            "Vidu_Q3_Video",
+            "Vidu_Q3_ShortPlay",
             "Zhenzhen_Upscaler_Video",
             "Doubao_Seed_Audio",
         }
@@ -62,7 +67,7 @@ class FrontendExtensionTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
                 if node_type.startswith(
-                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Zhenzhen_", "Doubao_")
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_")
                 ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)

@@ -1,11 +1,12 @@
 """
-ComfyUI nodes for Seedance, HappyHorse, Wan, Zhenzhen Upscaler, Seedream,
-Dola Seedream, and Doubao Seed Audio APIs (api.seedance.nz).
+ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, Vidu,
+Zhenzhen Upscaler, Seedream, Dola Seedream, and Doubao Seed Audio APIs
+(api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
-HappyHorse, Wan, and Zhenzhen Upscaler use dedicated video nodes, Seedream
-and Dola Seedream share one image node with a model-family selector, and
-Doubao Seed Audio uses its own audio node.
+HappyHorse, Wan, Kling, Hailuo, Vidu, and Zhenzhen Upscaler use dedicated video
+nodes, Seedream and Dola Seedream share one image node with a model-family
+selector, and Doubao Seed Audio uses its own audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
 download result, with a ComfyUI progress bar driven by the API's progress
@@ -103,6 +104,91 @@ MAX_HAPPYHORSE_R2V_IMAGES = 9
 WAN27_SPICY_I2V_MODEL = "wan-2.7-spicy-i2v"
 WAN27_SPICY_RESOLUTIONS = ["720p", "1080p"]
 WAN27_SPICY_SECONDS = [str(s) for s in range(2, 16)]
+
+KLING_T2V_MODELS = [
+    "kling-v3.0-std-t2v",
+    "kling-v3.0-pro-t2v",
+    "kling-v3-turbo-std-t2v",
+    "kling-v3-turbo-pro-t2v",
+    "kling-v3-4k-t2v",
+    "kling-o3-std-t2v",
+    "kling-o3-pro-t2v",
+    "kling-o3-4k-t2v",
+]
+KLING_I2V_MODELS = [
+    "kling-v3.0-std-i2v",
+    "kling-v3.0-pro-i2v",
+    "kling-v3-turbo-std-i2v",
+    "kling-v3-turbo-pro-i2v",
+    "kling-v3-4k-i2v",
+    "kling-o3-std-i2v",
+    "kling-o3-pro-i2v",
+    "kling-o3-4k-i2v",
+]
+KLING_R2V_MODELS = [
+    "kling-o3-std-r2v",
+    "kling-o3-pro-r2v",
+    "kling-o3-4k-r2v",
+]
+KLING_VIDEO_MODELS = KLING_T2V_MODELS + KLING_I2V_MODELS + KLING_R2V_MODELS
+KLING_EDIT_MODELS = [
+    "kling-o3-std-edit",
+    "kling-o3-pro-edit",
+]
+KLING_SECONDS = ["5", "10"]
+MAX_KLING_REFERENCE_IMAGES = 4
+
+HAILUO23_T2V_MODELS = [
+    "hailuo-2.3-t2v-standard",
+    "hailuo-2.3-t2v-pro",
+]
+HAILUO23_I2V_MODELS = [
+    "hailuo-2.3-i2v-standard",
+    "hailuo-2.3-i2v-pro",
+    "hailuo-2.3-fast-i2v",
+    "hailuo-2.3-fast-pro-i2v",
+]
+HAILUO23_MODELS = HAILUO23_T2V_MODELS + HAILUO23_I2V_MODELS
+HAILUO23_SECONDS = ["6", "10"]
+HAILUO23_RESOLUTIONS = ["768p", "1080p"]
+HAILUO23_PROMPT_MAX_LENGTH = 2000
+HAILUO23_MIN_IMAGE_SHORT_EDGE = 301
+HAILUO23_MIN_ASPECT_RATIO = 2 / 5
+HAILUO23_MAX_ASPECT_RATIO = 5 / 2
+
+VIDU_T2V_MODELS = [
+    "vidu-q3-pro-t2v",
+    "vidu-q3-turbo-t2v",
+    "vidu-q3-pro-fast-t2v",
+]
+VIDU_I2V_MODELS = [
+    "vidu-q3-pro-i2v",
+    "vidu-q3-turbo-i2v",
+    "vidu-q3-pro-fast-i2v",
+]
+VIDU_START_END_MODELS = [
+    "vidu-q3-pro-start-end",
+    "vidu-q3-turbo-start-end",
+    "vidu-q3-pro-fast-start-end",
+]
+VIDU_R2V_MODELS = [
+    "vidu-q3-r2v",
+    "vidu-q3-mix-r2v",
+    "vidu-q3-ad-r2v",
+    "vidu-q3-drama-r2v",
+]
+VIDU_VIDEO_MODELS = VIDU_T2V_MODELS + VIDU_I2V_MODELS + VIDU_START_END_MODELS + VIDU_R2V_MODELS
+VIDU_SHORT_PLAY_MODELS = [
+    "vidu-q3-drama-short-play",
+    "vidu-q3-ad-short-play",
+]
+VIDU_SECONDS = [str(s) for s in range(4, 16)]
+VIDU_RESOLUTIONS = ["default", "720p", "1080p"]
+MAX_VIDU_REFERENCE_IMAGES = 9
+VIDU_SHORT_PLAY_DURATIONS = [str(s) for s in range(8, 13)]
+VIDU_SHORT_PLAY_ASPECT_RATIOS = ["9:16", "16:9"]
+VIDU_SHORT_PLAY_ASSET_TYPES = ["character", "scene", "prop"]
+MAX_VIDU_SHORT_PLAY_ASSETS = 14
 
 ZHENZHEN_UPSCALER_MODEL = "zhenzhen-upscaler"
 ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
@@ -753,6 +839,872 @@ class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
         if prompt:
             payload["prompt"] = prompt
         return payload
+
+
+# ---------------------------------------------------------------------------
+# Kling video
+# ---------------------------------------------------------------------------
+
+class KlingVideo(SeedanceVideoNodeBase):
+    """Kling t2v/i2v/r2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_KLING_REFERENCE_IMAGES + 1):
+            optional[f"image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Optional Kling image {i}. i2v uses image1 and optionally image2 "
+                    f"as an end frame; r2v uses connected images in compacted order. | "
+                    f"可选 Kling 图片 {i}；图生视频使用 image1，可选 image2 作为尾帧；"
+                    "r2v 按已连接图片顺序提交。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (KLING_VIDEO_MODELS, {
+                    "default": KLING_T2V_MODELS[0],
+                    "tooltip": (
+                        "Kling task type. t2v uses prompt; i2v uses image1 and optional image2; "
+                        "o3-r2v uses up to 4 images. | Kling 任务类型：文生、图生/首尾帧、O3 参考生视频。"
+                    ),
+                }),
+                "prompt": _prompt_input(required=False),
+                "seconds": (KLING_SECONDS, {
+                    "default": "5",
+                    "tooltip": "Kling supports 5 or 10 seconds. | Kling 支持 5 或 10 秒。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Aspect ratio forwarded as metadata.ratio when not adaptive. | 非 adaptive 时透传为 metadata.ratio。",
+                }),
+                "negative_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Optional negative prompt forwarded to metadata. | 可选反向提示词，透传到 metadata。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        ratio=None,
+        negative_prompt=None,
+        **kwargs,
+    ):
+        if model not in (None, *KLING_VIDEO_MODELS):
+            return f"unsupported Kling model: {model}"
+        if seconds is not None and str(seconds) not in KLING_SECONDS:
+            return "Kling seconds must be 5 or 10 | Kling 时长必须是 5 或 10 秒"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
+        if negative_prompt is not None and len(str(negative_prompt)) > PROMPT_MAX_LENGTH:
+            return f"negative_prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(negative_prompt))})"
+        if model in (*KLING_T2V_MODELS, *KLING_R2V_MODELS) and not str(prompt or "").strip():
+            return "prompt is required for Kling text/reference-to-video | Kling 文生视频/参考生视频必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Kling_video"
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_KLING_REFERENCE_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: Kling image slots {connected} have gaps; "
+                f"they will be compacted to imageUrls order 1..{len(connected)}."
+            )
+        return slots
+
+    def _required_image_slots(self, kwargs: Dict[str, Any]) -> Tuple[List[Tuple[int, Any]], str]:
+        model = kwargs.get("model")
+        connected = self._connected_images(kwargs)
+        by_slot = {slot: image for slot, image in connected}
+        if model in KLING_T2V_MODELS:
+            return [], ""
+        if model in KLING_I2V_MODELS:
+            slots = [(slot, by_slot[slot]) for slot in (1, 2) if slot in by_slot]
+            return slots, "image1 is required for Kling image-to-video | Kling 图生视频必须连接 image1"
+        if model in KLING_R2V_MODELS:
+            return connected[:MAX_KLING_REFERENCE_IMAGES], (
+                "at least one image is required for Kling reference-to-video | Kling 参考生视频至少需要 1 张图"
+            )
+        return [], f"unsupported Kling model: {model}"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        image_slots, required_message = self._required_image_slots(kwargs)
+        model = kwargs.get("model")
+        if model in KLING_T2V_MODELS:
+            progress_cb(1.0)
+            return {}
+        if not image_slots:
+            raise SeedanceAPIError(required_message)
+
+        urls = []
+        for done, (slot, image) in enumerate(image_slots, start=1):
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"kling_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            urls.append(url)
+            progress_cb(done / len(image_slots))
+        return {"images": urls}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            ratio=kwargs.get("ratio"),
+            negative_prompt=kwargs.get("negative_prompt"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {}
+        ratio = str(kwargs.get("ratio") or "").strip()
+        if ratio and ratio != "adaptive":
+            metadata["ratio"] = ratio
+        negative_prompt = str(kwargs.get("negative_prompt") or "").strip()
+        if negative_prompt:
+            metadata["negative_prompt"] = negative_prompt
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+        if prompt:
+            payload["prompt"] = prompt
+
+        images = media.get("images") or []
+        if model in KLING_I2V_MODELS:
+            if not images:
+                raise SeedanceAPIError("image1 is required for Kling image-to-video | Kling 图生视频必须连接 image1")
+            payload["images"] = images[:2]
+        elif model in KLING_R2V_MODELS:
+            if not images:
+                raise SeedanceAPIError("at least one image is required for Kling reference-to-video | Kling 参考生视频至少需要 1 张图")
+            payload["images"] = images[:MAX_KLING_REFERENCE_IMAGES]
+        return payload
+
+
+class KlingEditVideo(SeedanceVideoNodeBase):
+    """Kling O3 video edit via /v1/videos and metadata.content video_url."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (KLING_EDIT_MODELS, {
+                    "default": KLING_EDIT_MODELS[0],
+                    "tooltip": "Kling O3 edit model. | Kling O3 视频编辑模型。",
+                }),
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": "Optional public MP4 URL. Leave empty when connecting input_video. | 可选公网 MP4 直链；连接 input_video 时可留空。",
+                }),
+                "prompt": _prompt_input(required=True),
+                "seconds": (KLING_SECONDS, {
+                    "default": "5",
+                    "tooltip": "Kling edit supports 5 or 10 seconds. | Kling 编辑支持 5 或 10 秒。",
+                }),
+            },
+            "optional": {
+                "input_video": ("VIDEO", {
+                    "tooltip": "Optional local ComfyUI video to upload for Kling edit. | 可选本地 ComfyUI 视频，节点会先上传再编辑。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, video_url=None, prompt=None, seconds=None, **kwargs):
+        if model not in (None, *KLING_EDIT_MODELS):
+            return f"unsupported Kling edit model: {model}"
+        if seconds is not None and str(seconds) not in KLING_SECONDS:
+            return "Kling edit seconds must be 5 or 10 | Kling 编辑时长必须是 5 或 10 秒"
+        url_text = str(video_url or "").strip()
+        if url_text and not url_text.startswith(("http://", "https://")):
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) URL"
+        prompt_text = str(prompt or "").strip()
+        if not prompt_text:
+            return "prompt is required for Kling edit | Kling 编辑必须填写提示词"
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Kling_edit"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        video_url = str(kwargs.get("video_url") or "").strip()
+        if video_url:
+            progress_cb(1.0)
+            return {"video_url": video_url}
+
+        input_video = kwargs.get("input_video")
+        if input_video is None:
+            raise SeedanceAPIError(
+                "connect input_video or provide video_url for Kling edit | Kling 编辑需要连接 input_video 或填写 video_url"
+            )
+
+        video_bytes, ext = video_to_bytes(input_video)
+        video_mime = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+        }.get(ext, "video/mp4")
+        url = upload_media(
+            video_bytes,
+            f"kling_edit_input.{ext}",
+            video_mime,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"video_url": url}
+
+    def build_payload(self, kwargs, media):
+        video_url = str(media.get("video_url") or "").strip()
+        if not video_url:
+            raise SeedanceAPIError("video_url is required for Kling edit | Kling 编辑必须提供视频直链")
+
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=kwargs.get("model"),
+            video_url=video_url,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        return {
+            "model": kwargs["model"],
+            "prompt": prompt,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": {
+                "content": [
+                    {
+                        "type": "video_url",
+                        "video_url": {"url": video_url},
+                    }
+                ],
+            },
+        }
+
+
+# ---------------------------------------------------------------------------
+# Hailuo 2.3 video
+# ---------------------------------------------------------------------------
+
+class Hailuo23Video(SeedanceVideoNodeBase):
+    """Hailuo 2.3 t2v/i2v/fast-i2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {
+            "first_image": ("IMAGE", {
+                "tooltip": (
+                    "Required for Hailuo i2v / fast-i2v models; sent as images[0]. "
+                    "Short edge must be greater than 300px and aspect ratio must be "
+                    "between 2:5 and 5:2. | Hailuo 图生视频 / fast 图生视频必填，"
+                    "作为 images[0] 提交；短边需大于 300px，宽高比需在 2:5 到 5:2 之间。"
+                ),
+            }),
+            "api_config": ("SEEDANCE_CONFIG", {
+                "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+            }),
+            "skip_error": ("BOOLEAN", {
+                "default": False,
+                "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+            }),
+        }
+
+        return {
+            "required": {
+                "model": (HAILUO23_MODELS, {
+                    "default": HAILUO23_T2V_MODELS[0],
+                    "tooltip": (
+                        "Hailuo 2.3 task type. t2v uses prompt only; i2v / fast-i2v "
+                        "uses first_image. | Hailuo 2.3 任务类型：文生视频只用提示词，"
+                        "图生视频 / fast 图生视频使用首帧图。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Text prompt, up to 2000 characters for Hailuo 2.3. | Hailuo 2.3 提示词最多 2000 字符。",
+                }),
+                "seconds": (HAILUO23_SECONDS, {
+                    "default": "6",
+                    "tooltip": "Hailuo 2.3 supports 6 or 10 seconds; 1080p is limited to 6 seconds. | 支持 6 或 10 秒；1080p 仅支持 6 秒。",
+                }),
+                "resolution": (HAILUO23_RESOLUTIONS, {
+                    "default": "768p",
+                    "tooltip": "Hailuo 2.3 supports 768p or 1080p; 1080p is limited to 6 seconds. | 支持 768p 或 1080p；1080p 仅支持 6 秒。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Used for Hailuo text-to-video only; image-to-video follows the input image. | 仅文生视频使用；图生视频跟随输入图片比例。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        **kwargs,
+    ):
+        if model not in (None, *HAILUO23_MODELS):
+            return f"unsupported Hailuo 2.3 model: {model}"
+        if seconds is not None and str(seconds) not in HAILUO23_SECONDS:
+            return "Hailuo 2.3 seconds must be 6 or 10 | Hailuo 2.3 时长必须是 6 或 10 秒"
+        if resolution is not None and resolution not in HAILUO23_RESOLUTIONS:
+            return "Hailuo 2.3 resolution must be 768p or 1080p | Hailuo 2.3 分辨率只能是 768p 或 1080p"
+        if str(seconds or "") == "10" and resolution == "1080p":
+            return "Hailuo 2.3 1080p only supports 6 seconds | Hailuo 2.3 的 1080p 仅支持 6 秒"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > HAILUO23_PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {HAILUO23_PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if model in HAILUO23_T2V_MODELS and not prompt_text.strip():
+            return "prompt is required for Hailuo text-to-video | Hailuo 文生视频必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Hailuo_2_3_video"
+
+    def _validate_first_image_shape(self, image: Any):
+        shape = getattr(image, "shape", None)
+        if not shape or len(shape) < 3:
+            return
+
+        if len(shape) >= 4:
+            height = int(shape[1])
+            width = int(shape[2])
+        else:
+            height = int(shape[0])
+            width = int(shape[1])
+
+        short_edge = min(width, height)
+        if short_edge < HAILUO23_MIN_IMAGE_SHORT_EDGE:
+            raise SeedanceAPIError(
+                "Hailuo first_image short edge must be greater than 300px | "
+                "Hailuo 首帧图短边必须大于 300px"
+            )
+
+        ratio = width / height if height else 0
+        if not HAILUO23_MIN_ASPECT_RATIO <= ratio <= HAILUO23_MAX_ASPECT_RATIO:
+            raise SeedanceAPIError(
+                "Hailuo first_image aspect ratio must be between 2:5 and 5:2 | "
+                "Hailuo 首帧图宽高比必须在 2:5 到 5:2 之间"
+            )
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model in HAILUO23_T2V_MODELS:
+            progress_cb(1.0)
+            return {}
+
+        first_image = kwargs.get("first_image")
+        if first_image is None:
+            raise SeedanceAPIError(
+                "first_image is required for Hailuo image-to-video | Hailuo 图生视频必须连接首帧图"
+            )
+
+        self._validate_first_image_shape(first_image)
+        url = upload_media(
+            image_to_png_bytes(first_image),
+            "hailuo23_first_frame.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"images": [url]}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {"resolution": kwargs["resolution"]}
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+
+        if model in HAILUO23_T2V_MODELS:
+            ratio = str(kwargs.get("ratio") or "").strip()
+            if ratio and ratio != "adaptive":
+                metadata["ratio"] = ratio
+            payload["prompt"] = prompt
+            return payload
+
+        images = media.get("images") or []
+        if not images:
+            raise SeedanceAPIError(
+                "first_image is required for Hailuo image-to-video | Hailuo 图生视频必须连接首帧图"
+            )
+        payload["images"] = images[:1]
+        if prompt:
+            payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# Vidu Q3 video
+# ---------------------------------------------------------------------------
+
+class ViduQ3Video(SeedanceVideoNodeBase):
+    """Vidu Q3 t2v/i2v/start-end/r2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_VIDU_REFERENCE_IMAGES + 1):
+            optional[f"image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Optional Vidu image {i}. i2v uses image1; start-end uses image1+image2; "
+                    f"r2v uses connected images in compacted order. | 可选 Vidu 图片 {i}；"
+                    "i2v 用 image1；首尾帧用 image1+image2；r2v 按已连接图片顺序提交。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (VIDU_VIDEO_MODELS, {
+                    "default": "vidu-q3-turbo-t2v",
+                    "tooltip": (
+                        "Vidu Q3 task type. t2v uses prompt; i2v uses image1; "
+                        "start-end uses image1+image2; r2v uses up to 9 images. | "
+                        "Vidu Q3 任务类型：文生、图生、首尾帧、参考生视频。"
+                    ),
+                }),
+                "prompt": _prompt_input(required=False),
+                "seconds": (VIDU_SECONDS, {
+                    "default": "4",
+                    "tooltip": "Video duration in seconds, submitted as a string. | 视频时长，按字符串提交。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Aspect ratio forwarded as metadata.ratio for Vidu aspectRatio mapping. | 画幅会通过 metadata.ratio 映射给 Vidu aspectRatio。",
+                }),
+                "resolution": (VIDU_RESOLUTIONS, {
+                    "default": "default",
+                    "tooltip": "Optional metadata.resolution; default leaves the API default. | 可选 metadata.resolution；default 使用 API 默认值。",
+                }),
+                "seed": ("INT", {
+                    "default": -1,
+                    "min": -1,
+                    "max": 2147483647,
+                    "step": 1,
+                    "tooltip": "-1 = random seed; non-negative values are forwarded to metadata.seed. | -1 表示随机种子，非负整数透传到 metadata.seed。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        ratio=None,
+        resolution=None,
+        seed=None,
+        **kwargs,
+    ):
+        if model not in (None, *VIDU_VIDEO_MODELS):
+            return f"unsupported Vidu Q3 model: {model}"
+        if seconds is not None and str(seconds) not in VIDU_SECONDS:
+            return "Vidu Q3 seconds must be 4-15 | Vidu Q3 时长必须是 4-15 秒"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        if resolution is not None and resolution not in VIDU_RESOLUTIONS:
+            return "Vidu Q3 resolution must be default, 720p, or 1080p | Vidu Q3 分辨率只能是 default、720p 或 1080p"
+        if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
+        if model in VIDU_T2V_MODELS and not str(prompt or "").strip():
+            return "prompt is required for Vidu text-to-video | Vidu 文生视频必须填写提示词"
+        if seed is not None:
+            try:
+                seed_value = int(seed)
+            except (TypeError, ValueError):
+                return "seed must be an integer | seed 必须是整数"
+            if not -1 <= seed_value <= 2147483647:
+                return "seed must be -1 to 2147483647 | seed 必须在 -1 到 2147483647 之间"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Vidu_Q3_video"
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_VIDU_REFERENCE_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: Vidu image slots {connected} have gaps; "
+                f"they will be compacted to imageUrls order 1..{len(connected)}."
+            )
+        return slots
+
+    def _required_image_slots(self, kwargs: Dict[str, Any]) -> Tuple[List[Tuple[int, Any]], str]:
+        model = kwargs.get("model")
+        connected = self._connected_images(kwargs)
+        by_slot = {slot: image for slot, image in connected}
+
+        if model in VIDU_T2V_MODELS:
+            return [], ""
+        if model in VIDU_I2V_MODELS:
+            return ([(1, by_slot[1])] if 1 in by_slot else []), (
+                "image1 is required for Vidu image-to-video | Vidu 图生视频必须连接 image1"
+            )
+        if model in VIDU_START_END_MODELS:
+            slots = [(slot, by_slot[slot]) for slot in (1, 2) if slot in by_slot]
+            return slots, "image1 and image2 are required for Vidu start-end | Vidu 首尾帧必须连接 image1 和 image2"
+        if model in VIDU_R2V_MODELS:
+            return connected[:MAX_VIDU_REFERENCE_IMAGES], (
+                "at least one image is required for Vidu reference-to-video | Vidu 参考生视频至少需要 1 张图"
+            )
+        return [], f"unsupported Vidu Q3 model: {model}"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        image_slots, required_message = self._required_image_slots(kwargs)
+        model = kwargs.get("model")
+        if model in VIDU_T2V_MODELS:
+            progress_cb(1.0)
+            return {}
+        if model in VIDU_START_END_MODELS and len(image_slots) != 2:
+            raise SeedanceAPIError(required_message)
+        if model not in VIDU_T2V_MODELS and not image_slots:
+            raise SeedanceAPIError(required_message)
+
+        urls = []
+        for done, (slot, image) in enumerate(image_slots, start=1):
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"vidu_q3_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            urls.append(url)
+            progress_cb(done / len(image_slots))
+        return {"images": urls}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            ratio=kwargs.get("ratio"),
+            resolution=kwargs.get("resolution"),
+            seed=kwargs.get("seed"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {}
+        ratio = str(kwargs.get("ratio") or "").strip()
+        if ratio and ratio != "adaptive":
+            metadata["ratio"] = ratio
+        resolution = str(kwargs.get("resolution") or "").strip()
+        if resolution and resolution != "default":
+            metadata["resolution"] = resolution
+        seed = kwargs.get("seed", -1)
+        if seed is not None and int(seed) >= 0:
+            metadata["seed"] = int(seed)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+        if prompt:
+            payload["prompt"] = prompt
+
+        images = media.get("images") or []
+        if model in VIDU_I2V_MODELS:
+            if not images:
+                raise SeedanceAPIError("image1 is required for Vidu image-to-video | Vidu 图生视频必须连接 image1")
+            payload["images"] = images[:1]
+        elif model in VIDU_START_END_MODELS:
+            if len(images) < 2:
+                raise SeedanceAPIError("image1 and image2 are required for Vidu start-end | Vidu 首尾帧必须连接 image1 和 image2")
+            payload["images"] = images[:2]
+        elif model in VIDU_R2V_MODELS:
+            if not images:
+                raise SeedanceAPIError("at least one image is required for Vidu reference-to-video | Vidu 参考生视频至少需要 1 张图")
+            payload["images"] = images[:MAX_VIDU_REFERENCE_IMAGES]
+        return payload
+
+
+class ViduQ3ShortPlay(SeedanceVideoNodeBase):
+    """Vidu Q3 short-play generation via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_VIDU_SHORT_PLAY_ASSETS + 1):
+            optional[f"asset_image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Optional short-play reference asset {i}. At least asset_image1 is required. | "
+                    f"短剧参考资产图 {i}，至少需要 asset_image1。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (VIDU_SHORT_PLAY_MODELS, {
+                    "default": "vidu-q3-drama-short-play",
+                    "tooltip": "Vidu Q3 short-play model. | Vidu Q3 短剧成片模型。",
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Short-play script content; forwarded as prompt/scriptContent. | 短剧脚本内容，会作为 prompt/scriptContent 提交。",
+                }),
+                "script_name": ("STRING", {
+                    "default": "Vidu short play",
+                    "tooltip": "Forwarded as metadata.script_name for Vidu scriptName. | 透传为 metadata.script_name，对应 Vidu scriptName。",
+                }),
+                "resolution": (["1080p"], {
+                    "default": "1080p",
+                    "tooltip": "Required by Vidu Q3 short-play. | Vidu Q3 短剧成片要求 1080p。",
+                }),
+                "duration": (VIDU_SHORT_PLAY_DURATIONS, {
+                    "default": "8",
+                    "tooltip": "Short-play duration in seconds, 8-12. | 短剧成片时长，8-12 秒。",
+                }),
+                "aspect_ratio": (VIDU_SHORT_PLAY_ASPECT_RATIOS, {
+                    "default": "9:16",
+                    "tooltip": "Short-play aspect ratio. | 短剧成片画幅。",
+                }),
+                "style": ("STRING", {
+                    "default": "realistic",
+                    "tooltip": "Video style, up to 30 characters. | 视频风格，最多 30 字符。",
+                }),
+                "asset_type": (VIDU_SHORT_PLAY_ASSET_TYPES, {
+                    "default": "character",
+                    "tooltip": "Type used for all connected reference assets. | 所有连接参考资产使用的类型。",
+                }),
+                "asset_name_prefix": ("STRING", {
+                    "default": "Asset",
+                    "tooltip": "Asset names are built as '<prefix> 1', '<prefix> 2'. | 资产名称会生成为“前缀 1、前缀 2”。",
+                }),
+                "asset_description": ("STRING", {
+                    "default": "Reference asset",
+                    "tooltip": "Description used for all connected assets. | 所有连接资产使用的描述。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        script_name=None,
+        resolution=None,
+        duration=None,
+        aspect_ratio=None,
+        style=None,
+        asset_type=None,
+        asset_name_prefix=None,
+        asset_description=None,
+        **kwargs,
+    ):
+        if model not in (None, *VIDU_SHORT_PLAY_MODELS):
+            return f"unsupported Vidu short-play model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if not prompt_text:
+            return "prompt/script content is required for Vidu short-play | Vidu 短剧成片必须填写脚本内容"
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        script_name_text = str(script_name or "").strip()
+        if not script_name_text:
+            return "script_name is required for Vidu short-play | Vidu 短剧成片必须填写 script_name"
+        if len(script_name_text) > 20:
+            return "script_name must be 20 characters or fewer | script_name 不能超过 20 字符"
+        if resolution is not None and resolution != "1080p":
+            return "Vidu short-play resolution must be 1080p | Vidu 短剧成片分辨率必须是 1080p"
+        if duration is not None and str(duration) not in VIDU_SHORT_PLAY_DURATIONS:
+            return "Vidu short-play duration must be 8-12 | Vidu 短剧成片时长必须是 8-12 秒"
+        if aspect_ratio is not None and aspect_ratio not in VIDU_SHORT_PLAY_ASPECT_RATIOS:
+            return "Vidu short-play aspect_ratio must be 9:16 or 16:9 | Vidu 短剧成片画幅必须是 9:16 或 16:9"
+        if style is not None and len(str(style)) > 30:
+            return "style must be 30 characters or fewer | style 不能超过 30 字符"
+        if asset_type is not None and asset_type not in VIDU_SHORT_PLAY_ASSET_TYPES:
+            return f"unsupported asset_type: {asset_type}"
+        if asset_name_prefix is not None and not str(asset_name_prefix).strip():
+            return "asset_name_prefix is required | asset_name_prefix 必须填写"
+        if asset_description is not None and not str(asset_description).strip():
+            return "asset_description is required | asset_description 必须填写"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Vidu_Q3_short_play"
+
+    def _connected_asset_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"asset_image{i}"))
+            for i in range(1, MAX_VIDU_SHORT_PLAY_ASSETS + 1)
+            if kwargs.get(f"asset_image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: short-play asset slots {connected} have gaps; "
+                f"they will be compacted to assets order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        asset_slots = self._connected_asset_images(kwargs)
+        if not asset_slots:
+            raise SeedanceAPIError(
+                "asset_image1 is required for Vidu short-play | Vidu 短剧成片至少需要 asset_image1"
+            )
+
+        urls = []
+        for done, (slot, image) in enumerate(asset_slots, start=1):
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"vidu_short_play_asset_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            urls.append(url)
+            progress_cb(done / len(asset_slots))
+        return {"asset_urls": urls}
+
+    def build_payload(self, kwargs, media):
+        prompt = str(kwargs.get("prompt") or "").strip()
+        script_name = str(kwargs.get("script_name") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=kwargs.get("model"),
+            prompt=prompt,
+            script_name=script_name,
+            resolution=kwargs.get("resolution"),
+            duration=kwargs.get("duration"),
+            aspect_ratio=kwargs.get("aspect_ratio"),
+            style=kwargs.get("style"),
+            asset_type=kwargs.get("asset_type"),
+            asset_name_prefix=kwargs.get("asset_name_prefix"),
+            asset_description=kwargs.get("asset_description"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        asset_urls = media.get("asset_urls") or []
+        if not asset_urls:
+            raise SeedanceAPIError(
+                "at least one uploaded asset is required for Vidu short-play | Vidu 短剧成片至少需要 1 个参考资产"
+            )
+
+        asset_type = kwargs.get("asset_type") or "character"
+        asset_prefix = str(kwargs.get("asset_name_prefix") or "Asset").strip()
+        asset_description = str(kwargs.get("asset_description") or "Reference asset").strip()
+        assets = [
+            {
+                "id": str(i),
+                "type": asset_type,
+                "name": f"{asset_prefix} {i}",
+                "image_uri": url,
+                "description": asset_description,
+            }
+            for i, url in enumerate(asset_urls[:MAX_VIDU_SHORT_PLAY_ASSETS], start=1)
+        ]
+        return {
+            "model": kwargs["model"],
+            "prompt": prompt,
+            "metadata": {
+                "script_name": script_name,
+                "resolution": kwargs.get("resolution", "1080p"),
+                "duration": int(kwargs.get("duration", "8")),
+                "aspect_ratio": kwargs.get("aspect_ratio", "9:16"),
+                "style": str(kwargs.get("style") or "realistic").strip(),
+                "assets": assets,
+            },
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -1527,6 +2479,11 @@ NODE_CLASS_MAPPINGS = {
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "HappyHorse_1_1_Video": HappyHorseVideo,
     "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
+    "Kling_Video": KlingVideo,
+    "Kling_Edit_Video": KlingEditVideo,
+    "Hailuo_2_3_Video": Hailuo23Video,
+    "Vidu_Q3_Video": ViduQ3Video,
+    "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
 }
@@ -1539,6 +2496,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
+    "Kling_Video": "Kling 视频生成",
+    "Kling_Edit_Video": "Kling O3 视频编辑",
+    "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
+    "Vidu_Q3_Video": "Vidu Q3 视频生成",
+    "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
 }

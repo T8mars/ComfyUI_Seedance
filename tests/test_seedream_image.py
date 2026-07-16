@@ -354,6 +354,534 @@ class ImageNodeTests(unittest.TestCase):
 
 
 class NewModelNodeTests(unittest.TestCase):
+    def test_kling_text_to_video_payload(self):
+        node = nodes.KlingVideo()
+        payload = node.build_payload(
+            {
+                "model": "kling-v3.0-std-t2v",
+                "prompt": "a compact product reveal shot",
+                "seconds": "5",
+                "ratio": "16:9",
+                "negative_prompt": "",
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "kling-v3.0-std-t2v")
+        self.assertEqual(payload["prompt"], "a compact product reveal shot")
+        self.assertEqual(payload["seconds"], "5")
+        self.assertEqual(payload["metadata"], {"ratio": "16:9"})
+        self.assertNotIn("images", payload)
+
+    def test_kling_image_to_video_payload_uses_first_and_optional_end_image(self):
+        node = nodes.KlingVideo()
+        payload = node.build_payload(
+            {
+                "model": "kling-v3.0-pro-i2v",
+                "prompt": "move from start to end frame",
+                "seconds": "5",
+                "ratio": "adaptive",
+                "negative_prompt": "blur",
+            },
+            {
+                "images": [
+                    "https://cdn.test/start.png",
+                    "https://cdn.test/end.png",
+                    "https://cdn.test/ignored.png",
+                ]
+            },
+        )
+
+        self.assertEqual(payload["images"], ["https://cdn.test/start.png", "https://cdn.test/end.png"])
+        self.assertEqual(payload["metadata"], {"negative_prompt": "blur"})
+
+    def test_kling_reference_to_video_payload_keeps_connected_images(self):
+        node = nodes.KlingVideo()
+        payload = node.build_payload(
+            {
+                "model": "kling-o3-4k-r2v",
+                "prompt": "Use image1 as product and image2 as background",
+                "seconds": "5",
+                "ratio": "16:9",
+                "negative_prompt": "",
+            },
+            {"images": ["https://cdn.test/a.png", "https://cdn.test/b.png"]},
+        )
+
+        self.assertEqual(payload["images"], ["https://cdn.test/a.png", "https://cdn.test/b.png"])
+        self.assertEqual(payload["metadata"], {"ratio": "16:9"})
+
+    def test_kling_uploads_required_image_for_i2v(self):
+        node = nodes.KlingVideo()
+        progress = []
+        with patch.object(
+            nodes, "image_to_png_bytes", return_value=b"image"
+        ), patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/first.png"
+        ) as upload:
+            media = node.collect_media(
+                {
+                    "model": "kling-v3.0-std-i2v",
+                    "image1": torch.zeros((1, 512, 512, 3), dtype=torch.float32),
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        upload.assert_called_once()
+        self.assertEqual(media, {"images": ["https://cdn.test/first.png"]})
+        self.assertEqual(progress, [1.0])
+
+    def test_kling_validation_matches_documented_modes(self):
+        self.assertIs(
+            nodes.KlingVideo.VALIDATE_INPUTS(
+                model="kling-v3.0-std-t2v",
+                prompt="valid prompt",
+                seconds="5",
+                ratio="16:9",
+                negative_prompt="",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.KlingVideo.VALIDATE_INPUTS(
+                model="kling-v3.0-std-t2v",
+                prompt="",
+                seconds="5",
+                ratio="16:9",
+                negative_prompt="",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.KlingVideo.VALIDATE_INPUTS(
+                model="kling-v3.0-std-t2v",
+                prompt="valid prompt",
+                seconds="6",
+                ratio="16:9",
+                negative_prompt="",
+            ),
+            True,
+        )
+
+    def test_kling_edit_payload_uses_content_video_url(self):
+        node = nodes.KlingEditVideo()
+        payload = node.build_payload(
+            {
+                "model": "kling-o3-std-edit",
+                "prompt": "turn the product red",
+                "seconds": "5",
+            },
+            {"video_url": "https://cdn.test/source.mp4"},
+        )
+
+        self.assertEqual(payload["model"], "kling-o3-std-edit")
+        self.assertEqual(payload["prompt"], "turn the product red")
+        self.assertEqual(payload["seconds"], "5")
+        self.assertEqual(
+            payload["metadata"],
+            {
+                "content": [
+                    {
+                        "type": "video_url",
+                        "video_url": {"url": "https://cdn.test/source.mp4"},
+                    }
+                ]
+            },
+        )
+
+    def test_hailuo_23_text_to_video_payload(self):
+        node = nodes.Hailuo23Video()
+        payload = node.build_payload(
+            {
+                "model": "hailuo-2.3-t2v-standard",
+                "prompt": "a compact product reveal shot",
+                "seconds": "6",
+                "resolution": "768p",
+                "ratio": "16:9",
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "hailuo-2.3-t2v-standard")
+        self.assertEqual(payload["prompt"], "a compact product reveal shot")
+        self.assertEqual(payload["seconds"], "6")
+        self.assertEqual(payload["metadata"], {"resolution": "768p", "ratio": "16:9"})
+        self.assertNotIn("images", payload)
+
+    def test_hailuo_23_image_to_video_payload_uses_first_image_only(self):
+        node = nodes.Hailuo23Video()
+        payload = node.build_payload(
+            {
+                "model": "hailuo-2.3-fast-pro-i2v",
+                "prompt": "gentle product motion",
+                "seconds": "6",
+                "resolution": "768p",
+                "ratio": "9:16",
+            },
+            {
+                "images": [
+                    "https://cdn.test/first.png",
+                    "https://cdn.test/ignored.png",
+                ]
+            },
+        )
+
+        self.assertEqual(payload["model"], "hailuo-2.3-fast-pro-i2v")
+        self.assertEqual(payload["prompt"], "gentle product motion")
+        self.assertEqual(payload["images"], ["https://cdn.test/first.png"])
+        self.assertEqual(payload["metadata"], {"resolution": "768p"})
+
+    def test_hailuo_23_uploads_valid_first_image(self):
+        node = nodes.Hailuo23Video()
+        progress = []
+        with patch.object(
+            nodes, "image_to_png_bytes", return_value=b"image"
+        ), patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/first.png"
+        ) as upload:
+            media = node.collect_media(
+                {
+                    "model": "hailuo-2.3-i2v-standard",
+                    "first_image": torch.zeros((1, 512, 512, 3), dtype=torch.float32),
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        upload.assert_called_once()
+        self.assertEqual(media, {"images": ["https://cdn.test/first.png"]})
+        self.assertEqual(progress, [1.0])
+
+    def test_hailuo_23_rejects_too_small_first_image(self):
+        node = nodes.Hailuo23Video()
+        with self.assertRaises(nodes.SeedanceAPIError):
+            node.collect_media(
+                {
+                    "model": "hailuo-2.3-i2v-standard",
+                    "first_image": torch.zeros((1, 300, 512, 3), dtype=torch.float32),
+                },
+                CONFIG,
+                lambda _progress: None,
+            )
+
+    def test_hailuo_23_validation_matches_documented_limits(self):
+        self.assertIs(
+            nodes.Hailuo23Video.VALIDATE_INPUTS(
+                model="hailuo-2.3-t2v-standard",
+                prompt="valid prompt",
+                seconds="6",
+                resolution="768p",
+                ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Hailuo23Video.VALIDATE_INPUTS(
+                model="hailuo-2.3-t2v-standard",
+                prompt="",
+                seconds="6",
+                resolution="768p",
+                ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Hailuo23Video.VALIDATE_INPUTS(
+                model="hailuo-2.3-t2v-standard",
+                prompt="valid prompt",
+                seconds="4",
+                resolution="768p",
+                ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.Hailuo23Video.VALIDATE_INPUTS(
+                model="hailuo-2.3-t2v-standard",
+                prompt="valid prompt",
+                seconds="10",
+                resolution="1080p",
+                ratio="16:9",
+            ),
+            True,
+        )
+
+    def test_vidu_q3_text_to_video_payload(self):
+        node = nodes.ViduQ3Video()
+        payload = node.build_payload(
+            {
+                "model": "vidu-q3-turbo-t2v",
+                "prompt": "a compact product reveal shot",
+                "seconds": "4",
+                "ratio": "16:9",
+                "resolution": "default",
+                "seed": -1,
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "vidu-q3-turbo-t2v")
+        self.assertEqual(payload["prompt"], "a compact product reveal shot")
+        self.assertEqual(payload["seconds"], "4")
+        self.assertEqual(payload["metadata"], {"ratio": "16:9"})
+        self.assertNotIn("images", payload)
+
+    def test_vidu_q3_start_end_payload_uses_two_images(self):
+        node = nodes.ViduQ3Video()
+        payload = node.build_payload(
+            {
+                "model": "vidu-q3-pro-fast-start-end",
+                "prompt": "",
+                "seconds": "4",
+                "ratio": "9:16",
+                "resolution": "720p",
+                "seed": 7,
+            },
+            {
+                "images": [
+                    "https://cdn.test/start.png",
+                    "https://cdn.test/end.png",
+                    "https://cdn.test/ignored.png",
+                ]
+            },
+        )
+
+        self.assertEqual(payload["images"], ["https://cdn.test/start.png", "https://cdn.test/end.png"])
+        self.assertEqual(
+            payload["metadata"],
+            {"ratio": "9:16", "resolution": "720p", "seed": 7},
+        )
+        self.assertNotIn("prompt", payload)
+
+    def test_vidu_q3_reference_to_video_keeps_connected_images(self):
+        node = nodes.ViduQ3Video()
+        payload = node.build_payload(
+            {
+                "model": "vidu-q3-r2v",
+                "prompt": "Use image1 as the main subject and image2 as the scene",
+                "seconds": "5",
+                "ratio": "adaptive",
+                "resolution": "default",
+                "seed": -1,
+            },
+            {"images": ["https://cdn.test/a.png", "https://cdn.test/b.png"]},
+        )
+
+        self.assertEqual(payload["images"], ["https://cdn.test/a.png", "https://cdn.test/b.png"])
+        self.assertEqual(payload["prompt"], "Use image1 as the main subject and image2 as the scene")
+        self.assertEqual(payload["metadata"], {})
+
+    def test_vidu_q3_uploads_required_images_for_start_end(self):
+        node = nodes.ViduQ3Video()
+        progress = []
+        with patch.object(
+            nodes, "image_to_png_bytes", side_effect=[b"start", b"end"]
+        ), patch.object(
+            nodes,
+            "upload_media",
+            side_effect=["https://cdn.test/start.png", "https://cdn.test/end.png"],
+        ) as upload:
+            media = node.collect_media(
+                {
+                    "model": "vidu-q3-turbo-start-end",
+                    "image1": torch.zeros((1, 4, 4, 3), dtype=torch.float32),
+                    "image2": torch.zeros((1, 4, 4, 3), dtype=torch.float32),
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        self.assertEqual(media, {"images": ["https://cdn.test/start.png", "https://cdn.test/end.png"]})
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(progress, [0.5, 1.0])
+
+    def test_vidu_q3_validation_matches_documented_modes(self):
+        self.assertIs(
+            nodes.ViduQ3Video.VALIDATE_INPUTS(
+                model="vidu-q3-turbo-t2v",
+                prompt="valid prompt",
+                seconds="4",
+                ratio="16:9",
+                resolution="default",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3Video.VALIDATE_INPUTS(
+                model="vidu-q3-turbo-t2v",
+                prompt="",
+                seconds="4",
+                ratio="16:9",
+                resolution="default",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3Video.VALIDATE_INPUTS(
+                model="vidu-q3-turbo-t2v",
+                prompt="valid prompt",
+                seconds="-1",
+                ratio="16:9",
+                resolution="default",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3Video.VALIDATE_INPUTS(
+                model="vidu-q3-turbo-t2v",
+                prompt="valid prompt",
+                seconds="4",
+                ratio="16:9",
+                resolution="4k",
+                seed=-1,
+            ),
+            True,
+        )
+
+    def test_vidu_q3_short_play_payload_uses_script_name_metadata(self):
+        node = nodes.ViduQ3ShortPlay()
+        payload = node.build_payload(
+            {
+                "model": "vidu-q3-drama-short-play",
+                "prompt": "Scene one: a founder enters a quiet studio and introduces the product.",
+                "script_name": "Studio intro",
+                "resolution": "1080p",
+                "duration": "8",
+                "aspect_ratio": "9:16",
+                "style": "realistic",
+                "asset_type": "character",
+                "asset_name_prefix": "Hero",
+                "asset_description": "Founder in a clean studio",
+            },
+            {"asset_urls": ["https://cdn.test/founder.png"]},
+        )
+
+        self.assertEqual(payload["model"], "vidu-q3-drama-short-play")
+        self.assertEqual(
+            payload["prompt"],
+            "Scene one: a founder enters a quiet studio and introduces the product.",
+        )
+        self.assertEqual(payload["metadata"]["script_name"], "Studio intro")
+        self.assertEqual(payload["metadata"]["resolution"], "1080p")
+        self.assertEqual(payload["metadata"]["duration"], 8)
+        self.assertEqual(payload["metadata"]["aspect_ratio"], "9:16")
+        self.assertEqual(payload["metadata"]["style"], "realistic")
+        self.assertEqual(
+            payload["metadata"]["assets"],
+            [
+                {
+                    "id": "1",
+                    "type": "character",
+                    "name": "Hero 1",
+                    "image_uri": "https://cdn.test/founder.png",
+                    "description": "Founder in a clean studio",
+                }
+            ],
+        )
+        self.assertNotIn("seconds", payload)
+        self.assertNotIn("images", payload)
+
+    def test_vidu_q3_short_play_uploads_reference_assets(self):
+        node = nodes.ViduQ3ShortPlay()
+        progress = []
+        with patch.object(
+            nodes, "image_to_png_bytes", return_value=b"asset"
+        ), patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/asset.png"
+        ) as upload:
+            media = node.collect_media(
+                {
+                    "asset_image1": torch.zeros((1, 4, 4, 3), dtype=torch.float32),
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        upload.assert_called_once()
+        self.assertEqual(media, {"asset_urls": ["https://cdn.test/asset.png"]})
+        self.assertEqual(progress, [1.0])
+
+    def test_vidu_q3_short_play_validation_requires_script(self):
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                model="vidu-q3-drama-short-play",
+                prompt="",
+                script_name="Studio intro",
+                resolution="1080p",
+                duration="8",
+                aspect_ratio="9:16",
+                style="realistic",
+                asset_type="character",
+                asset_name_prefix="Asset",
+                asset_description="Reference asset",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                model="vidu-q3-drama-short-play",
+                prompt="valid script",
+                script_name="",
+                resolution="1080p",
+                duration="8",
+                aspect_ratio="9:16",
+                style="realistic",
+                asset_type="character",
+                asset_name_prefix="Asset",
+                asset_description="Reference asset",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                model="vidu-q3-drama-short-play",
+                prompt="valid script",
+                script_name="Studio intro",
+                resolution="720p",
+                duration="8",
+                aspect_ratio="9:16",
+                style="realistic",
+                asset_type="character",
+                asset_name_prefix="Asset",
+                asset_description="Reference asset",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                model="vidu-q3-drama-short-play",
+                prompt="valid script",
+                script_name="Studio intro",
+                resolution="1080p",
+                duration="6",
+                aspect_ratio="9:16",
+                style="realistic",
+                asset_type="character",
+                asset_name_prefix="Asset",
+                asset_description="Reference asset",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                model="vidu-q3-drama-short-play",
+                prompt="valid script",
+                script_name="Studio intro",
+                resolution="1080p",
+                duration="8",
+                aspect_ratio="1:1",
+                style="realistic",
+                asset_type="character",
+                asset_name_prefix="Asset",
+                asset_description="Reference asset",
+            ),
+            True,
+        )
+
     def test_zhenzhen_upscaler_payload_uses_single_video_content(self):
         node = nodes.ZhenzhenUpscalerVideo()
         payload = node.build_payload(
