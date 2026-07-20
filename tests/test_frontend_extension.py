@@ -48,6 +48,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_ImageToVideo",
             "Seedance_MultimodalVideo",
             "Seedream_V5_Pro_Image",
+            "Zhenzhen_Image_G2",
             "HappyHorse_1_1_Video",
             "Wan_2_7_Spicy_I2V",
             "Kling_Video",

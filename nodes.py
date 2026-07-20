@@ -1,12 +1,14 @@
 """
 ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, Vidu,
-Zhenzhen Upscaler, Seedream, Dola Seedream, and Doubao Seed Audio APIs
+Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G-2,
+and Doubao Seed Audio APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
 HappyHorse, Wan, Kling, Hailuo, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
-selector, and Doubao Seed Audio uses its own audio node.
+selector, Zhenzhen Image G-2 uses its own image node, and Doubao Seed Audio
+uses its own audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
 download result, with a ComfyUI progress bar driven by the API's progress
@@ -92,6 +94,12 @@ SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
 SEEDREAM_PROMPT_MIN_LENGTH = 5
 SEEDREAM_PROMPT_MAX_LENGTH = 2000
 MAX_SEEDREAM_IMAGES = 10
+ZHENZHEN_IMAGE_G2_T2I_MODEL = "zhenzhen-image-g2-t2i"
+ZHENZHEN_IMAGE_G2_I2I_MODEL = "zhenzhen-image-g2-i2i"
+ZHENZHEN_IMAGE_G2_MODELS = [ZHENZHEN_IMAGE_G2_T2I_MODEL, ZHENZHEN_IMAGE_G2_I2I_MODEL]
+ZHENZHEN_IMAGE_G2_RESOLUTIONS = ["1k"]
+ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH = 20000
+MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
 
 HAPPYHORSE_T2V_MODEL = "happyhorse-1.1-t2v"
 HAPPYHORSE_I2V_MODEL = "happyhorse-1.1-i2v"
@@ -455,12 +463,12 @@ class SeedanceTextToVideo(SeedanceVideoNodeBase):
         }
 
     @classmethod
-    def VALIDATE_INPUTS(cls, model=None, resolution=None, prompt=None, **kwargs):
+    def VALIDATE_INPUTS(cls, model=None, resolution=None, prompt=None, strict=False, **kwargs):
         if model and resolution:
             result = _validate_common(model, resolution, prompt)
             if result is not True:
                 return result
-        if prompt is not None and not str(prompt).strip():
+        if strict and not str(prompt or "").strip():
             return "prompt is required for text-to-video | 文生视频必须填写提示词"
         return True
 
@@ -597,7 +605,7 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
         }
 
     @classmethod
-    def VALIDATE_INPUTS(cls, model=None, prompt=None, seconds=None, resolution=None, **kwargs):
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, seconds=None, resolution=None, strict=False, **kwargs):
         if model not in (None, *HAPPYHORSE_MODELS):
             return f"unsupported HappyHorse model: {model}"
         if resolution is not None and resolution not in HAPPYHORSE_RESOLUTIONS:
@@ -606,7 +614,7 @@ class HappyHorseVideo(SeedanceVideoNodeBase):
             return "HappyHorse seconds must be 3-15 and cannot be -1 | HappyHorse 时长必须是 3-15 秒，不能用 -1"
         if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
-        if model == HAPPYHORSE_T2V_MODEL and not str(prompt or "").strip():
+        if strict and model == HAPPYHORSE_T2V_MODEL and not str(prompt or "").strip():
             return "prompt is required for HappyHorse text-to-video | HappyHorse 文生视频必须填写提示词"
         return True
 
@@ -903,6 +911,7 @@ class KlingVideo(SeedanceVideoNodeBase):
         seconds=None,
         ratio=None,
         negative_prompt=None,
+        strict=False,
         **kwargs,
     ):
         if model not in (None, *KLING_VIDEO_MODELS):
@@ -915,7 +924,7 @@ class KlingVideo(SeedanceVideoNodeBase):
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
         if negative_prompt is not None and len(str(negative_prompt)) > PROMPT_MAX_LENGTH:
             return f"negative_prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(negative_prompt))})"
-        if model in (*KLING_T2V_MODELS, *KLING_R2V_MODELS) and not str(prompt or "").strip():
+        if strict and model in (*KLING_T2V_MODELS, *KLING_R2V_MODELS) and not str(prompt or "").strip():
             return "prompt is required for Kling text/reference-to-video | Kling 文生视频/参考生视频必须填写提示词"
         return True
 
@@ -983,6 +992,7 @@ class KlingVideo(SeedanceVideoNodeBase):
             seconds=kwargs.get("seconds"),
             ratio=kwargs.get("ratio"),
             negative_prompt=kwargs.get("negative_prompt"),
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -1051,7 +1061,7 @@ class KlingEditVideo(SeedanceVideoNodeBase):
         }
 
     @classmethod
-    def VALIDATE_INPUTS(cls, model=None, video_url=None, prompt=None, seconds=None, **kwargs):
+    def VALIDATE_INPUTS(cls, model=None, video_url=None, prompt=None, seconds=None, strict=False, **kwargs):
         if model not in (None, *KLING_EDIT_MODELS):
             return f"unsupported Kling edit model: {model}"
         if seconds is not None and str(seconds) not in KLING_SECONDS:
@@ -1060,7 +1070,7 @@ class KlingEditVideo(SeedanceVideoNodeBase):
         if url_text and not url_text.startswith(("http://", "https://")):
             return "video_url must be an http(s) URL | video_url 必须是 http(s) URL"
         prompt_text = str(prompt or "").strip()
-        if not prompt_text:
+        if strict and not prompt_text:
             return "prompt is required for Kling edit | Kling 编辑必须填写提示词"
         if len(prompt_text) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
@@ -1110,6 +1120,7 @@ class KlingEditVideo(SeedanceVideoNodeBase):
             video_url=video_url,
             prompt=prompt,
             seconds=kwargs.get("seconds"),
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -1195,6 +1206,7 @@ class Hailuo23Video(SeedanceVideoNodeBase):
         seconds=None,
         resolution=None,
         ratio=None,
+        strict=False,
         **kwargs,
     ):
         if model not in (None, *HAILUO23_MODELS):
@@ -1210,7 +1222,7 @@ class Hailuo23Video(SeedanceVideoNodeBase):
         prompt_text = str(prompt or "")
         if len(prompt_text) > HAILUO23_PROMPT_MAX_LENGTH:
             return f"prompt exceeds {HAILUO23_PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
-        if model in HAILUO23_T2V_MODELS and not prompt_text.strip():
+        if strict and model in HAILUO23_T2V_MODELS and not prompt_text.strip():
             return "prompt is required for Hailuo text-to-video | Hailuo 文生视频必须填写提示词"
         return True
 
@@ -1276,6 +1288,7 @@ class Hailuo23Video(SeedanceVideoNodeBase):
             seconds=kwargs.get("seconds"),
             resolution=kwargs.get("resolution"),
             ratio=kwargs.get("ratio"),
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -1374,6 +1387,7 @@ class ViduQ3Video(SeedanceVideoNodeBase):
         ratio=None,
         resolution=None,
         seed=None,
+        strict=False,
         **kwargs,
     ):
         if model not in (None, *VIDU_VIDEO_MODELS):
@@ -1386,7 +1400,7 @@ class ViduQ3Video(SeedanceVideoNodeBase):
             return "Vidu Q3 resolution must be default, 720p, or 1080p | Vidu Q3 分辨率只能是 default、720p 或 1080p"
         if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
-        if model in VIDU_T2V_MODELS and not str(prompt or "").strip():
+        if strict and model in VIDU_T2V_MODELS and not str(prompt or "").strip():
             return "prompt is required for Vidu text-to-video | Vidu 文生视频必须填写提示词"
         if seed is not None:
             try:
@@ -1469,6 +1483,7 @@ class ViduQ3Video(SeedanceVideoNodeBase):
             ratio=kwargs.get("ratio"),
             resolution=kwargs.get("resolution"),
             seed=kwargs.get("seed"),
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -1589,17 +1604,18 @@ class ViduQ3ShortPlay(SeedanceVideoNodeBase):
         asset_type=None,
         asset_name_prefix=None,
         asset_description=None,
+        strict=False,
         **kwargs,
     ):
         if model not in (None, *VIDU_SHORT_PLAY_MODELS):
             return f"unsupported Vidu short-play model: {model}"
         prompt_text = str(prompt or "").strip()
-        if not prompt_text:
+        if strict and not prompt_text:
             return "prompt/script content is required for Vidu short-play | Vidu 短剧成片必须填写脚本内容"
         if len(prompt_text) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
         script_name_text = str(script_name or "").strip()
-        if not script_name_text:
+        if strict and not script_name_text:
             return "script_name is required for Vidu short-play | Vidu 短剧成片必须填写 script_name"
         if len(script_name_text) > 20:
             return "script_name must be 20 characters or fewer | script_name 不能超过 20 字符"
@@ -1671,6 +1687,7 @@ class ViduQ3ShortPlay(SeedanceVideoNodeBase):
             asset_type=kwargs.get("asset_type"),
             asset_name_prefix=kwargs.get("asset_name_prefix"),
             asset_description=kwargs.get("asset_description"),
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -1854,12 +1871,12 @@ class SeedanceMultimodalVideo(SeedanceVideoNodeBase):
         }
 
     @classmethod
-    def VALIDATE_INPUTS(cls, model=None, resolution=None, prompt=None, **kwargs):
+    def VALIDATE_INPUTS(cls, model=None, resolution=None, prompt=None, strict=False, **kwargs):
         if model and resolution:
             result = _validate_common(model, resolution, prompt)
             if result is not True:
                 return result
-        if prompt is not None and not str(prompt).strip():
+        if strict and not str(prompt or "").strip():
             return "prompt is required for multimodal video | 多模态视频必须填写提示词"
         return True
 
@@ -2009,10 +2026,11 @@ class SeedreamV5ProImage:
         height=None,
         output_format=None,
         model_family=None,
+        strict=False,
         **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
-        if not SEEDREAM_PROMPT_MIN_LENGTH <= len(prompt_text) <= SEEDREAM_PROMPT_MAX_LENGTH:
+        if (strict or prompt_text) and not SEEDREAM_PROMPT_MIN_LENGTH <= len(prompt_text) <= SEEDREAM_PROMPT_MAX_LENGTH:
             return (
                 f"prompt must contain {SEEDREAM_PROMPT_MIN_LENGTH}-{SEEDREAM_PROMPT_MAX_LENGTH} "
                 f"characters (got {len(prompt_text)}) | 提示词长度必须为 "
@@ -2090,6 +2108,7 @@ class SeedreamV5ProImage:
             height=height,
             output_format=output_format,
             model_family=model_family,
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -2119,6 +2138,210 @@ class SeedreamV5ProImage:
         payload = self._build_payload(
             prompt_text, resolution, width, height, output_format, image_urls, model_family
         )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Image G-2 image generation and editing
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageG2:
+    """Zhenzhen Image G-2 text-to-image and image-to-image."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{i}": ("IMAGE", {
+                "tooltip": (
+                    f"Optional editing reference image {i} of {MAX_ZHENZHEN_IMAGE_G2_IMAGES}; "
+                    "used only by zhenzhen-image-g2-i2i. | 可选编辑参考图，仅 i2i 模型使用。"
+                ),
+            })
+            for i in range(1, MAX_ZHENZHEN_IMAGE_G2_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+
+        return {
+            "required": {
+                "model": (ZHENZHEN_IMAGE_G2_MODELS, {
+                    "default": ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                    "tooltip": (
+                        "Zhenzhen Image G-2 task type. t2i uses prompt only; "
+                        "i2i requires one or more reference images. | G-2 文生图只用提示词；"
+                        "图生图需要连接参考图。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Prompt, up to 20000 characters. | 提示词，最多 20000 字符。",
+                }),
+                "resolution": (ZHENZHEN_IMAGE_G2_RESOLUTIONS, {
+                    "default": "1k",
+                    "tooltip": "Zhenzhen Image G-2 currently supports 1k only. | G-2 当前仅支持 1k。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "adaptive",
+                    "tooltip": "Optional aspect ratio forwarded as metadata.ratio. | 可选画幅比例，透传为 metadata.ratio。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        resolution=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *ZHENZHEN_IMAGE_G2_MODELS):
+            return f"unsupported Zhenzhen Image G-2 model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Zhenzhen Image G-2 | Zhenzhen Image G-2 必须填写提示词"
+        if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt exceeds {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)}) | 提示词不能超过 {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} 字符"
+            )
+        if resolution is not None and resolution not in ZHENZHEN_IMAGE_G2_RESOLUTIONS:
+            return "Zhenzhen Image G-2 resolution must be 1k | Zhenzhen Image G-2 分辨率只能是 1k"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_g2"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_ZHENZHEN_IMAGE_G2_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: G-2 image slots {connected} have gaps; "
+                f"they will be compacted to images order 1..{len(connected)}."
+            )
+        return slots
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        resolution: str,
+        ratio: str,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL and not images:
+            raise SeedanceAPIError(
+                "at least one image is required for zhenzhen-image-g2-i2i | "
+                "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
+            )
+
+        metadata: Dict[str, Any] = {"resolution": resolution}
+        ratio_text = str(ratio or "").strip()
+        if ratio_text and ratio_text != "adaptive":
+            metadata["ratio"] = ratio_text
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "metadata": metadata,
+        }
+        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
+            payload["images"] = images[:MAX_ZHENZHEN_IMAGE_G2_IMAGES]
+        return payload
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        resolution: str,
+        ratio: str,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            resolution=resolution,
+            ratio=ratio,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        image_urls: List[str] = []
+        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
+            references = self._connected_images(kwargs)
+            if not references:
+                raise SeedanceAPIError(
+                    "at least one image is required for zhenzhen-image-g2-i2i | "
+                    "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
+                )
+            for done, (slot, tensor) in enumerate(references, start=1):
+                image_url = upload_media(
+                    image_to_png_bytes(tensor),
+                    f"zhenzhen_image_g2_reference_{slot}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+                image_urls.append(image_url)
+                self._update_progress(pbar, done / len(references) * 15)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(model, prompt_text, resolution, ratio, image_urls)
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
 
@@ -2220,10 +2443,11 @@ class DoubaoSeedAudio:
         speech_rate=None,
         loudness_rate=None,
         pitch_rate=None,
+        strict=False,
         **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
-        if not DOUBAO_PROMPT_MIN_LENGTH <= len(prompt_text) <= DOUBAO_PROMPT_MAX_LENGTH:
+        if (strict or prompt_text) and not DOUBAO_PROMPT_MIN_LENGTH <= len(prompt_text) <= DOUBAO_PROMPT_MAX_LENGTH:
             return (
                 f"prompt must contain {DOUBAO_PROMPT_MIN_LENGTH}-{DOUBAO_PROMPT_MAX_LENGTH} "
                 f"characters (got {len(prompt_text)}) | 提示词长度必须为 "
@@ -2411,6 +2635,7 @@ class DoubaoSeedAudio:
             speech_rate=speech_rate,
             loudness_rate=loudness_rate,
             pitch_rate=pitch_rate,
+            strict=True,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -2477,6 +2702,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_ImageToVideo": SeedanceImageToVideo,
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
+    "Zhenzhen_Image_G2": ZhenzhenImageG2,
     "HappyHorse_1_1_Video": HappyHorseVideo,
     "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
     "Kling_Video": KlingVideo,
@@ -2494,6 +2720,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
+    "Zhenzhen_Image_G2": "Zhenzhen Image G-2 图像生成/编辑",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
     "Kling_Video": "Kling 视频生成",

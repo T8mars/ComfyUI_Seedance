@@ -331,6 +331,27 @@ class ImageNodeTests(unittest.TestCase):
         self.assertEqual(output["result"][1:3], ("https://cdn.test/result.png", "image-task"))
 
     def test_prompt_validation_matches_documented_range(self):
+        self.assertIs(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="",
+                resolution="1k",
+                width=1024,
+                height=1024,
+                output_format="png",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="",
+                resolution="1k",
+                width=1024,
+                height=1024,
+                output_format="png",
+                strict=True,
+            ),
+            True,
+        )
         self.assertIsNot(
             nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
                 prompt="four",
@@ -351,6 +372,140 @@ class ImageNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_seedream_execute_still_rejects_empty_runtime_prompt(self):
+        node = nodes.SeedreamV5ProImage()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.execute(
+                prompt="",
+                resolution="1k",
+                width=1024,
+                height=1024,
+                output_format="png",
+            )
+
+    def test_zhenzhen_image_g2_text_to_image_payload(self):
+        node = nodes.ZhenzhenImageG2()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+            "clean product photo on a white background",
+            "1k",
+            "adaptive",
+            ["https://cdn.test/ignored.png"],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-g2-t2i")
+        self.assertEqual(payload["prompt"], "clean product photo on a white background")
+        self.assertEqual(payload["metadata"], {"resolution": "1k"})
+        self.assertNotIn("images", payload)
+
+    def test_zhenzhen_image_g2_image_to_image_payload(self):
+        node = nodes.ZhenzhenImageG2()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_G2_I2I_MODEL,
+            "turn this into a glossy blue app icon",
+            "1k",
+            "1:1",
+            ["https://cdn.test/reference.png"],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-g2-i2i")
+        self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
+
+    def test_zhenzhen_image_g2_image_to_image_requires_reference(self):
+        node = nodes.ZhenzhenImageG2()
+        with self.assertRaises(client.SeedanceAPIError):
+            node._build_payload(
+                nodes.ZHENZHEN_IMAGE_G2_I2I_MODEL,
+                "valid prompt",
+                "1k",
+                "adaptive",
+                [],
+            )
+
+    def test_zhenzhen_image_g2_validation_matches_documented_limits(self):
+        self.assertIs(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                prompt="",
+                resolution="1k",
+                ratio="adaptive",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                prompt="",
+                resolution="1k",
+                ratio="adaptive",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                prompt="x" * (nodes.ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH + 1),
+                resolution="1k",
+                ratio="adaptive",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                prompt="valid prompt",
+                resolution="2k",
+                ratio="adaptive",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                prompt="valid prompt",
+                resolution="1k",
+                ratio="bad-ratio",
+            ),
+            True,
+        )
+
+    def test_zhenzhen_image_g2_execute_uploads_reference_and_returns_image_outputs(self):
+        node = nodes.ZhenzhenImageG2()
+        result_tensor = torch.zeros((1, 4, 4, 3), dtype=torch.float32)
+        final_response = {
+            "data": {
+                "status": "SUCCESS",
+                "result_url": "https://cdn.test/result.png",
+            }
+        }
+
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/reference.png"
+        ) as upload, patch.object(
+            nodes, "submit_image_task", return_value="image-task"
+        ) as submit, patch.object(
+            nodes, "poll_image_task", return_value=final_response
+        ), patch.object(
+            nodes, "download_image", return_value=result_tensor
+        ):
+            output = node.execute(
+                model=nodes.ZHENZHEN_IMAGE_G2_I2I_MODEL,
+                prompt="turn this into a glossy blue app icon",
+                resolution="1k",
+                ratio="1:1",
+                image1=torch.zeros((1, 8, 8, 3), dtype=torch.float32),
+            )
+
+        upload.assert_called_once()
+        submitted_payload = submit.call_args.args[0]
+        self.assertEqual(submitted_payload["model"], "zhenzhen-image-g2-i2i")
+        self.assertEqual(submitted_payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(submitted_payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
+        self.assertIs(output["result"][0], result_tensor)
+        self.assertEqual(output["result"][1:3], ("https://cdn.test/result.png", "image-task"))
 
 
 class NewModelNodeTests(unittest.TestCase):
@@ -443,6 +598,16 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+        self.assertIs(
+            nodes.KlingVideo.VALIDATE_INPUTS(
+                model="kling-v3.0-std-t2v",
+                prompt="",
+                seconds="5",
+                ratio="16:9",
+                negative_prompt="",
+            ),
+            True,
+        )
         self.assertIsNot(
             nodes.KlingVideo.VALIDATE_INPUTS(
                 model="kling-v3.0-std-t2v",
@@ -450,6 +615,7 @@ class NewModelNodeTests(unittest.TestCase):
                 seconds="5",
                 ratio="16:9",
                 negative_prompt="",
+                strict=True,
             ),
             True,
         )
@@ -463,6 +629,20 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_kling_build_payload_still_rejects_empty_runtime_prompt(self):
+        node = nodes.KlingVideo()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {
+                    "model": "kling-v3.0-std-t2v",
+                    "prompt": "",
+                    "seconds": "5",
+                    "ratio": "16:9",
+                    "negative_prompt": "",
+                },
+                {},
+            )
 
     def test_kling_edit_payload_uses_content_video_url(self):
         node = nodes.KlingEditVideo()
@@ -576,6 +756,16 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+        self.assertIs(
+            nodes.Hailuo23Video.VALIDATE_INPUTS(
+                model="hailuo-2.3-t2v-standard",
+                prompt="",
+                seconds="6",
+                resolution="768p",
+                ratio="16:9",
+            ),
+            True,
+        )
         self.assertIsNot(
             nodes.Hailuo23Video.VALIDATE_INPUTS(
                 model="hailuo-2.3-t2v-standard",
@@ -583,6 +773,7 @@ class NewModelNodeTests(unittest.TestCase):
                 seconds="6",
                 resolution="768p",
                 ratio="16:9",
+                strict=True,
             ),
             True,
         )
@@ -606,6 +797,20 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_hailuo_23_build_payload_still_rejects_empty_runtime_prompt(self):
+        node = nodes.Hailuo23Video()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {
+                    "model": "hailuo-2.3-t2v-standard",
+                    "prompt": "",
+                    "seconds": "6",
+                    "resolution": "768p",
+                    "ratio": "16:9",
+                },
+                {},
+            )
 
     def test_vidu_q3_text_to_video_payload(self):
         node = nodes.ViduQ3Video()
@@ -708,6 +913,17 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+        self.assertIs(
+            nodes.ViduQ3Video.VALIDATE_INPUTS(
+                model="vidu-q3-turbo-t2v",
+                prompt="",
+                seconds="4",
+                ratio="16:9",
+                resolution="default",
+                seed=-1,
+            ),
+            True,
+        )
         self.assertIsNot(
             nodes.ViduQ3Video.VALIDATE_INPUTS(
                 model="vidu-q3-turbo-t2v",
@@ -716,6 +932,7 @@ class NewModelNodeTests(unittest.TestCase):
                 ratio="16:9",
                 resolution="default",
                 seed=-1,
+                strict=True,
             ),
             True,
         )
@@ -741,6 +958,21 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_vidu_q3_build_payload_still_rejects_empty_runtime_prompt(self):
+        node = nodes.ViduQ3Video()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {
+                    "model": "vidu-q3-turbo-t2v",
+                    "prompt": "",
+                    "seconds": "4",
+                    "ratio": "16:9",
+                    "resolution": "default",
+                    "seed": -1,
+                },
+                {},
+            )
 
     def test_vidu_q3_short_play_payload_uses_script_name_metadata(self):
         node = nodes.ViduQ3ShortPlay()
@@ -806,33 +1038,47 @@ class NewModelNodeTests(unittest.TestCase):
         self.assertEqual(progress, [1.0])
 
     def test_vidu_q3_short_play_validation_requires_script(self):
-        self.assertIsNot(
+        common = {
+            "model": "vidu-q3-drama-short-play",
+            "resolution": "1080p",
+            "duration": "8",
+            "aspect_ratio": "9:16",
+            "style": "realistic",
+            "asset_type": "character",
+            "asset_name_prefix": "Asset",
+            "asset_description": "Reference asset",
+        }
+        self.assertIs(
             nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
-                model="vidu-q3-drama-short-play",
                 prompt="",
                 script_name="Studio intro",
-                resolution="1080p",
-                duration="8",
-                aspect_ratio="9:16",
-                style="realistic",
-                asset_type="character",
-                asset_name_prefix="Asset",
-                asset_description="Reference asset",
+                **common,
             ),
             True,
         )
         self.assertIsNot(
             nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
-                model="vidu-q3-drama-short-play",
+                prompt="",
+                script_name="Studio intro",
+                strict=True,
+                **common,
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
                 prompt="valid script",
                 script_name="",
-                resolution="1080p",
-                duration="8",
-                aspect_ratio="9:16",
-                style="realistic",
-                asset_type="character",
-                asset_name_prefix="Asset",
-                asset_description="Reference asset",
+                **common,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ViduQ3ShortPlay.VALIDATE_INPUTS(
+                prompt="valid script",
+                script_name="",
+                strict=True,
+                **common,
             ),
             True,
         )
@@ -881,6 +1127,25 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_vidu_q3_short_play_build_payload_still_rejects_empty_runtime_script(self):
+        node = nodes.ViduQ3ShortPlay()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {
+                    "model": "vidu-q3-drama-short-play",
+                    "prompt": "",
+                    "script_name": "Studio intro",
+                    "resolution": "1080p",
+                    "duration": "8",
+                    "aspect_ratio": "9:16",
+                    "style": "realistic",
+                    "asset_type": "character",
+                    "asset_name_prefix": "Asset",
+                    "asset_description": "Reference asset",
+                },
+                {"asset_urls": ["https://cdn.test/founder.png"]},
+            )
 
     def test_zhenzhen_upscaler_payload_uses_single_video_content(self):
         node = nodes.ZhenzhenUpscalerVideo()
@@ -1165,10 +1430,65 @@ class NewModelNodeTests(unittest.TestCase):
         )
         self.assertIs(
             nodes.HappyHorseVideo.VALIDATE_INPUTS(
+                model=nodes.HAPPYHORSE_T2V_MODEL,
+                prompt="",
+                seconds="4",
+                resolution="720p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HappyHorseVideo.VALIDATE_INPUTS(
+                model=nodes.HAPPYHORSE_T2V_MODEL,
+                prompt="",
+                seconds="4",
+                resolution="720p",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.HappyHorseVideo.VALIDATE_INPUTS(
                 model=nodes.HAPPYHORSE_R2V_MODEL,
                 prompt="",
                 seconds="6",
                 resolution="720p",
+            ),
+            True,
+        )
+
+    def test_core_video_prompt_validation_allows_linked_empty_widget_preflight(self):
+        self.assertIs(
+            nodes.SeedanceTextToVideo.VALIDATE_INPUTS(
+                model="seedance-2.0-mini-t2v",
+                prompt="",
+                resolution="720p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.SeedanceTextToVideo.VALIDATE_INPUTS(
+                model="seedance-2.0-mini-t2v",
+                prompt="",
+                resolution="720p",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.SeedanceMultimodalVideo.VALIDATE_INPUTS(
+                model="seedance-2.0-mini-multi",
+                prompt="",
+                resolution="720p",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.SeedanceMultimodalVideo.VALIDATE_INPUTS(
+                model="seedance-2.0-mini-multi",
+                prompt="",
+                resolution="720p",
+                strict=True,
             ),
             True,
         )
@@ -1231,6 +1551,31 @@ class NewModelNodeTests(unittest.TestCase):
                 image_urls=[],
                 audio_urls=["https://cdn.test/a.wav"],
             )
+
+    def test_doubao_audio_prompt_validation_allows_linked_empty_widget_preflight(self):
+        self.assertIs(
+            nodes.DoubaoSeedAudio.VALIDATE_INPUTS(
+                prompt="",
+                output_format="wav",
+                sample_rate="24000",
+                speech_rate=0,
+                loudness_rate=0,
+                pitch_rate=0,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.DoubaoSeedAudio.VALIDATE_INPUTS(
+                prompt="",
+                output_format="wav",
+                sample_rate="24000",
+                speech_rate=0,
+                loudness_rate=0,
+                pitch_rate=0,
+                strict=True,
+            ),
+            True,
+        )
 
 
 if __name__ == "__main__":

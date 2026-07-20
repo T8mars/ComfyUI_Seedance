@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_seedance"
-version = "0.2.6"
-description = "ComfyUI nodes for Seedance 2.0, HappyHorse/Wan/Kling/Hailuo/Vidu/Zhenzhen Upscaler video, Seedream/Dola Seedream image, and Doubao Seed Audio APIs (api.seedance.nz)"
+version = "0.2.7"
+description = "ComfyUI nodes for Seedance 2.0, HappyHorse/Wan/Kling/Hailuo/Vidu/Zhenzhen Upscaler video, Seedream/Dola Seedream/Zhenzhen Image G-2 image, and Doubao Seed Audio APIs (api.seedance.nz)"
 requires-python = ">=3.9"
 dependencies = ["requests>=2.28"]
 
