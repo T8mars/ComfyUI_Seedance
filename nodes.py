@@ -1,14 +1,15 @@
 """
 ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, Vidu,
-Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G-2,
-and Doubao Seed Audio APIs
+Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G, Zhenzhen
+Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
 HappyHorse, Wan, Kling, Hailuo, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
-selector, Zhenzhen Image G-2 uses its own image node, and Doubao Seed Audio
-uses its own audio node.
+selector, Zhenzhen Image G uses its own image node, Zhenzhen Video models
+use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
+Whisper transcription uses a synchronous audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
 download result, with a ComfyUI progress bar driven by the API's progress
@@ -33,6 +34,7 @@ from .core.client import (
     submit_audio_task,
     submit_image_task,
     submit_task,
+    transcribe_audio,
     upload_media,
 )
 from .core.media import (
@@ -96,10 +98,33 @@ SEEDREAM_PROMPT_MAX_LENGTH = 2000
 MAX_SEEDREAM_IMAGES = 10
 ZHENZHEN_IMAGE_G2_T2I_MODEL = "zhenzhen-image-g2-t2i"
 ZHENZHEN_IMAGE_G2_I2I_MODEL = "zhenzhen-image-g2-i2i"
-ZHENZHEN_IMAGE_G2_MODELS = [ZHENZHEN_IMAGE_G2_T2I_MODEL, ZHENZHEN_IMAGE_G2_I2I_MODEL]
+ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"
+ZHENZHEN_IMAGE_G2_MODELS = [
+    ZHENZHEN_IMAGE_G2_T2I_MODEL,
+    ZHENZHEN_IMAGE_G2_I2I_MODEL,
+    ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+]
 ZHENZHEN_IMAGE_G2_RESOLUTIONS = ["1k"]
 ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH = 20000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
+ZHENZHEN_IMAGE_GK_V15_MODEL = "zhenzhen-image-gk-v15"
+ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL = "zhenzhen-image-gk-v15-edit"
+ZHENZHEN_IMAGE_GK_V15_MODELS = [
+    ZHENZHEN_IMAGE_GK_V15_MODEL,
+    ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
+]
+ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
+ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
+
+ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
+ZHENZHEN_VIDEO_GK_V15_MODEL = "zhenzhen-video-gk-v15"
+ZHENZHEN_VIDEO_V31_FAST_MODEL = "zhenzhen-video-v31-fast"
+ZHENZHEN_VIDEO_V31_QUALITY_MODEL = "zhenzhen-video-v31-quality"
+ZHENZHEN_VIDEO_V31_MODELS = [ZHENZHEN_VIDEO_V31_FAST_MODEL, ZHENZHEN_VIDEO_V31_QUALITY_MODEL]
+ZHENZHEN_VIDEO_RESOLUTIONS = ["720p", "1080p"]
+ZHENZHEN_VIDEO_SECONDS = [str(s) for s in range(4, 16)]
+ZHENZHEN_VIDEO_GK_SECONDS = [str(s) for s in range(6, 31)]
+MAX_ZHENZHEN_VIDEO_IMAGES = 2
 
 HAPPYHORSE_T2V_MODEL = "happyhorse-1.1-t2v"
 HAPPYHORSE_I2V_MODEL = "happyhorse-1.1-i2v"
@@ -207,6 +232,8 @@ DOUBAO_SAMPLE_RATES = ["8000", "16000", "24000", "32000", "44100"]
 DOUBAO_PROMPT_MIN_LENGTH = 5
 DOUBAO_PROMPT_MAX_LENGTH = 2048
 MAX_DOUBAO_REFERENCE_AUDIOS = 3
+WHISPER_TRANSCRIPTION_MODEL = "whisper-1"
+WHISPER_RESPONSE_FORMATS = ["json", "verbose_json", "srt", "text", "vtt"]
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -847,6 +874,212 @@ class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
         if prompt:
             payload["prompt"] = prompt
         return payload
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen video generation
+# ---------------------------------------------------------------------------
+
+class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
+    """Shared Zhenzhen video text/image-to-video payload shape."""
+
+    MODELS: List[str] = []
+    DEFAULT_MODEL = ""
+    LOG_PREFIX = "Zhenzhen_video"
+    SECONDS = ZHENZHEN_VIDEO_SECONDS
+    DEFAULT_SECONDS = "4"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_ZHENZHEN_VIDEO_IMAGES + 1):
+            optional[f"image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Optional reference image {i}; connected images are submitted as images[]. | "
+                    f"可选参考图 {i}，连接后通过 images[] 提交。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (cls.MODELS, {
+                    "default": cls.DEFAULT_MODEL,
+                    "tooltip": "Zhenzhen video model. | Zhenzhen 视频模型。",
+                }),
+                "prompt": _prompt_input(required=True),
+                "seconds": (cls.SECONDS, {
+                    "default": cls.DEFAULT_SECONDS,
+                    "tooltip": "Video duration in seconds, submitted as a string. | 视频时长，按字符串提交。",
+                }),
+                "resolution": (ZHENZHEN_VIDEO_RESOLUTIONS, {
+                    "default": "720p",
+                    "tooltip": "Target resolution. | 目标分辨率。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Optional aspect ratio forwarded as metadata.ratio. | 可选画幅比例，透传为 metadata.ratio。",
+                }),
+                "negative_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Optional negative prompt forwarded to metadata. | 可选反向提示词，透传到 metadata。",
+                }),
+                "seed": ("INT", {
+                    "default": -1,
+                    "min": -1,
+                    "max": 2147483647,
+                    "step": 1,
+                    "tooltip": "-1 = random seed; non-negative values are forwarded to metadata.seed. | -1 表示随机种子，非负整数透传到 metadata.seed。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        negative_prompt=None,
+        seed=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *cls.MODELS):
+            return f"unsupported Zhenzhen video model: {model}"
+        if seconds is not None and str(seconds) not in cls.SECONDS:
+            return (
+                f"Zhenzhen video seconds must be one of {', '.join(cls.SECONDS)} | "
+                "Zhenzhen 视频时长不在当前模型支持范围内"
+            )
+        if resolution is not None and resolution not in ZHENZHEN_VIDEO_RESOLUTIONS:
+            return "Zhenzhen video resolution must be 720p or 1080p | Zhenzhen 视频分辨率只能是 720p 或 1080p"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
+        if strict and not str(prompt or "").strip():
+            return "prompt is required for Zhenzhen video | Zhenzhen 视频必须填写提示词"
+        if negative_prompt is not None and len(str(negative_prompt)) > PROMPT_MAX_LENGTH:
+            return f"negative_prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(negative_prompt))})"
+        if seed is not None:
+            try:
+                seed_value = int(seed)
+            except (TypeError, ValueError):
+                return "seed must be an integer | seed 必须是整数"
+            if not -1 <= seed_value <= 2147483647:
+                return "seed must be -1 to 2147483647 | seed 必须在 -1 到 2147483647 之间"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return self.LOG_PREFIX
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_ZHENZHEN_VIDEO_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: image slots {connected} have gaps; "
+                f"they will be compacted to images order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        image_slots = self._connected_images(kwargs)
+        if not image_slots:
+            progress_cb(1.0)
+            return {}
+
+        urls = []
+        for done, (slot, image) in enumerate(image_slots, start=1):
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"{self._log_prefix.lower()}_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            urls.append(url)
+            progress_cb(done / len(image_slots))
+        return {"images": urls}
+
+    def build_payload(self, kwargs, media):
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=kwargs.get("model"),
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            negative_prompt=kwargs.get("negative_prompt"),
+            seed=kwargs.get("seed"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {"resolution": kwargs["resolution"]}
+        ratio = str(kwargs.get("ratio") or "").strip()
+        if ratio and ratio != "adaptive":
+            metadata["ratio"] = ratio
+        negative_prompt = str(kwargs.get("negative_prompt") or "").strip()
+        if negative_prompt:
+            metadata["negative_prompt"] = negative_prompt
+        seed = kwargs.get("seed", -1)
+        if seed is not None and int(seed) >= 0:
+            metadata["seed"] = int(seed)
+
+        payload: Dict[str, Any] = {
+            "model": kwargs["model"],
+            "prompt": prompt,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+        images = media.get("images") or []
+        if images:
+            payload["images"] = images[:MAX_ZHENZHEN_VIDEO_IMAGES]
+        return payload
+
+
+class ZhenzhenVideoGOmniFlash(ZhenzhenVideoGenerationBase):
+    """zhenzhen-video-g-omni-flash via /v1/videos."""
+
+    MODELS = [ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL]
+    DEFAULT_MODEL = ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL
+    LOG_PREFIX = "Zhenzhen_video_g_omni_flash"
+
+
+class ZhenzhenVideoGKV15(ZhenzhenVideoGenerationBase):
+    """zhenzhen-video-gk-v15 via /v1/videos."""
+
+    MODELS = [ZHENZHEN_VIDEO_GK_V15_MODEL]
+    DEFAULT_MODEL = ZHENZHEN_VIDEO_GK_V15_MODEL
+    LOG_PREFIX = "Zhenzhen_video_gk_v15"
+    SECONDS = ZHENZHEN_VIDEO_GK_SECONDS
+    DEFAULT_SECONDS = "6"
+
+
+class ZhenzhenVideoV31(ZhenzhenVideoGenerationBase):
+    """Zhenzhen Video V3.1 fast/quality via /v1/videos."""
+
+    MODELS = ZHENZHEN_VIDEO_V31_MODELS
+    DEFAULT_MODEL = ZHENZHEN_VIDEO_V31_FAST_MODEL
+    LOG_PREFIX = "Zhenzhen_video_v31"
 
 
 # ---------------------------------------------------------------------------
@@ -2168,7 +2401,7 @@ class SeedreamV5ProImage:
 # ---------------------------------------------------------------------------
 
 class ZhenzhenImageG2:
-    """Zhenzhen Image G-2 text-to-image and image-to-image."""
+    """Zhenzhen Image G text-to-image and image-to-image."""
 
     CATEGORY = "Seedance"
     FUNCTION = "execute"
@@ -2182,7 +2415,8 @@ class ZhenzhenImageG2:
             f"image{i}": ("IMAGE", {
                 "tooltip": (
                     f"Optional editing reference image {i} of {MAX_ZHENZHEN_IMAGE_G2_IMAGES}; "
-                    "used only by zhenzhen-image-g2-i2i. | 可选编辑参考图，仅 i2i 模型使用。"
+                    "used by zhenzhen-image-g2-i2i and optionally by lowprice. | "
+                    "可选编辑参考图，g2-i2i 必填，lowprice 可选。"
                 ),
             })
             for i in range(1, MAX_ZHENZHEN_IMAGE_G2_IMAGES + 1)
@@ -2196,9 +2430,9 @@ class ZhenzhenImageG2:
                 "model": (ZHENZHEN_IMAGE_G2_MODELS, {
                     "default": ZHENZHEN_IMAGE_G2_T2I_MODEL,
                     "tooltip": (
-                        "Zhenzhen Image G-2 task type. t2i uses prompt only; "
-                        "i2i requires one or more reference images. | G-2 文生图只用提示词；"
-                        "图生图需要连接参考图。"
+                        "Zhenzhen Image G task type. g2-t2i uses prompt only; "
+                        "g2-i2i requires images; lowprice can run with or without images. | "
+                        "G-2 文生图只用提示词；G-2 图生图需要参考图；lowprice 可选参考图。"
                     ),
                 }),
                 "prompt": ("STRING", {
@@ -2208,7 +2442,7 @@ class ZhenzhenImageG2:
                 }),
                 "resolution": (ZHENZHEN_IMAGE_G2_RESOLUTIONS, {
                     "default": "1k",
-                    "tooltip": "Zhenzhen Image G-2 currently supports 1k only. | G-2 当前仅支持 1k。",
+                    "tooltip": "Zhenzhen Image G currently supports 1k only. | Image G 当前仅支持 1k。",
                 }),
                 "ratio": (RATIOS, {
                     "default": "adaptive",
@@ -2229,17 +2463,17 @@ class ZhenzhenImageG2:
         **kwargs,
     ):
         if model not in (None, *ZHENZHEN_IMAGE_G2_MODELS):
-            return f"unsupported Zhenzhen Image G-2 model: {model}"
+            return f"unsupported Zhenzhen Image G model: {model}"
         prompt_text = str(prompt or "").strip()
         if strict and not prompt_text:
-            return "prompt is required for Zhenzhen Image G-2 | Zhenzhen Image G-2 必须填写提示词"
+            return "prompt is required for Zhenzhen Image G | Zhenzhen Image G 必须填写提示词"
         if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH:
             return (
                 f"prompt exceeds {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} characters "
                 f"({len(prompt_text)}) | 提示词不能超过 {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} 字符"
             )
         if resolution is not None and resolution not in ZHENZHEN_IMAGE_G2_RESOLUTIONS:
-            return "Zhenzhen Image G-2 resolution must be 1k | Zhenzhen Image G-2 分辨率只能是 1k"
+            return "Zhenzhen Image G resolution must be 1k | Zhenzhen Image G 分辨率只能是 1k"
         if ratio is not None and ratio not in RATIOS:
             return f"unsupported ratio: {ratio}"
         return True
@@ -2295,6 +2529,8 @@ class ZhenzhenImageG2:
         }
         if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
             payload["images"] = images[:MAX_ZHENZHEN_IMAGE_G2_IMAGES]
+        elif model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL and images:
+            payload["images"] = images[:MAX_ZHENZHEN_IMAGE_G2_IMAGES]
         return payload
 
     def execute(
@@ -2322,9 +2558,9 @@ class ZhenzhenImageG2:
         self._update_progress(pbar, 0)
 
         image_urls: List[str] = []
-        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
+        if model in (ZHENZHEN_IMAGE_G2_I2I_MODEL, ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL):
             references = self._connected_images(kwargs)
-            if not references:
+            if model == ZHENZHEN_IMAGE_G2_I2I_MODEL and not references:
                 raise SeedanceAPIError(
                     "at least one image is required for zhenzhen-image-g2-i2i | "
                     "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
@@ -2342,6 +2578,192 @@ class ZhenzhenImageG2:
         self._update_progress(pbar, 15)
 
         payload = self._build_payload(model, prompt_text, resolution, ratio, image_urls)
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Image GK v1.5 image generation and editing
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageGKV15:
+    """Zhenzhen Image GK v1.5 text-to-image and image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (ZHENZHEN_IMAGE_GK_V15_MODELS, {
+                    "default": ZHENZHEN_IMAGE_GK_V15_MODEL,
+                    "tooltip": (
+                        "zhenzhen-image-gk-v15 for text-to-image; "
+                        "zhenzhen-image-gk-v15-edit requires image1. | "
+                        "文生图使用 gk-v15；图像编辑使用 gk-v15-edit 并连接 image1。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Prompt, up to 20000 characters. | 提示词，最多 20000 字符。",
+                }),
+                "size": (ZHENZHEN_IMAGE_GK_V15_SIZES, {
+                    "default": "1:1",
+                    "tooltip": "Top-level API size. | 顶层 size 参数。",
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 10,
+                    "step": 1,
+                    "tooltip": "Number of images requested from the API, 1 to 10. This node downloads the primary result returned by the gateway. | 请求图片数量 1 到 10，节点下载网关返回的主结果。",
+                }),
+            },
+            "optional": {
+                "image1": ("IMAGE", {
+                    "tooltip": "Required for zhenzhen-image-gk-v15-edit; only the first image is submitted. | gk-v15-edit 必填，仅提交第一张图。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        size=None,
+        n=None,
+        image1=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *ZHENZHEN_IMAGE_GK_V15_MODELS):
+            return f"unsupported Zhenzhen Image GK model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Zhenzhen Image GK | Zhenzhen Image GK 必须填写提示词"
+        if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt exceeds {ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)}) | 提示词不能超过 {ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH} 字符"
+            )
+        if size is not None and size not in ZHENZHEN_IMAGE_GK_V15_SIZES:
+            return f"unsupported size: {size}"
+        if n is not None:
+            n_int = int(n)
+            if not 1 <= n_int <= 10:
+                return "n must be between 1 and 10 | n 必须在 1 到 10 之间"
+        if strict and model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL and image1 is None:
+            return "image1 is required for zhenzhen-image-gk-v15-edit | gk-v15-edit 必须连接 image1"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_gk_v15"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        size: str,
+        n: int,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            size=size,
+            n=n,
+            image1=images[0] if images else None,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "n": int(n),
+            "size": size,
+        }
+        if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL:
+            payload["images"] = images[:1]
+        return payload
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        size: str,
+        n: int,
+        image1=None,
+        api_config=None,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            size=size,
+            n=n,
+            image1=image1,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        image_urls: List[str] = []
+        if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL:
+            image_url = upload_media(
+                image_to_png_bytes(image1),
+                "zhenzhen_image_gk_v15_reference.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            image_urls.append(image_url)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(model, prompt_text, size, n, image_urls)
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
 
@@ -2693,6 +3115,143 @@ class DoubaoSeedAudio:
 
 
 # ---------------------------------------------------------------------------
+# Whisper transcription
+# ---------------------------------------------------------------------------
+
+class WhisperTranscription:
+    """Synchronous whisper-1 speech transcription via /v1/audio/transcriptions."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("text", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO", {
+                    "tooltip": "Input audio to transcribe; converted to wav before upload. | 需要转写的音频，会先转换为 wav 再上传。",
+                }),
+                "model": ([WHISPER_TRANSCRIPTION_MODEL], {
+                    "default": WHISPER_TRANSCRIPTION_MODEL,
+                    "tooltip": "Whisper transcription model. | Whisper 语音转写模型。",
+                }),
+                "response_format": (WHISPER_RESPONSE_FORMATS, {
+                    "default": "json",
+                    "tooltip": "API response format: json, verbose_json, srt, text, or vtt. | API 返回格式。",
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return an empty transcript and JSON error instead of stopping the workflow. | 失败时返回空文本和错误 JSON。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        audio=None,
+        model=None,
+        response_format=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, WHISPER_TRANSCRIPTION_MODEL):
+            return f"unsupported Whisper model: {model}"
+        if response_format not in (None, *WHISPER_RESPONSE_FORMATS):
+            return f"unsupported response_format: {response_format}"
+        if strict and audio is None:
+            return "audio is required for Whisper transcription | Whisper 转写必须连接音频"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Whisper_transcription"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _make_error_result(self, error_msg: str) -> Dict:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", response_str]},
+            "result": ("", response_str),
+        }
+
+    def execute(
+        self,
+        audio,
+        model: str,
+        response_format: str,
+        api_config=None,
+        skip_error: bool = False,
+    ):
+        try:
+            return self._execute_inner(
+                audio=audio,
+                model=model,
+                response_format=response_format,
+                api_config=api_config,
+            )
+        except Exception as e:
+            if skip_error:
+                err_msg = f"{self._log_prefix}: {e}"
+                print(f"[{self._log_prefix}] skip_error=True, returning empty transcript: {e}")
+                return self._make_error_result(err_msg)
+            raise
+
+    def _execute_inner(
+        self,
+        audio,
+        model: str,
+        response_format: str,
+        api_config=None,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            audio=audio,
+            model=model,
+            response_format=response_format,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        wav_bytes = audio_to_wav_bytes(audio)
+        self._update_progress(pbar, 20)
+
+        text, response_str = transcribe_audio(
+            wav_bytes,
+            "whisper_input.wav",
+            "audio/wav",
+            model,
+            response_format,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 100)
+
+        return {
+            "ui": {"text": [text, response_str]},
+            "result": (text, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -2703,6 +3262,10 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
+    "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
+    "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
+    "Zhenzhen_Video_GK_V15": ZhenzhenVideoGKV15,
+    "Zhenzhen_Video_V31": ZhenzhenVideoV31,
     "HappyHorse_1_1_Video": HappyHorseVideo,
     "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
     "Kling_Video": KlingVideo,
@@ -2712,6 +3275,7 @@ NODE_CLASS_MAPPINGS = {
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
+    "Whisper_Transcription": WhisperTranscription,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2720,7 +3284,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
-    "Zhenzhen_Image_G2": "Zhenzhen Image G-2 图像生成/编辑",
+    "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
+    "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
+    "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
+    "Zhenzhen_Video_GK_V15": "Zhenzhen Video GK v1.5",
+    "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
     "Kling_Video": "Kling 视频生成",
@@ -2730,4 +3298,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
+    "Whisper_Transcription": "Whisper 1 语音转写",
 }

@@ -1,5 +1,6 @@
 """
-HTTP client for the Seedance video, Seedream image, and Seed Audio APIs.
+HTTP client for the Seedance video, Seedream image, Seed Audio, and Whisper
+transcription APIs.
 
 Endpoints:
   POST {base_url}/v1/videos              submit task
@@ -10,6 +11,8 @@ Endpoints:
   POST {base_url}/v1/audio/generations   submit audio task
   GET  {base_url}/v1/audio/generations/{task_id}
                                              poll audio task
+  POST {base_url}/v1/audio/transcriptions
+                                             synchronous speech transcription
   POST {base_url}/v1/files/upload        upload reference media (multipart)
 
 Reliability rules:
@@ -872,6 +875,98 @@ def extract_audio_url(final_response: Dict[str, Any]) -> str:
         f"Audio task completed but no audio URL in response: "
         f"{_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
     )
+
+
+def _extract_transcription_text(data: Any) -> str:
+    """Pull the human text field from common transcription response shapes."""
+    if isinstance(data, dict):
+        for key in ("text", "transcript", "transcription"):
+            value = data.get(key)
+            if value is not None:
+                return str(value)
+        nested = data.get("data")
+        if isinstance(nested, dict):
+            return _extract_transcription_text(nested)
+    return ""
+
+
+def transcribe_audio(
+    file_bytes: bytes,
+    filename: str,
+    mime_type: str,
+    model: str,
+    response_format: str,
+    config: Dict[str, Any],
+    logger_prefix: str = "Whisper_Transcription",
+) -> Tuple[str, str]:
+    """POST /v1/audio/transcriptions and return (text, response_string).
+
+    The endpoint is synchronous and multipart-based, so requests must not set a
+    JSON Content-Type header; requests will generate the multipart boundary.
+    """
+    url = f"{config['base_url']}/v1/audio/transcriptions"
+    _log(logger_prefix, f"Submit -> POST /v1/audio/transcriptions model={model}")
+
+    data = {
+        "model": model,
+        "response_format": response_format,
+    }
+    files = {
+        "file": (filename, file_bytes, mime_type),
+    }
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(logger_prefix, f"Transcription retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
+            time.sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                data=data,
+                files=files,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as e:
+            last_error = RuntimeError(f"Transcription network error: {_network_error_text(e)}")
+            _log(logger_prefix, f"Transcription network error (attempt {attempt + 1}): {type(e).__name__}")
+            continue
+
+        parsed: Any = None
+        try:
+            parsed = response.json() if response.text else None
+        except ValueError:
+            parsed = None
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: {_extract_error_message(parsed, response.text[:200])}"
+            )
+            _log(logger_prefix, f"Transcription HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
+            continue
+
+        if response.status_code != 200:
+            raise SeedanceAPIError(
+                f"Transcription rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(parsed, response.text[:200])}"
+            )
+
+        if response_format in {"json", "verbose_json"}:
+            if parsed is None:
+                raise SeedanceAPIError(f"Transcription returned invalid JSON: {_truncate(response.text, 300)}")
+            response_str = json.dumps(parsed, ensure_ascii=False, indent=2)
+            text = _extract_transcription_text(parsed)
+        else:
+            response_str = response.text
+            text = response.text
+
+        _log(logger_prefix, f"  Transcription completed, text length={len(text)}")
+        return text, response_str
+
+    raise RuntimeError(f"Transcription failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
 
 
 def _guess_audio_extension(url: str, content_type: str, fallback_format: str) -> str:

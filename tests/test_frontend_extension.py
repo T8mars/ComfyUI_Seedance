@@ -49,6 +49,10 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_MultimodalVideo",
             "Seedream_V5_Pro_Image",
             "Zhenzhen_Image_G2",
+            "Zhenzhen_Image_GK_V15",
+            "Zhenzhen_Video_G_Omni_Flash",
+            "Zhenzhen_Video_GK_V15",
+            "Zhenzhen_Video_V31",
             "HappyHorse_1_1_Video",
             "Wan_2_7_Spicy_I2V",
             "Kling_Video",
@@ -58,6 +62,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Vidu_Q3_ShortPlay",
             "Zhenzhen_Upscaler_Video",
             "Doubao_Seed_Audio",
+            "Whisper_Transcription",
         }
         self.assertTrue(expected.issubset(node_names))
 
@@ -68,7 +73,7 @@ class FrontendExtensionTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
                 if node_type.startswith(
-                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_")
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_", "Whisper_")
                 ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)

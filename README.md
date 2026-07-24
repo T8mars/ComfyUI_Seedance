@@ -18,9 +18,30 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G-2 图片生成与 Doubao Seed Audio 音频生成 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK 图片生成、Doubao Seed Audio 音频生成与 Whisper 语音转写 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件提供文生视频、图生视频、多模态视频、HappyHorse 1.1 视频、Wan 2.7 Spicy 图生视频、Kling 视频生成、Kling O3 视频编辑、Hailuo 2.3 视频生成、Vidu Q3 视频生成、Vidu Q3 短剧成片、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream 文生图/图像编辑、Zhenzhen Image G-2 文生图/图像编辑，以及 Doubao Seed Audio 1.0 音频生成节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供文生视频、图生视频、多模态视频、HappyHorse 1.1 视频、Wan 2.7 Spicy 图生视频、Kling 视频生成、Kling O3 视频编辑、Hailuo 2.3 视频生成、Vidu Q3 视频生成、Vidu Q3 短剧成片、Zhenzhen Video G / GK / V3.1 视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream 文生图/图像编辑、Zhenzhen Image G / GK 文生图/图像编辑、Doubao Seed Audio 1.0 音频生成，以及 Whisper 1 语音转写节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.2.10（2026-07-25）
+
+- 新增 `Zhenzhen Image GK v1.5 图像生成/编辑` 节点，合并 `zhenzhen-image-gk-v15` 与 `zhenzhen-image-gk-v15-edit`。
+- 节点支持顶层 `size` 与 `n` 参数；编辑模型需要连接 `image1`，并按文档只提交第一张参考图。
+- 新增 GK v1.5 文生图和图像编辑示例工作流。
+- 已按最新 API 文档完成节点、示例和本地校验；真实提交检查遇到上游 429，按确认不继续重试。
+
+## v0.2.9（2026-07-25）
+
+- 新增 `Whisper 1 语音转写` 节点，接入同步 `/v1/audio/transcriptions` multipart 接口。
+- 节点输入 ComfyUI `AUDIO`，自动转换为 wav 上传，输出转写文本和原始响应。
+- 支持 `json`、`verbose_json`、`srt`、`text`、`vtt` 五种 `response_format`。
+- 已真实验证 `whisper-1` 可完成最小音频转写请求并返回文本。
+
+## v0.2.8（2026-07-25）
+
+- Zhenzhen Image G 节点新增 `zhenzhen-image-g-v2-lowprice`，与 G-2 模型共用节点；该模型可纯文生图，也可连接参考图后通过 `images[]` 提交。
+- 新增 `Zhenzhen Video G Omni Flash`、`Zhenzhen Video GK v1.5`、`Zhenzhen Video V3.1` 三个视频节点，V3.1 节点内合并 `zhenzhen-video-v31-fast` 与 `zhenzhen-video-v31-quality`。
+- Zhenzhen Video 节点支持 prompt、时长、分辨率、画幅、可选反向提示词、seed 和最多 2 张参考图。
+- 已真实验证本次新增 5 个模型均可提交、轮询完成并下载结果。
 
 ## v0.2.7（2026-07-21）
 
@@ -85,12 +106,14 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 视频生成�
 - 支持 Hailuo 2.3 文生视频、图生视频和 fast 图生视频
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 Zhenzhen Upscaler 视频超分
-- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G-2 文生图 / 图像编辑
+- 支持 Zhenzhen Video G / GK / V3.1 视频生成
+- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK 文生图 / 图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
+- 支持 Whisper 1 同步语音转写
 - 图像编辑支持 1 到 10 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
-- 新增 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型接入、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型接入、1 个 Zhenzhen Upscaler 视频超分模型、2 个 Dola Seedream 图片模型、2 个 Zhenzhen Image G-2 图片模型和 1 个 Doubao Seed Audio 模型
+- 新增 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型接入、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型接入、1 个 Zhenzhen Upscaler 视频超分模型、4 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、5 个 Zhenzhen Image G / GK 图片模型、1 个 Doubao Seed Audio 模型和 1 个 Whisper 转写模型
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -108,7 +131,11 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 视频生成�
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
-| `Zhenzhen Image G-2 图像生成/编辑` | G-2 文生图和图像编辑；按 `model` 选择 t2i 或 i2i | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
+| `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
+| `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
+| `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
+| `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
+| `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` 视频生成 | `model`、`prompt`、时长、分辨率、比例、可选参考图 |
 | `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
 | `Wan 2.7 Spicy 图生视频` | `wan-2.7-spicy-i2v` 图生视频 | `first_image`、`prompt`、时长、分辨率、可选音频 URL |
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
@@ -118,6 +145,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 视频生成�
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
+| `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
 
 视频生成节点输出：
 
@@ -146,6 +174,13 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 视频生成�
 | `audio_path` | 已下载到本地输出目录的音频文件路径 |
 | `task_id` | 远端音频任务 ID |
 | `response` | 完整 JSON 响应文本 |
+
+语音转写节点输出：
+
+| 输出 | 说明 |
+| --- | --- |
+| `text` | 转写文本；`srt` / `vtt` / `text` 格式会直接返回对应文本 |
+| `response` | 原始响应文本；`json` / `verbose_json` 格式会格式化为 JSON 字符串 |
 
 ## 安装
 
@@ -225,6 +260,9 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Hailuo 2.3 视频生成`：在 Hailuo 文生视频、图生视频和 fast 图生视频模型间切换
    - `Vidu Q3 视频生成`：在 Vidu 文生、图生、首尾帧和参考生视频模型间切换
    - `Vidu Q3 短剧成片`：填写短剧脚本内容、`script_name`，并连接至少 1 张参考资产图
+   - `Zhenzhen Video G Omni Flash`：使用 `zhenzhen-video-g-omni-flash`
+   - `Zhenzhen Video GK v1.5`：使用 `zhenzhen-video-gk-v15`
+   - `Zhenzhen Video V3.1`：在 `zhenzhen-video-v31-fast` 和 `zhenzhen-video-v31-quality` 间切换
    - `Zhenzhen Upscaler 视频超分`：连接 `input_video` 或填写公网 MP4 `video_url`
 3. 选择 `model`，设置 `seconds`、`resolution`、`ratio`。
 4. 运行工作流。
@@ -239,12 +277,20 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 5. 选择 `1k`、`2k`，或选择 `custom` 后设置 `width` 和 `height`。
 6. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
-Zhenzhen Image G-2 图片生成或编辑：
+Zhenzhen Image G 图片生成或编辑：
 
-1. 添加 `Zhenzhen Image G-2 图像生成/编辑`。
-2. 选择 `zhenzhen-image-g2-t2i` 生成图片，或选择 `zhenzhen-image-g2-i2i` 编辑参考图。
+1. 添加 `Zhenzhen Image G 图像生成/编辑`。
+2. 选择 `zhenzhen-image-g2-t2i` 生成图片，选择 `zhenzhen-image-g2-i2i` 编辑参考图，或选择 `zhenzhen-image-g-v2-lowprice` 使用 G v2 lowprice 模型。
 3. 填写提示词，`resolution` 保持 `1k`，按需选择 `ratio`。
-4. 使用 i2i 时连接 `image1` 到 `image10` 中至少 1 张参考图。
+4. 使用 `zhenzhen-image-g2-i2i` 时连接 `image1` 到 `image10` 中至少 1 张参考图；`zhenzhen-image-g-v2-lowprice` 可不连接图，也可连接参考图。
+5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
+
+Zhenzhen Image GK v1.5 图片生成或编辑：
+
+1. 添加 `Zhenzhen Image GK v1.5 图像生成/编辑`。
+2. 选择 `zhenzhen-image-gk-v15` 生成图片，或选择 `zhenzhen-image-gk-v15-edit` 编辑参考图。
+3. 填写提示词，选择 `size`，按需设置 `n`。
+4. 使用编辑模型时连接 `image1`；节点会按文档只提交第一张参考图。
 5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
 音频生成：
@@ -254,6 +300,13 @@ Zhenzhen Image G-2 图片生成或编辑：
 3. 可选填写 `speaker` 音色 ID，或连接 1 张参考图，或连接最多 3 段参考音频；三类来源互斥。
 4. 建议先使用默认 `wav` 输出，最容易被 ComfyUI 解码。
 5. 将 `audio` 输出连接到音频保存、预览或后续处理节点。
+
+语音转写：
+
+1. 添加 `Whisper 1 语音转写`。
+2. 连接 ComfyUI `AUDIO` 输入，节点会自动转换为 wav 并通过 multipart 提交。
+3. 选择 `response_format`，默认 `json` 会输出普通转写文本和格式化响应。
+4. 将 `text` 输出连接到文本展示、字幕处理或后续提示词节点。
 
 示例工作流位于：
 
@@ -265,6 +318,18 @@ Zhenzhen Image G-2 图片生成或编辑：
 - `examples/seedream-v5-pro宽审核图像编辑.json`
 - `examples/zhenzhen-image-g2文生图.json`
 - `examples/zhenzhen-image-g2图像编辑.json`
+- `examples/zhenzhen-image-g-v2-lowprice文生图.json`
+- `examples/zhenzhen-image-g-v2-lowprice图像编辑.json`
+- `examples/zhenzhen-image-gk-v15文生图.json`
+- `examples/zhenzhen-image-gk-v15图像编辑.json`
+- `examples/zhenzhen-video-g-omni-flash文生视频.json`
+- `examples/zhenzhen-video-g-omni-flash图生视频.json`
+- `examples/zhenzhen-video-gk-v15文生视频.json`
+- `examples/zhenzhen-video-gk-v15图生视频.json`
+- `examples/zhenzhen-video-v31-fast文生视频.json`
+- `examples/zhenzhen-video-v31-fast图生视频.json`
+- `examples/zhenzhen-video-v31-quality文生视频.json`
+- `examples/zhenzhen-video-v31-quality图生视频.json`
 - `examples/wan2.7图生视频宽审核.json`
 - `examples/zhenzhen-video-upscaler-视频高清化.json`
 - `examples/快乐马happy-horse-1.1文生视频.json`
@@ -272,6 +337,7 @@ Zhenzhen Image G-2 图片生成或编辑：
 - `examples/快乐马happy-horse-1.1参考生视频.json`
 - `examples/seed-audio-1.0音频生成（识别图片人物）.json`
 - `examples/seed-audio-1.0音频生成（语音克隆）.json`
+- `examples/whisper-1语音转写.json`
 - `examples/vidu-q3文生视频.json`
 - `examples/vidu-q3图生视频.json`
 - `examples/vidu-q3首尾帧视频.json`
@@ -308,12 +374,34 @@ Zhenzhen Image G-2 图片生成或编辑：
 | `seedream-v5-pro (domestic)` | `seedream-v5-pro-t2i` | `seedream-v5-pro-i2i` |
 | `dola-seedream-5.0-pro (overseas)` | `dola-seedream-5.0-pro-t2i` | `dola-seedream-5.0-pro-i2i` |
 
-Zhenzhen Image G-2 节点使用独立的 `/v1/image/generations` 图片端点：
+Zhenzhen Image G 节点使用独立的 `/v1/image/generations` 图片端点：
 
 | 模型 | 用途 | 限制 |
 | --- | --- | --- |
 | `zhenzhen-image-g2-t2i` | 文生图 | `prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
 | `zhenzhen-image-g2-i2i` | 图像编辑 | 需要 1 到 10 张参考图；`prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
+| `zhenzhen-image-g-v2-lowprice` | 文生图 / 图像编辑 | `prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio`；连接参考图时提交 `images[]` |
+
+Zhenzhen Image GK v1.5 节点使用同一个 `/v1/image/generations` 图片端点：
+
+| 模型 | 用途 | 参数 |
+| --- | --- | --- |
+| `zhenzhen-image-gk-v15` | 文生图 | `prompt` 必填；`size` 为 `1:1`、`16:9`、`9:16`、`3:2` 或 `2:3`；`n` 为 1 到 10 |
+| `zhenzhen-image-gk-v15-edit` | 图像编辑 | `prompt` 必填；`image1` 必填且只提交第一张；`size` 和 `n` 使用同上 |
+
+Zhenzhen Video 节点使用 `/v1/videos` 视频端点：
+
+| 节点 | 模型 | 素材 |
+| --- | --- | --- |
+| `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` | 可选 `image1` / `image2` |
+| `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` | 可选 `image1` / `image2` |
+| `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` | 可选 `image1` / `image2` |
+
+Whisper 节点使用同步 `/v1/audio/transcriptions` 转写端点：
+
+| 模型 | 输入 | 输出 |
+| --- | --- | --- |
+| `whisper-1` | ComfyUI `AUDIO`，节点转换为 wav multipart 文件 | `text` 和原始响应 |
 
 HappyHorse 节点使用同一个 `/v1/videos` 视频端点：
 
@@ -404,15 +492,40 @@ Doubao Seed Audio 节点使用独立的 `/v1/audio/generations` 异步端点，�
 | `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
-Zhenzhen Image G-2 参数：
+Zhenzhen Image G 参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | `zhenzhen-image-g2-t2i` 或 `zhenzhen-image-g2-i2i` |
+| `model` | `zhenzhen-image-g2-t2i`、`zhenzhen-image-g2-i2i` 或 `zhenzhen-image-g-v2-lowprice` |
 | `prompt` | 必填，最多 20000 字符 |
 | `resolution` | 固定为 `1k` |
 | `ratio` | 可选画幅比例，`adaptive` 时不提交该字段 |
-| `image1` ... `image10` | 仅 i2i 使用，至少连接 1 张参考图 |
+| `image1` ... `image10` | `zhenzhen-image-g2-i2i` 至少连接 1 张；`zhenzhen-image-g-v2-lowprice` 可选 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
+Zhenzhen Image GK v1.5 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | `zhenzhen-image-gk-v15` 或 `zhenzhen-image-gk-v15-edit` |
+| `prompt` | 必填，最多 20000 字符 |
+| `size` | `1:1`、`16:9`、`9:16`、`3:2` 或 `2:3` |
+| `n` | 1 到 10，节点下载网关返回的主结果 |
+| `image1` | 编辑模型必填；文生图模型不使用 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
+Zhenzhen Video G / GK / V3.1 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | 当前节点支持的 Zhenzhen 视频模型；V3.1 节点可在 fast / quality 间切换 |
+| `prompt` | 必填，最多 20480 字符 |
+| `seconds` | 4 到 15 秒，按字符串提交；GK v1.5 节点支持 6 到 30 秒 |
+| `resolution` | `720p` 或 `1080p` |
+| `ratio` | 可选画幅比例，`adaptive` 时不提交该字段 |
+| `negative_prompt` | 可选反向提示词，透传为 `metadata.negative_prompt` |
+| `seed` | `-1` 为随机种子；非负整数透传为 `metadata.seed` |
+| `image1` / `image2` | 可选参考图，连接后通过顶层 `images[]` 提交 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 HappyHorse 节点参数：
@@ -536,6 +649,16 @@ Doubao Seed Audio 参数：
 | `reference_image` | 可选参考图，取首张；与 `speaker` / 参考音频互斥 |
 | `reference_audio1` ... `reference_audio3` | 可选参考音频，最多 3 段；与 `speaker` / 参考图互斥 |
 
+Whisper 1 语音转写参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `audio` | 必填，ComfyUI `AUDIO` 输入 |
+| `model` | 固定为 `whisper-1` |
+| `response_format` | `json`、`verbose_json`、`srt`、`text` 或 `vtt`，默认 `json` |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+| `skip_error` | 开启后失败时返回空转写和错误 JSON，而不是中断整个工作流 |
+
 ## 多模态提示词
 
 多模态节点支持：
@@ -579,6 +702,7 @@ Doubao Seed Audio 参数：
 - 图片任务使用独立状态规则轮询：`SUCCESS` 成功、`FAILURE` 失败，并自动下载临时结果直链。
 - 下载图片失败时会自动重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - 音频任务使用 `/v1/audio/generations` 独立状态规则轮询，成功后自动下载并返回 ComfyUI `AUDIO`。
+- Whisper 转写使用同步 `/v1/audio/transcriptions` multipart 请求，不进行任务轮询。
 - Seed Audio 已实测可在没有 `torchaudio` 时通过 SciPy 回退解码 24 kHz 双声道 WAV。
 - 如果 `mp3` / `ogg_opus` 无法在本机解码，请安装 `torchaudio`，或把 `output_format` 切回默认 `wav`。
 - 视频节点 `skip_error=True` 时会生成一个错误占位视频；音频节点会返回 1 秒静音，方便批量流程继续往下跑。

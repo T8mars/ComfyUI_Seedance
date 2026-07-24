@@ -30,11 +30,11 @@ except ModuleNotFoundError:
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, data=None, content=b""):
+    def __init__(self, status_code=200, data=None, content=b"", text=None):
         self.status_code = status_code
         self._data = data or {}
         self.content = content
-        self.text = "{}" if data is not None else ""
+        self.text = text if text is not None else ("{}" if data is not None else "")
 
     def json(self):
         return self._data
@@ -220,6 +220,27 @@ class AudioClientTests(unittest.TestCase):
         self.assertEqual(
             client.extract_audio_url(response), "https://cdn.test/fallback.mp3"
         )
+
+    def test_transcription_uses_multipart_endpoint(self):
+        session = FakeSession(post_response=FakeResponse(data={"text": "hello world"}))
+        with patch.object(client, "_session", return_value=session):
+            text, response = client.transcribe_audio(
+                b"RIFF....WAVE",
+                "input.wav",
+                "audio/wav",
+                nodes.WHISPER_TRANSCRIPTION_MODEL,
+                "json",
+                CONFIG,
+            )
+
+        self.assertEqual(text, "hello world")
+        self.assertIn("hello world", response)
+        url, kwargs = session.post_calls[0]
+        self.assertEqual(url, "https://example.test/v1/audio/transcriptions")
+        self.assertEqual(kwargs["data"]["model"], "whisper-1")
+        self.assertEqual(kwargs["data"]["response_format"], "json")
+        self.assertEqual(kwargs["files"]["file"], ("input.wav", b"RIFF....WAVE", "audio/wav"))
+        self.assertNotIn("Content-Type", kwargs["headers"])
 
 
 class ImageNodeTests(unittest.TestCase):
@@ -413,6 +434,34 @@ class ImageNodeTests(unittest.TestCase):
         self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
         self.assertEqual(payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
 
+    def test_zhenzhen_image_g_lowprice_text_payload(self):
+        node = nodes.ZhenzhenImageG2()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+            "clean product photo on a white background",
+            "1k",
+            "adaptive",
+            [],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-g-v2-lowprice")
+        self.assertEqual(payload["metadata"], {"resolution": "1k"})
+        self.assertNotIn("images", payload)
+
+    def test_zhenzhen_image_g_lowprice_forwards_optional_images(self):
+        node = nodes.ZhenzhenImageG2()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+            "edit the reference into a product icon",
+            "1k",
+            "1:1",
+            ["https://cdn.test/reference.png"],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-g-v2-lowprice")
+        self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
+
     def test_zhenzhen_image_g2_image_to_image_requires_reference(self):
         node = nodes.ZhenzhenImageG2()
         with self.assertRaises(client.SeedanceAPIError):
@@ -506,6 +555,235 @@ class ImageNodeTests(unittest.TestCase):
         self.assertEqual(submitted_payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
         self.assertIs(output["result"][0], result_tensor)
         self.assertEqual(output["result"][1:3], ("https://cdn.test/result.png", "image-task"))
+
+    def test_zhenzhen_image_gk_v15_text_payload(self):
+        node = nodes.ZhenzhenImageGKV15()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_GK_V15_MODEL,
+            "clean product photo on a white background",
+            "16:9",
+            2,
+            [],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-gk-v15")
+        self.assertEqual(payload["prompt"], "clean product photo on a white background")
+        self.assertEqual(payload["size"], "16:9")
+        self.assertEqual(payload["n"], 2)
+        self.assertNotIn("images", payload)
+        self.assertNotIn("metadata", payload)
+
+    def test_zhenzhen_image_gk_v15_edit_payload_uses_first_image(self):
+        node = nodes.ZhenzhenImageGKV15()
+        payload = node._build_payload(
+            nodes.ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
+            "change the background",
+            "1:1",
+            1,
+            ["https://cdn.test/a.png", "https://cdn.test/b.png"],
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-image-gk-v15-edit")
+        self.assertEqual(payload["images"], ["https://cdn.test/a.png"])
+        self.assertEqual(payload["size"], "1:1")
+        self.assertEqual(payload["n"], 1)
+
+    def test_zhenzhen_image_gk_v15_edit_requires_reference(self):
+        node = nodes.ZhenzhenImageGKV15()
+        with self.assertRaises(client.SeedanceAPIError):
+            node._build_payload(
+                nodes.ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
+                "change the background",
+                "1:1",
+                1,
+                [],
+            )
+
+    def test_zhenzhen_image_gk_v15_validation_matches_documented_limits(self):
+        self.assertIs(
+            nodes.ZhenzhenImageGKV15.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_MODEL,
+                prompt="",
+                size="1:1",
+                n=1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageGKV15.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_MODEL,
+                prompt="",
+                size="1:1",
+                n=1,
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageGKV15.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_MODEL,
+                prompt="valid prompt",
+                size="4:5",
+                n=1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageGKV15.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_MODEL,
+                prompt="valid prompt",
+                size="1:1",
+                n=11,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageGKV15.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
+                prompt="valid prompt",
+                size="1:1",
+                n=1,
+                image1=None,
+                strict=True,
+            ),
+            True,
+        )
+
+    def test_zhenzhen_image_gk_v15_execute_uploads_reference_and_returns_image_outputs(self):
+        node = nodes.ZhenzhenImageGKV15()
+        result_tensor = torch.zeros((1, 4, 4, 3), dtype=torch.float32)
+        final_response = {
+            "data": {
+                "status": "SUCCESS",
+                "result_url": "https://cdn.test/result.png",
+            }
+        }
+
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "upload_media", return_value="https://cdn.test/reference.png"
+        ) as upload, patch.object(
+            nodes, "submit_image_task", return_value="image-task"
+        ) as submit, patch.object(
+            nodes, "poll_image_task", return_value=final_response
+        ), patch.object(
+            nodes, "download_image", return_value=result_tensor
+        ):
+            output = node.execute(
+                model=nodes.ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
+                prompt="change the background",
+                size="1:1",
+                n=1,
+                image1=torch.zeros((1, 8, 8, 3), dtype=torch.float32),
+            )
+
+        upload.assert_called_once()
+        submitted_payload = submit.call_args.args[0]
+        self.assertEqual(submitted_payload["model"], "zhenzhen-image-gk-v15-edit")
+        self.assertEqual(submitted_payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(submitted_payload["size"], "1:1")
+        self.assertEqual(submitted_payload["n"], 1)
+        self.assertIs(output["result"][0], result_tensor)
+        self.assertEqual(output["result"][1:3], ("https://cdn.test/result.png", "image-task"))
+
+    def test_zhenzhen_video_payload_uses_prompt_and_metadata(self):
+        node = nodes.ZhenzhenVideoGOmniFlash()
+        payload = node.build_payload(
+            {
+                "model": nodes.ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL,
+                "prompt": "a calm product reveal shot",
+                "seconds": "4",
+                "resolution": "720p",
+                "ratio": "16:9",
+                "negative_prompt": "",
+                "seed": -1,
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-video-g-omni-flash")
+        self.assertEqual(payload["prompt"], "a calm product reveal shot")
+        self.assertEqual(payload["seconds"], "4")
+        self.assertEqual(payload["metadata"], {"resolution": "720p", "ratio": "16:9"})
+        self.assertNotIn("images", payload)
+
+    def test_zhenzhen_video_payload_forwards_optional_images_and_seed(self):
+        node = nodes.ZhenzhenVideoGKV15()
+        payload = node.build_payload(
+            {
+                "model": nodes.ZHENZHEN_VIDEO_GK_V15_MODEL,
+                "prompt": "animate the reference with gentle camera movement",
+                "seconds": "6",
+                "resolution": "1080p",
+                "ratio": "adaptive",
+                "negative_prompt": "blur",
+                "seed": 42,
+            },
+            {"images": ["https://cdn.test/start.png", "https://cdn.test/end.png"]},
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-video-gk-v15")
+        self.assertEqual(payload["images"], ["https://cdn.test/start.png", "https://cdn.test/end.png"])
+        self.assertEqual(
+            payload["metadata"],
+            {"resolution": "1080p", "negative_prompt": "blur", "seed": 42},
+        )
+
+    def test_zhenzhen_video_v31_payload_selects_model(self):
+        node = nodes.ZhenzhenVideoV31()
+        payload = node.build_payload(
+            {
+                "model": nodes.ZHENZHEN_VIDEO_V31_QUALITY_MODEL,
+                "prompt": "a cinematic city sunrise",
+                "seconds": "4",
+                "resolution": "720p",
+                "ratio": "9:16",
+                "negative_prompt": "",
+                "seed": -1,
+            },
+            {},
+        )
+
+        self.assertEqual(payload["model"], "zhenzhen-video-v31-quality")
+        self.assertEqual(payload["metadata"], {"resolution": "720p", "ratio": "9:16"})
+
+    def test_zhenzhen_video_validation_allows_linked_empty_widget_preflight(self):
+        self.assertIs(
+            nodes.ZhenzhenVideoV31.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
+                prompt="",
+                seconds="4",
+                resolution="720p",
+                ratio="16:9",
+                negative_prompt="",
+                seed=-1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenVideoV31.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
+                prompt="",
+                seconds="4",
+                resolution="720p",
+                ratio="16:9",
+                negative_prompt="",
+                seed=-1,
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenVideoV31.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
+                prompt="valid prompt",
+                seconds="3",
+                resolution="720p",
+                ratio="16:9",
+                negative_prompt="",
+                seed=-1,
+            ),
+            True,
+        )
 
 
 class NewModelNodeTests(unittest.TestCase):
@@ -1572,6 +1850,60 @@ class NewModelNodeTests(unittest.TestCase):
                 speech_rate=0,
                 loudness_rate=0,
                 pitch_rate=0,
+                strict=True,
+            ),
+            True,
+        )
+
+    def test_whisper_transcription_execute_converts_audio_and_returns_text(self):
+        node = nodes.WhisperTranscription()
+        audio = {"waveform": torch.zeros((1, 1, 1600)), "sample_rate": 16000}
+
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "audio_to_wav_bytes", return_value=b"wav-bytes"
+        ) as convert, patch.object(
+            nodes, "transcribe_audio", return_value=("hello seedance", '{"text":"hello seedance"}')
+        ) as transcribe:
+            result = node.execute(
+                audio,
+                nodes.WHISPER_TRANSCRIPTION_MODEL,
+                "json",
+            )
+
+        convert.assert_called_once_with(audio)
+        args, kwargs = transcribe.call_args
+        self.assertEqual(args[:5], (
+            b"wav-bytes",
+            "whisper_input.wav",
+            "audio/wav",
+            nodes.WHISPER_TRANSCRIPTION_MODEL,
+            "json",
+        ))
+        self.assertEqual(result["result"], ("hello seedance", '{"text":"hello seedance"}'))
+
+    def test_whisper_transcription_validation(self):
+        self.assertIs(
+            nodes.WhisperTranscription.VALIDATE_INPUTS(
+                audio=None,
+                model=nodes.WHISPER_TRANSCRIPTION_MODEL,
+                response_format="json",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.WhisperTranscription.VALIDATE_INPUTS(
+                audio=None,
+                model=nodes.WHISPER_TRANSCRIPTION_MODEL,
+                response_format="json",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.WhisperTranscription.VALIDATE_INPUTS(
+                audio={},
+                model=nodes.WHISPER_TRANSCRIPTION_MODEL,
+                response_format="bad",
                 strict=True,
             ),
             True,
