@@ -1,6 +1,6 @@
 """
-HTTP client for the Seedance video, Seedream image, Seed Audio, and Whisper
-transcription APIs.
+HTTP client for the Seedance video, Seedream image, Seed Audio, Whisper,
+Suno, and Midjourney APIs.
 
 Endpoints:
   POST {base_url}/v1/videos              submit task
@@ -14,6 +14,12 @@ Endpoints:
   POST {base_url}/v1/audio/transcriptions
                                              synchronous speech transcription
   POST {base_url}/v1/files/upload        upload reference media (multipart)
+  POST {base_url}/v1/music/generations/{action}
+                                             submit Suno action
+  GET  {base_url}/v1/music/tasks/{task_id}
+                                             poll Suno task
+  POST {base_url}/v1/midjourney/generations/{action}
+                                             submit Midjourney action
 
 Reliability rules:
   - Submit: retry on network errors / HTTP 5xx / 429; never retry 4xx
@@ -31,6 +37,7 @@ import os
 import shutil
 import ssl
 import subprocess
+import threading
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
@@ -78,7 +85,7 @@ class _SSLContextAdapter(requests.adapters.HTTPAdapter):
         return super().cert_verify(conn, url, verify, cert)
 
 
-_session_singleton: Optional[requests.Session] = None
+_session_local = threading.local()
 
 
 def _windows_cert_store_context() -> Tuple[Optional[ssl.SSLContext], int]:
@@ -109,9 +116,9 @@ def _windows_cert_store_context() -> Tuple[Optional[ssl.SSLContext], int]:
 
 
 def _session() -> requests.Session:
-    global _session_singleton
-    if _session_singleton is not None:
-        return _session_singleton
+    existing = getattr(_session_local, "session", None)
+    if existing is not None:
+        return existing
 
     session = requests.Session()
     ca_bundle = os.environ.get("SEEDANCE_CA_BUNDLE", "").strip()
@@ -133,7 +140,7 @@ def _session() -> requests.Session:
             session.mount("https://", _SSLContextAdapter(ssl_context))
             print(f"[Seedance] Using Windows certificate store ({cert_count} certificates)")
 
-    _session_singleton = session
+    _session_local.session = session
     return session
 
 
@@ -701,6 +708,59 @@ def download_image(
             _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {last_error}")
 
     raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
+
+
+def download_image_with_path(
+    url: str,
+    timeout: int = 300,
+    max_retries: int = 3,
+    logger_prefix: str = "Midjourney_Multi_Action",
+) -> Tuple[Any, str]:
+    """Download an image once and return its ComfyUI tensor and local path."""
+    from io import BytesIO
+
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    try:
+        import folder_paths
+        output_dir = folder_paths.get_output_directory()
+    except ImportError:
+        output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
+
+    os.makedirs(output_dir, exist_ok=True)
+    last_error: Optional[str] = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = _session().get(url, timeout=timeout)
+            response.raise_for_status()
+            with Image.open(BytesIO(response.content)) as image:
+                rgb = image.convert("RGB")
+                array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
+                path = os.path.join(
+                    output_dir,
+                    f"midjourney_image_{uuid.uuid4().hex[:12]}.png",
+                )
+                rgb.save(path, format="PNG")
+            tensor = torch.from_numpy(array).unsqueeze(0)
+            _log(
+                logger_prefix,
+                f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]} -> {path}",
+            )
+            return tensor, path
+        except Exception as error:
+            last_error = type(error).__name__
+            _log(
+                logger_prefix,
+                f"Image download attempt {attempt + 1} failed: {last_error}",
+            )
+
+    raise RuntimeError(
+        f"Failed to download image after {max_retries} attempts: {last_error}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1581,6 +1641,471 @@ def extract_music_results(final_response: Dict[str, Any]) -> Dict[str, Any]:
         "all_urls": buckets["all"],
         "artifacts": artifacts,
         "text": _extract_music_text(result_data),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Midjourney image and video actions
+# ---------------------------------------------------------------------------
+
+_MIDJOURNEY_RUNNING_STATUSES = {
+    "NOT_START",
+    "CREATED",
+    "SUBMITTED",
+    "QUEUED",
+    "PENDING",
+    "PROCESSING",
+    "IN_PROGRESS",
+    "RUNNING",
+}
+_MIDJOURNEY_COMPLETED_STATUSES = {
+    "SUCCESS",
+    "SUCCEEDED",
+    "COMPLETED",
+    "COMPLETE",
+}
+_MIDJOURNEY_FAILED_STATUSES = {
+    "CANCEL",
+    "FAILURE",
+    "FAILED",
+    "ERROR",
+    "CANCELLED",
+    "CANCELED",
+}
+
+
+def _extract_midjourney_task_id(data: Any) -> Optional[str]:
+    if isinstance(data, list):
+        for item in data:
+            task_id = _extract_midjourney_task_id(item)
+            if task_id:
+                return task_id
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    for key in ("task_id", "id"):
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    for key in ("data", "result", "task", "output"):
+        nested = data.get(key)
+        if isinstance(nested, (dict, list)):
+            task_id = _extract_midjourney_task_id(nested)
+            if task_id:
+                return task_id
+    return None
+
+
+def submit_midjourney_action(
+    action: str,
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Midjourney_Multi_Action",
+) -> Tuple[Optional[str], Dict[str, Any]]:
+    """Submit one explicit Midjourney action."""
+    action_text = str(action or "").strip().strip("/")
+    if not action_text:
+        raise SeedanceAPIError("Midjourney action is required")
+
+    route_label = f"/v1/midjourney/generations/{action_text}"
+    url = f"{config['base_url']}{route_label}"
+    _log(logger_prefix, f"Submit -> POST {route_label}")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(
+                logger_prefix,
+                f"Midjourney submit retry {attempt + 1}/"
+                f"{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
+            )
+            time.sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"]),
+                json=payload,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as error:
+            last_error = RuntimeError(
+                f"Midjourney submit network error: {_network_error_text(error)}"
+            )
+            _log(
+                logger_prefix,
+                f"Midjourney submit network error "
+                f"(attempt {attempt + 1}): {type(error).__name__}",
+            )
+            continue
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+            _log(
+                logger_prefix,
+                f"Midjourney submit HTTP {response.status_code} "
+                f"(attempt {attempt + 1}), retrying...",
+            )
+            continue
+
+        if response.status_code < 200 or response.status_code >= 300:
+            raise SeedanceAPIError(
+                f"Midjourney {action_text} rejected "
+                f"(HTTP {response.status_code}): "
+                f"{_extract_error_message(data, response.text[:300])}"
+            )
+        if not isinstance(data, dict):
+            raise SeedanceAPIError(
+                "Midjourney submit returned an invalid JSON object"
+            )
+
+        task_id = _extract_midjourney_task_id(data)
+        response_mode = "task" if task_id else "immediate"
+        _log(
+            logger_prefix,
+            f"  Midjourney {action_text} accepted with {response_mode} response",
+        )
+        return task_id, data
+
+    raise RuntimeError(
+        "Midjourney submit failed after "
+        f"{_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+    )
+
+
+_MIDJOURNEY_ENVELOPE_KEYS = ("data", "result", "task", "output")
+_MIDJOURNEY_TASK_KEYS = (
+    "status", "task_id", "id", "image_urls", "images", "video_urls",
+    "videos", "grid_image_url", "description", "prompt", "text", "buttons",
+)
+
+
+def _unwrap_midjourney_task_data(response_data: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(response_data, dict):
+        return None
+
+    # The submit/query compatibility wrappers put task state under ``data``.
+    # Completed MJ responses instead become a top-level task object that may
+    # also contain a nested ``result``. Preserve that top-level status before
+    # descending into result content.
+    data = response_data.get("data")
+    data_candidates = data if isinstance(data, list) else [data]
+    for candidate in data_candidates:
+        if isinstance(candidate, dict):
+            unwrapped = _unwrap_midjourney_task_data(candidate)
+            if unwrapped is not None:
+                return unwrapped
+
+    direct_task_keys = tuple(
+        key for key in _MIDJOURNEY_TASK_KEYS if key != "id"
+    )
+    if any(key in response_data for key in direct_task_keys):
+        return response_data
+
+    for key in ("result", "task", "output"):
+        nested = response_data.get(key)
+        candidates = nested if isinstance(nested, list) else [nested]
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                unwrapped = _unwrap_midjourney_task_data(candidate)
+                if unwrapped is not None:
+                    return unwrapped
+
+    if isinstance(response_data.get("id"), str):
+        return response_data
+    return None
+
+
+def poll_midjourney_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Midjourney_Multi_Action",
+    stop_on_modal: bool = False,
+) -> Dict[str, Any]:
+    """Poll a Midjourney task, retaining MJ-specific result and button fields."""
+    task_id_text = str(task_id or "").strip()
+    if not task_id_text:
+        raise SeedanceAPIError("Midjourney task_id is required for polling")
+
+    route_templates = (
+        "/v1/midjourney/{task_id}",
+        "/v1/midjourney/tasks/{task_id}",
+        "/v1/tasks/{task_id}",
+    )
+    active_route: Optional[str] = None
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+    _log(
+        logger_prefix,
+        f"Poll Midjourney -> interval={poll_interval}s, max={max_poll_time}s",
+    )
+
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"Midjourney task exceeded {max_poll_time}s, polling stopped | "
+                f"Midjourney 任务超过 {max_poll_time}s，已停止查询"
+            )
+
+        time.sleep(poll_interval)
+        candidate_routes = (
+            (active_route,) if active_route else route_templates
+        )
+        response = None
+        last_not_found = None
+        route_used = ""
+        for route_template in candidate_routes:
+            if not route_template:
+                continue
+            route = route_template.format(task_id=task_id_text)
+            try:
+                candidate = _session().get(
+                    f"{config['base_url']}{route}",
+                    headers=_headers(config["api_key"], with_json=False),
+                    timeout=30,
+                )
+            except requests.exceptions.RequestException as error:
+                consecutive_failures += 1
+                _log(
+                    logger_prefix,
+                    "Midjourney poll network error "
+                    f"({consecutive_failures}/"
+                    f"{_MAX_CONSECUTIVE_POLL_FAILURES}): "
+                    f"{type(error).__name__}",
+                )
+                if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                    raise RuntimeError(
+                        "Midjourney polling failed after repeated network errors"
+                    )
+                response = None
+                break
+
+            if candidate.status_code == 404 and active_route is None:
+                last_not_found = candidate
+                continue
+            response = candidate
+            route_used = route_template
+            break
+
+        if response is None:
+            if last_not_found is not None:
+                raise SeedanceAPIError(
+                    "Midjourney task was not found on any documented query route"
+                )
+            time.sleep(min(max(1, consecutive_failures) * 2, 10))
+            continue
+
+        if response.status_code == 429 or response.status_code >= 500:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"Midjourney poll HTTP {response.status_code} "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"Midjourney polling failed: "
+                    f"HTTP {response.status_code} repeatedly"
+                )
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+            except ValueError:
+                error_data = {}
+            raise SeedanceAPIError(
+                f"Midjourney polling rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(error_data, response.text[:200])}"
+            )
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "Midjourney polling returned invalid JSON repeatedly"
+                )
+            continue
+
+        task_data = _unwrap_midjourney_task_data(response_data)
+        if not isinstance(task_data, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "Midjourney polling response has no task data"
+                )
+            continue
+
+        active_route = route_used
+        consecutive_failures = 0
+        status = str(task_data.get("status") or "").strip().upper()
+        progress = _coerce_progress(task_data.get("progress"))
+        if status != last_status:
+            _log(
+                logger_prefix,
+                f"  Midjourney poll: status={status}, progress={progress}, "
+                f"elapsed={int(elapsed)}s",
+            )
+            last_status = status
+
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status in _MIDJOURNEY_COMPLETED_STATUSES:
+            _log(logger_prefix, f"  Midjourney task completed in {int(elapsed)}s")
+            return response_data
+
+        if status == "MODAL":
+            if stop_on_modal:
+                _log(logger_prefix, "  Midjourney task is waiting for modal input")
+                return response_data
+            raise SeedanceAPIError(
+                "Midjourney task requires modal follow-up input"
+            )
+
+        if status in _MIDJOURNEY_FAILED_STATUSES:
+            reason = (
+                task_data.get("fail_reason")
+                or task_data.get("error")
+                or _extract_error_message(task_data, "Midjourney task failed")
+            )
+            raise SeedanceAPIError(f"Midjourney task failed: {reason}")
+
+        if status and status not in _MIDJOURNEY_RUNNING_STATUSES:
+            _log(
+                logger_prefix,
+                f"  Unknown Midjourney status '{status}', continue polling...",
+            )
+
+
+def _midjourney_containers(value: Any) -> List[Dict[str, Any]]:
+    """Return only documented task/result envelopes, never arbitrary metadata."""
+    containers: List[Dict[str, Any]] = []
+    queue: List[Any] = [value]
+    seen: Set[int] = set()
+    while queue:
+        item = queue.pop(0)
+        if isinstance(item, dict):
+            identity = id(item)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            containers.append(item)
+            for key in _MIDJOURNEY_ENVELOPE_KEYS:
+                nested = item.get(key)
+                if isinstance(nested, (dict, list)):
+                    queue.append(nested)
+        elif isinstance(item, list):
+            queue.extend(child for child in item if isinstance(child, dict))
+    return containers
+
+
+def _append_unique_url(target: List[str], value: Any):
+    if isinstance(value, str):
+        url = value.strip()
+        if url.startswith(("http://", "https://")) and url not in target:
+            target.append(url)
+
+
+def _collect_midjourney_url_values(
+    target: List[str],
+    value: Any,
+):
+    if isinstance(value, str):
+        _append_unique_url(target, value)
+    elif isinstance(value, list):
+        for item in value:
+            if isinstance(item, dict):
+                for key in ("url", "image_url", "video_url"):
+                    _append_unique_url(target, item.get(key))
+            else:
+                _append_unique_url(target, item)
+
+
+def extract_midjourney_results(
+    final_response: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Normalize documented and observed Midjourney response shapes."""
+    if not isinstance(final_response, dict):
+        raise SeedanceAPIError("Midjourney response must be a JSON object")
+
+    containers = _midjourney_containers(final_response)
+    task_data = _unwrap_midjourney_task_data(final_response)
+    if task_data is not None:
+        containers = [task_data] + [
+            item for item in containers if item is not task_data
+        ]
+    image_urls: List[str] = []
+    video_urls: List[str] = []
+    grid_image_url = ""
+    buttons: List[Any] = []
+    text = ""
+    status = ""
+
+    for container in containers:
+        if not status and container.get("status") is not None:
+            status = str(container.get("status") or "").strip()
+
+        if not grid_image_url:
+            candidate = container.get("grid_image_url")
+            if isinstance(candidate, str) and candidate.startswith(
+                ("http://", "https://")
+            ):
+                grid_image_url = candidate
+
+        for key in ("image_urls", "images"):
+            _collect_midjourney_url_values(image_urls, container.get(key))
+        _append_unique_url(image_urls, container.get("image_url"))
+
+        for key in ("video_urls", "videos"):
+            _collect_midjourney_url_values(video_urls, container.get(key))
+        _append_unique_url(video_urls, container.get("video_url"))
+
+        if not buttons and isinstance(container.get("buttons"), list):
+            buttons = container["buttons"]
+
+    for key in ("description", "prompt", "text"):
+        for container in containers:
+            value = container.get(key)
+            if isinstance(value, str) and value.strip():
+                text = value.strip()
+                break
+        if text:
+            break
+
+    if grid_image_url in image_urls:
+        image_urls.remove(grid_image_url)
+
+    return {
+        "task_id": _extract_midjourney_task_id(final_response) or "",
+        "status": status,
+        "image_urls": image_urls,
+        "grid_image_url": grid_image_url,
+        "video_urls": video_urls,
+        "text": text,
+        "buttons": buttons,
     }
 
 

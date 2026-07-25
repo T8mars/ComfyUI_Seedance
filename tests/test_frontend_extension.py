@@ -64,6 +64,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Doubao_Seed_Audio",
             "Whisper_Transcription",
             "Suno_Music",
+            "Midjourney_Multi_Action",
         }
         self.assertTrue(expected.issubset(node_names))
 
@@ -74,7 +75,7 @@ class FrontendExtensionTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
                 if node_type.startswith(
-                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_", "Whisper_", "Suno_")
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_", "Whisper_", "Suno_", "Midjourney_")
                 ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)
@@ -112,6 +113,41 @@ class FrontendExtensionTests(unittest.TestCase):
         from ComfyUI_Seedance.nodes import SUNO_OPERATIONS
 
         self.assertEqual(operation_keys, set(SUNO_OPERATIONS))
+
+    def test_midjourney_action_ui_covers_every_operation_and_preserves_links(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "midjourney_action_ui.js"
+        ).read_text(encoding="utf-8")
+
+        required_fragments = (
+            'const MIDJOURNEY_NODE_NAME = "Midjourney_Multi_Action"',
+            "const ACTION_FIELDS = {",
+            "if (nodeData.name !== MIDJOURNEY_NODE_NAME)",
+            "setWidgetVisible(widget, fields.has(widget.name))",
+            "String(widget?.type ?? \"\").startsWith(CONVERTED_WIDGET_PREFIX)",
+            'Object.prototype.hasOwnProperty.call(widget ?? {}, "origType")',
+            "const connected = input.link != null",
+            "input.hidden = !fields.has(input.name) && !connected",
+            'wrapRefreshWidget(this, "operation")',
+            'wrapRefreshWidget(this, "modal_mode")',
+            "originalOnConfigure?.apply(this, arguments)",
+            "originalOnConnectionsChange?.apply(this, arguments)",
+            "refreshMidjourneyNode(this)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+        operation_keys = set(
+            re.findall(
+                r'^\s{4}"(midjourney-[a-z0-9-]+)": \[',
+                source,
+                re.MULTILINE,
+            )
+        )
+        from ComfyUI_Seedance.nodes import MIDJOURNEY_OPERATIONS
+
+        self.assertEqual(operation_keys, set(MIDJOURNEY_OPERATIONS))
 
     def test_example_workflows_do_not_store_runtime_secrets_or_results(self):
         forbidden_patterns = {

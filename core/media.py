@@ -41,6 +41,36 @@ def image_to_png_bytes(image: torch.Tensor) -> bytes:
     return buf.getvalue()
 
 
+def mask_to_midjourney_png_bytes(mask: torch.Tensor) -> bytes:
+    """Encode a ComfyUI MASK using Midjourney's transparent-repaint convention."""
+    from PIL import Image
+
+    if mask is None:
+        raise ValueError("mask is None")
+    arr = mask.cpu().numpy() if hasattr(mask, "cpu") else np.asarray(mask)
+    if arr.ndim == 4:
+        arr = arr[0, ..., 0]
+    elif arr.ndim == 3:
+        arr = arr[0]
+    if arr.ndim != 2:
+        raise ValueError(f"Unexpected mask tensor shape: {arr.shape}")
+
+    normalized = np.asarray(arr, dtype=np.float32)
+    if normalized.max() > 1.0:
+        normalized = normalized / 255.0
+    normalized = np.clip(normalized, 0.0, 1.0)
+
+    # ComfyUI white means selected/repaint. Midjourney expects that area to
+    # be transparent, while retained pixels are opaque white.
+    alpha = np.rint((1.0 - normalized) * 255.0).astype(np.uint8)
+    rgba = np.full((*alpha.shape, 4), 255, dtype=np.uint8)
+    rgba[..., 3] = alpha
+    image = Image.fromarray(rgba)
+    buf = BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # VIDEO (comfy_api VideoInput / dict / path) -> mp4 bytes
 # ---------------------------------------------------------------------------
@@ -182,6 +212,13 @@ def _make_error_frame(error_msg: str, size: int = 512):
         if y > size - margin:
             break
     return img
+
+
+def make_error_image(error_msg: str) -> torch.Tensor:
+    """Build a ComfyUI IMAGE placeholder for skip_error image workflows."""
+    frame = _make_error_frame(error_msg)
+    array = np.asarray(frame, dtype=np.float32).copy() / 255.0
+    return torch.from_numpy(array).unsqueeze(0)
 
 
 def make_error_video(error_msg: str) -> Any:

@@ -26,18 +26,22 @@ from .core.client import (
     download_audio,
     download_file,
     download_image,
+    download_image_with_path,
     download_video,
     download_video_with_path,
     extract_audio_url,
     extract_image_url,
+    extract_midjourney_results,
     extract_music_results,
     extract_video_url,
     poll_audio_task,
     poll_image_task,
+    poll_midjourney_task,
     poll_music_task,
     poll_task,
     submit_audio_task,
     submit_image_task,
+    submit_midjourney_action,
     submit_music_action,
     submit_task,
     transcribe_audio,
@@ -46,7 +50,9 @@ from .core.client import (
 from .core.media import (
     audio_to_wav_bytes,
     image_to_png_bytes,
+    mask_to_midjourney_png_bytes,
     make_silent_audio,
+    make_error_image,
     make_error_video,
     video_to_bytes,
 )
@@ -583,6 +589,280 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
     },
 }
 SUNO_OPERATIONS = list(SUNO_ACTION_SPECS)
+
+MIDJOURNEY_SPEEDS = ["unset", "relax", "fast", "turbo"]
+MIDJOURNEY_VERSIONS = [
+    "unset",
+    "5",
+    "5.1",
+    "5.2",
+    "6",
+    "6.1",
+    "7",
+    "8.1",
+    "8.2",
+]
+MIDJOURNEY_DIMENSIONS = ["unset", "SQUARE", "PORTRAIT", "LANDSCAPE"]
+MIDJOURNEY_QUALITIES = ["unset", "0.25", "0.5", "1", "2"]
+MIDJOURNEY_DIRECTIONS = ["unset", "left", "right", "up", "down"]
+MIDJOURNEY_MODAL_MODES = ["region", "outpaint"]
+MIDJOURNEY_VIDEO_TYPES = [
+    "vid_1.1_i2v_480",
+    "vid_1.1_i2v_720",
+    "vid_1.1_i2v_start_end_480",
+    "vid_1.1_i2v_start_end_720",
+]
+MIDJOURNEY_ANIMATE_MODES = ["manual", "auto"]
+MIDJOURNEY_MOTIONS = ["low", "high"]
+MIDJOURNEY_BATCH_SIZES = [1, 2, 4]
+MAX_MIDJOURNEY_IMAGES = 4
+
+MIDJOURNEY_STRUCTURED_FIELDS = (
+    "size",
+    "quality",
+    "style",
+    "version",
+    "seed",
+    "negative_prompt",
+    "stylize",
+    "chaos",
+    "weird",
+    "tile",
+    "niji",
+    "iw",
+    "cw",
+    "sw",
+    "cref",
+    "sref",
+    "dref",
+    "dw",
+    "repeat",
+    "raw",
+    "draft",
+    "hd",
+    "stop",
+    "extra",
+)
+
+MIDJOURNEY_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
+    "midjourney-imagine": {
+        "action": "imagine",
+        "execution_mode": "async",
+        "required_fields": ("prompt",),
+        "required_one_of": (),
+        "allowed_fields": (
+            "prompt",
+            "image_urls",
+            "speed",
+            "metadata",
+            *MIDJOURNEY_STRUCTURED_FIELDS,
+        ),
+        "result_family": "image",
+    },
+    "midjourney-blend": {
+        "action": "blend",
+        "execution_mode": "async",
+        "required_fields": ("image_urls",),
+        "required_one_of": (),
+        "allowed_fields": (
+            "image_urls",
+            "dimensions",
+            "size",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-describe": {
+        "action": "describe",
+        "execution_mode": "sync_or_async",
+        "required_fields": ("image_urls",),
+        "required_one_of": (),
+        "allowed_fields": ("image_urls", "speed", "metadata"),
+        "result_family": "text",
+    },
+    "midjourney-edits": {
+        "action": "edits",
+        "execution_mode": "async",
+        "required_fields": ("prompt", "image_urls"),
+        "required_one_of": (),
+        "allowed_fields": (
+            "prompt",
+            "image_urls",
+            "speed",
+            "metadata",
+            *MIDJOURNEY_STRUCTURED_FIELDS,
+        ),
+        "result_family": "image",
+    },
+    "midjourney-upscale": {
+        "action": "upscale",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (("index", "custom_id"),),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-variation": {
+        "action": "variation",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (("index", "custom_id"),),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-high-variation": {
+        "action": "high-variation",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (("index", "custom_id"),),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-low-variation": {
+        "action": "low-variation",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (("index", "custom_id"),),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-reroll": {
+        "action": "reroll",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (),
+        "allowed_fields": ("task_id", "custom_id", "speed", "metadata"),
+        "result_family": "image",
+    },
+    "midjourney-zoom": {
+        "action": "zoom",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "zoom_ratio",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-pan": {
+        "action": "pan",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (("direction", "custom_id"),),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "direction",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-inpaint": {
+        "action": "inpaint",
+        "execution_mode": "modal_stage",
+        "required_fields": ("task_id",),
+        "required_one_of": (),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "custom_id",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "modal",
+    },
+    "midjourney-modal": {
+        "action": "modal",
+        "execution_mode": "async",
+        "required_fields": ("task_id",),
+        "required_one_of": (),
+        "allowed_fields": (
+            "task_id",
+            "prompt",
+            "mask_url",
+            "speed",
+            "metadata",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-video": {
+        "action": "video",
+        "execution_mode": "async",
+        "required_fields": (),
+        "required_one_of": (("image_urls", "task_id"),),
+        "allowed_fields": (
+            "prompt",
+            "image_urls",
+            "task_id",
+            "index",
+            "video_type",
+            "animate_mode",
+            "motion",
+            "batch_size",
+            "end_url",
+        ),
+        "result_family": "video",
+    },
+    "midjourney-remix-strong": {
+        "action": "remix-strong",
+        "execution_mode": "async",
+        "required_fields": ("task_id", "index"),
+        "required_one_of": (),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "prompt",
+            "speed",
+        ),
+        "result_family": "image",
+    },
+    "midjourney-remix-subtle": {
+        "action": "remix-subtle",
+        "execution_mode": "async",
+        "required_fields": ("task_id", "index"),
+        "required_one_of": (),
+        "allowed_fields": (
+            "task_id",
+            "index",
+            "prompt",
+            "speed",
+        ),
+        "result_family": "image",
+    },
+}
+MIDJOURNEY_OPERATIONS = list(MIDJOURNEY_ACTION_SPECS)
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -4312,6 +4592,1093 @@ class SunoMusic:
 
 
 # ---------------------------------------------------------------------------
+# Midjourney image and video actions
+# ---------------------------------------------------------------------------
+
+class MidjourneyMultiAction:
+    """All documented Midjourney actions through /v1/midjourney."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = (
+        "IMAGE",
+        "IMAGE",
+        "IMAGE",
+        "IMAGE",
+        "IMAGE",
+        "VIDEO",
+        "VIDEO",
+        "VIDEO",
+        "VIDEO",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+    )
+    RETURN_NAMES = (
+        "image1",
+        "image2",
+        "image3",
+        "image4",
+        "grid_image",
+        "video1",
+        "video2",
+        "video3",
+        "video4",
+        "text",
+        "primary_url",
+        "result_urls",
+        "primary_path",
+        "result_paths",
+        "task_id",
+        "buttons_json",
+        "response",
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_MIDJOURNEY_IMAGES + 1):
+            optional[f"image{i}"] = (
+                "IMAGE",
+                {
+                    "tooltip": (
+                        f"Local image {i}; do not fill image_url{i} together. | "
+                        f"本地图片 {i}，不能与同槽 URL 同时使用。"
+                    )
+                },
+            )
+        optional["end_image"] = (
+            "IMAGE",
+            {
+                "tooltip": (
+                    "Optional local video end frame. | 可选视频结束帧。"
+                )
+            },
+        )
+        optional["mask"] = (
+            "MASK",
+            {
+                "tooltip": (
+                    "ComfyUI mask for modal region repaint. White is repainted. | "
+                    "Modal 局部重绘遮罩，ComfyUI 白色区域会被重绘。"
+                )
+            },
+        )
+        optional["api_config"] = (
+            "SEEDANCE_CONFIG",
+            {
+                "tooltip": (
+                    "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."
+                )
+            },
+        )
+        optional["skip_error"] = (
+            "BOOLEAN",
+            {
+                "default": False,
+                "tooltip": (
+                    "Return placeholders and an error response instead of stopping. | "
+                    "失败时返回占位结果和错误信息。"
+                ),
+            },
+        )
+
+        required: Dict[str, tuple] = {
+            "operation": (
+                MIDJOURNEY_OPERATIONS,
+                {
+                    "default": "midjourney-imagine",
+                    "tooltip": "Select one documented Midjourney action. | 选择操作。",
+                },
+            ),
+            "prompt": (
+                "STRING",
+                {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Prompt or edit instruction. External STRING inputs are supported. | "
+                        "提示词或编辑指令，支持外部 STRING 节点。"
+                    ),
+                },
+            ),
+            "speed": (
+                MIDJOURNEY_SPEEDS,
+                {
+                    "default": "unset",
+                    "tooltip": "Optional action speed. | 可选速度模式。",
+                },
+            ),
+            "size": (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": "Aspect ratio such as 16:9. | 画面比例，如 16:9。",
+                },
+            ),
+            "dimensions": (
+                MIDJOURNEY_DIMENSIONS,
+                {
+                    "default": "unset",
+                    "tooltip": "Blend preset ratio; size takes priority. | Blend 预设比例。",
+                },
+            ),
+            "quality": (
+                MIDJOURNEY_QUALITIES,
+                {
+                    "default": "unset",
+                    "tooltip": "Optional Imagine/Edits quality flag. | 可选质量参数。",
+                },
+            ),
+            "style": (
+                "STRING",
+                {"default": "", "tooltip": "Optional style, for example raw. | 可选风格。"},
+            ),
+            "version": (
+                MIDJOURNEY_VERSIONS,
+                {"default": "unset", "tooltip": "Optional Midjourney version. | 可选版本。"},
+            ),
+            "seed": (
+                "INT",
+                {"default": -1, "min": -1, "max": 4294967295, "step": 1},
+            ),
+            "negative_prompt": (
+                "STRING",
+                {"multiline": True, "default": "", "tooltip": "Optional --no content. | 可选负面提示词。"},
+            ),
+            "stylize": (
+                "INT",
+                {"default": -1, "min": -1, "max": 1000, "step": 1},
+            ),
+            "chaos": (
+                "INT",
+                {"default": -1, "min": -1, "max": 100, "step": 1},
+            ),
+            "weird": (
+                "INT",
+                {"default": -1, "min": -1, "max": 3000, "step": 1},
+            ),
+            "tile": ("BOOLEAN", {"default": False}),
+            "niji": ("BOOLEAN", {"default": False}),
+            "iw": (
+                "FLOAT",
+                {"default": -1.0, "min": -1.0, "max": 3.0, "step": 0.1},
+            ),
+            "cw": (
+                "INT",
+                {"default": -1, "min": -1, "max": 100, "step": 1},
+            ),
+            "sw": (
+                "INT",
+                {"default": -1, "min": -1, "max": 1000, "step": 1},
+            ),
+            "cref": ("STRING", {"default": "", "tooltip": "Character reference URL. | 角色参考图 URL。"}),
+            "sref": ("STRING", {"default": "", "tooltip": "Style reference URL. | 风格参考图 URL。"}),
+            "dref": ("STRING", {"default": "", "tooltip": "Depth reference URL. | 深度参考图 URL。"}),
+            "dw": (
+                "FLOAT",
+                {"default": -1.0, "min": -1.0, "max": 100.0, "step": 0.1},
+            ),
+            "repeat": (
+                "INT",
+                {"default": 0, "min": 0, "max": 40, "step": 1},
+            ),
+            "raw": ("BOOLEAN", {"default": False}),
+            "draft": ("BOOLEAN", {"default": False}),
+            "hd": ("BOOLEAN", {"default": False}),
+            "stop": (
+                "INT",
+                {"default": 0, "min": 0, "max": 100, "step": 1},
+            ),
+            "extra": (
+                "STRING",
+                {"default": "", "tooltip": "Optional native MJ flags. | 可选原生 MJ 参数。"},
+            ),
+            "task_id": (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": (
+                        "Source Midjourney task id; connect a previous node. | "
+                        "源 Midjourney 任务 ID，可连接上游节点。"
+                    ),
+                },
+            ),
+            "index": (
+                "INT",
+                {
+                    "default": -1,
+                    "min": -1,
+                    "max": 4,
+                    "step": 1,
+                    "tooltip": (
+                        "Use 1-4 for image actions; Video task mode uses 0-3. | "
+                        "图像操作用 1-4，Video 任务模式用 0-3。"
+                    ),
+                },
+            ),
+            "custom_id": (
+                "STRING",
+                {"default": "", "tooltip": "Optional button customId. | 可选按钮 customId。"},
+            ),
+            "direction": (
+                MIDJOURNEY_DIRECTIONS,
+                {"default": "unset", "tooltip": "Pan direction. | Pan 平移方向。"},
+            ),
+            "zoom_ratio": (
+                "FLOAT",
+                {"default": 2.0, "min": 1.0, "max": 2.0, "step": 0.1},
+            ),
+            "modal_mode": (
+                MIDJOURNEY_MODAL_MODES,
+                {
+                    "default": "region",
+                    "tooltip": "Region uses a mask; outpaint sends no mask. | region 使用遮罩，outpaint 不发送遮罩。",
+                },
+            ),
+            "video_type": (
+                MIDJOURNEY_VIDEO_TYPES,
+                {"default": "vid_1.1_i2v_480"},
+            ),
+            "animate_mode": (
+                MIDJOURNEY_ANIMATE_MODES,
+                {"default": "manual"},
+            ),
+            "motion": (
+                MIDJOURNEY_MOTIONS,
+                {"default": "high"},
+            ),
+            "batch_size": (
+                MIDJOURNEY_BATCH_SIZES,
+                {"default": 1},
+            ),
+            "metadata_json": (
+                "STRING",
+                {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Optional JSON object stored with the task. | 可选任务 metadata JSON。",
+                },
+            ),
+        }
+        for i in range(1, MAX_MIDJOURNEY_IMAGES + 1):
+            required[f"image_url{i}"] = (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": (
+                        f"Public image URL or image data URL {i}. | "
+                        f"公网图片或 data URL {i}。"
+                    ),
+                },
+            )
+        required["end_url"] = (
+            "STRING",
+            {"default": "", "tooltip": "Optional public video end-frame URL. | 可选结束帧 URL。"},
+        )
+        required["mask_url"] = (
+            "STRING",
+            {"default": "", "tooltip": "Optional modal mask URL or data URL. | 可选 Modal 遮罩 URL。"},
+        )
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        operation=None,
+        speed=None,
+        version=None,
+        dimensions=None,
+        quality=None,
+        direction=None,
+        modal_mode=None,
+        video_type=None,
+        animate_mode=None,
+        motion=None,
+        batch_size=None,
+        index=None,
+        strict=False,
+        **kwargs,
+    ):
+        if operation not in MIDJOURNEY_ACTION_SPECS:
+            return f"unsupported Midjourney operation: {operation}"
+        enum_values = {
+            "speed": (speed, MIDJOURNEY_SPEEDS),
+            "version": (version, MIDJOURNEY_VERSIONS),
+            "dimensions": (dimensions, MIDJOURNEY_DIMENSIONS),
+            "quality": (quality, MIDJOURNEY_QUALITIES),
+            "direction": (direction, MIDJOURNEY_DIRECTIONS),
+            "modal_mode": (modal_mode, MIDJOURNEY_MODAL_MODES),
+            "video_type": (video_type, MIDJOURNEY_VIDEO_TYPES),
+            "animate_mode": (animate_mode, MIDJOURNEY_ANIMATE_MODES),
+            "motion": (motion, MIDJOURNEY_MOTIONS),
+        }
+        for field, (value, allowed) in enum_values.items():
+            if value is not None and value not in allowed:
+                return f"unsupported {field}: {value}"
+        if batch_size is not None and int(batch_size) not in MIDJOURNEY_BATCH_SIZES:
+            return "batch_size must be 1, 2, or 4"
+        if index is not None and not -1 <= int(index) <= 4:
+            return "index must be between -1 and 4"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Midjourney_Multi_Action"
+
+    @staticmethod
+    def _text(value: Any) -> str:
+        return str(value or "").strip()
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    @staticmethod
+    def _media_reference(value: Any, field: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        if not text.startswith(("http://", "https://", "data:image/")):
+            raise SeedanceAPIError(
+                f"{field} must be an http(s) URL or image data URL | "
+                f"{field} 必须是 http(s) URL 或图片 data URL"
+            )
+        return text
+
+    def _collect_materials(
+        self,
+        operation: str,
+        kwargs: Dict[str, Any],
+        config: Dict[str, Any],
+        progress_cb,
+    ) -> Dict[str, Any]:
+        direct_image_actions = {
+            "midjourney-imagine",
+            "midjourney-blend",
+            "midjourney-describe",
+            "midjourney-edits",
+            "midjourney-video",
+        }
+        local_jobs = 0
+        if operation in direct_image_actions:
+            local_jobs += sum(
+                1
+                for i in range(1, MAX_MIDJOURNEY_IMAGES + 1)
+                if kwargs.get(f"image{i}") is not None
+            )
+        if operation == "midjourney-video" and kwargs.get("end_image") is not None:
+            local_jobs += 1
+        if (
+            operation == "midjourney-modal"
+            and self._text(kwargs.get("modal_mode")) == "region"
+            and kwargs.get("mask") is not None
+        ):
+            local_jobs += 1
+
+        uploaded = 0
+        image_urls: List[str] = []
+        if operation in direct_image_actions:
+            for i in range(1, MAX_MIDJOURNEY_IMAGES + 1):
+                image = kwargs.get(f"image{i}")
+                image_url = self._media_reference(
+                    kwargs.get(f"image_url{i}"), f"image_url{i}"
+                )
+                if image is not None and image_url:
+                    raise SeedanceAPIError(
+                        f"image{i} and image_url{i} cannot both be used | "
+                        f"第 {i} 槽不能同时连接本地图片和填写 URL"
+                    )
+                if image is not None:
+                    image_url = upload_media(
+                        image_to_png_bytes(image),
+                        f"midjourney_image_{i}.png",
+                        "image/png",
+                        config,
+                        logger_prefix=self._log_prefix,
+                    )
+                    uploaded += 1
+                    progress_cb(uploaded / max(local_jobs, 1))
+                if image_url:
+                    image_urls.append(image_url)
+
+        end_url = ""
+        if operation == "midjourney-video":
+            end_image = kwargs.get("end_image")
+            end_url = self._media_reference(kwargs.get("end_url"), "end_url")
+            if end_image is not None and end_url:
+                raise SeedanceAPIError(
+                    "end_image and end_url cannot both be used | "
+                    "结束帧不能同时连接本地图片和填写 URL"
+                )
+            if end_image is not None:
+                end_url = upload_media(
+                    image_to_png_bytes(end_image),
+                    "midjourney_end_frame.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+                uploaded += 1
+                progress_cb(uploaded / max(local_jobs, 1))
+
+        mask_url = ""
+        if operation == "midjourney-modal":
+            modal_mode = self._text(kwargs.get("modal_mode")) or "region"
+            mask = kwargs.get("mask")
+            if modal_mode == "outpaint":
+                mask = None
+                supplied_mask_url = ""
+            else:
+                supplied_mask_url = self._media_reference(
+                    kwargs.get("mask_url"), "mask_url"
+                )
+            if modal_mode != "outpaint" and mask is not None and supplied_mask_url:
+                raise SeedanceAPIError(
+                    "mask and mask_url cannot both be used | "
+                    "遮罩不能同时连接本地 MASK 和填写 URL"
+                )
+            if mask is not None:
+                supplied_mask_url = upload_media(
+                    mask_to_midjourney_png_bytes(mask),
+                    "midjourney_mask.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+                uploaded += 1
+                progress_cb(uploaded / max(local_jobs, 1))
+            mask_url = supplied_mask_url
+            if modal_mode == "region" and not mask_url:
+                raise SeedanceAPIError(
+                    "midjourney-modal region mode requires a mask | "
+                    "midjourney-modal 局部重绘模式必须提供遮罩"
+                )
+
+        if local_jobs == 0:
+            progress_cb(1.0)
+        return {
+            "image_urls": image_urls,
+            "end_url": end_url,
+            "mask_url": mask_url,
+        }
+
+    def _metadata(self, raw_value: Any) -> Optional[Dict[str, Any]]:
+        text = self._text(raw_value)
+        if not text:
+            return None
+        try:
+            value = json.loads(text)
+        except (TypeError, ValueError) as error:
+            raise SeedanceAPIError(
+                f"metadata_json must be valid JSON: {error}"
+            ) from error
+        if not isinstance(value, dict):
+            raise SeedanceAPIError("metadata_json must contain a JSON object")
+        return value
+
+    @staticmethod
+    def _validate_structured_compatibility(payload: Dict[str, Any]):
+        """Validate documented version gates for structured Imagine flags."""
+        version = str(payload.get("version") or "").strip()
+        niji = bool(payload.get("niji"))
+
+        if niji and version and version not in {"5", "6", "7"}:
+            raise SeedanceAPIError(
+                "niji requires version 5, 6, or 7 when version is supplied | "
+                "启用 niji 时，version 只能为 5、6 或 7"
+            )
+        if payload.get("raw") and version == "5":
+            raise SeedanceAPIError(
+                "raw requires version 5.1 or newer | raw 需要 version 5.1 或更高"
+            )
+        if (
+            payload.get("draft")
+            and version
+            and version not in {"7", "8.1", "8.2"}
+        ):
+            raise SeedanceAPIError(
+                "draft requires version 7 or newer | draft 需要 version 7 或更高"
+            )
+        if payload.get("hd") and version and version not in {"8.1", "8.2"}:
+            raise SeedanceAPIError(
+                "hd supports only version 8.1 or 8.2 | "
+                "hd 仅支持 version 8.1 或 8.2"
+            )
+        if "stop" in payload and version:
+            supported = {"5", "6"} if niji else {
+                "5", "5.1", "5.2", "6", "6.1"
+            }
+            if version not in supported:
+                family = "Niji" if niji else "Midjourney"
+                raise SeedanceAPIError(
+                    f"stop is not supported by {family} version {version} | "
+                    f"{family} version {version} 不支持 stop"
+                )
+
+    def _build_payload(
+        self,
+        operation: str,
+        materials: Dict[str, Any],
+        **kwargs,
+    ) -> Dict[str, Any]:
+        if operation not in MIDJOURNEY_ACTION_SPECS:
+            raise SeedanceAPIError(
+                f"unsupported Midjourney operation: {operation}"
+            )
+        spec = MIDJOURNEY_ACTION_SPECS[operation]
+        allowed = set(spec["allowed_fields"])
+        payload: Dict[str, Any] = {}
+
+        prompt = self._text(kwargs.get("prompt"))
+        if "prompt" in allowed and prompt:
+            payload["prompt"] = prompt
+        image_urls = list(materials.get("image_urls") or [])
+        if "image_urls" in allowed and image_urls:
+            payload["image_urls"] = image_urls
+
+        task_id = self._text(kwargs.get("task_id"))
+        if "task_id" in allowed and task_id:
+            payload["task_id"] = task_id
+
+        custom_id = self._text(kwargs.get("custom_id"))
+        if "custom_id" in allowed and custom_id:
+            payload["custom_id"] = custom_id
+
+        raw_index = kwargs.get("index")
+        index = int(raw_index) if raw_index is not None else -1
+        if "index" in allowed and index >= 0 and not custom_id:
+            payload["index"] = index
+
+        speed = self._text(kwargs.get("speed"))
+        if "speed" in allowed and speed and speed != "unset":
+            payload["speed"] = speed
+
+        size = self._text(kwargs.get("size"))
+        if "size" in allowed and size:
+            payload["size"] = size
+        dimensions = self._text(kwargs.get("dimensions"))
+        if "dimensions" in allowed and dimensions and dimensions != "unset" and not size:
+            payload["dimensions"] = dimensions
+
+        if "direction" in allowed and not custom_id:
+            direction = self._text(kwargs.get("direction"))
+            if direction and direction != "unset":
+                payload["direction"] = direction
+        if "zoom_ratio" in allowed and not custom_id:
+            zoom_ratio = float(kwargs.get("zoom_ratio") or 2.0)
+            if not 1.0 <= zoom_ratio <= 2.0:
+                raise SeedanceAPIError("zoom_ratio must be between 1.0 and 2.0")
+            payload["zoom_ratio"] = zoom_ratio
+
+        if "mask_url" in allowed and materials.get("mask_url"):
+            payload["mask_url"] = materials["mask_url"]
+        if "end_url" in allowed and materials.get("end_url"):
+            payload["end_url"] = materials["end_url"]
+
+        if operation == "midjourney-video":
+            payload["video_type"] = self._text(kwargs.get("video_type"))
+            payload["animate_mode"] = self._text(kwargs.get("animate_mode"))
+            payload["motion"] = self._text(kwargs.get("motion"))
+            payload["batch_size"] = int(kwargs.get("batch_size") or 1)
+
+        enum_fields = ("quality", "version")
+        for field in enum_fields:
+            if field in allowed:
+                value = self._text(kwargs.get(field))
+                if value and value != "unset":
+                    payload[field] = value
+        for field in (
+            "style",
+            "negative_prompt",
+            "cref",
+            "sref",
+            "dref",
+            "extra",
+        ):
+            if field not in allowed:
+                continue
+            value = self._text(kwargs.get(field))
+            if value:
+                if field in {"cref", "sref", "dref"}:
+                    value = self._media_reference(value, field)
+                payload[field] = value
+
+        sentinel_ints = {
+            "seed": -1,
+            "stylize": -1,
+            "chaos": -1,
+            "weird": -1,
+            "cw": -1,
+            "sw": -1,
+            "repeat": 0,
+            "stop": 0,
+        }
+        for field, sentinel in sentinel_ints.items():
+            if field in allowed:
+                value = int(kwargs.get(field) if kwargs.get(field) is not None else sentinel)
+                if value > sentinel:
+                    payload[field] = value
+        if payload.get("repeat") == 1:
+            raise SeedanceAPIError("repeat must be 0 (unset) or 2-40")
+        if "stop" in payload and payload["stop"] < 10:
+            raise SeedanceAPIError("stop must be 0 (unset) or 10-100")
+
+        for field in ("iw", "dw"):
+            if field in allowed:
+                value = float(kwargs.get(field) if kwargs.get(field) is not None else -1.0)
+                if value >= 0:
+                    payload[field] = value
+        for field in ("tile", "niji", "raw", "draft", "hd"):
+            if field in allowed and bool(kwargs.get(field, False)):
+                payload[field] = True
+
+        self._validate_structured_compatibility(payload)
+
+        if "metadata" in allowed:
+            metadata = self._metadata(kwargs.get("metadata_json"))
+            if metadata is not None:
+                payload["metadata"] = metadata
+
+        if operation == "midjourney-blend" and not 2 <= len(image_urls) <= 4:
+            raise SeedanceAPIError(
+                "midjourney-blend requires 2-4 images | "
+                "midjourney-blend 必须提供 2-4 张图片"
+            )
+        if operation == "midjourney-describe" and len(image_urls) != 1:
+            raise SeedanceAPIError(
+                "midjourney-describe requires exactly one image | "
+                "midjourney-describe 必须提供一张图片"
+            )
+
+        missing = [
+            field
+            for field in spec["required_fields"]
+            if field not in payload
+            or payload[field] is None
+            or payload[field] == ""
+            or payload[field] == []
+        ]
+        if missing:
+            raise SeedanceAPIError(
+                f"{operation} requires: {', '.join(missing)} | "
+                f"{operation} 缺少必填参数：{', '.join(missing)}"
+            )
+        for field_group in spec["required_one_of"]:
+            if not any(
+                field in payload and payload[field] not in ("", None, [])
+                for field in field_group
+            ):
+                fields = " or ".join(field_group)
+                raise SeedanceAPIError(
+                    f"{operation} requires {fields} | "
+                    f"{operation} 必须提供 {fields}"
+                )
+
+        if operation == "midjourney-imagine" and len(image_urls) > 4:
+            raise SeedanceAPIError("midjourney-imagine accepts at most 4 images")
+        if operation == "midjourney-edits" and not 1 <= len(image_urls) <= 4:
+            raise SeedanceAPIError(
+                "midjourney-edits requires 1-4 images | "
+                "midjourney-edits 必须提供 1-4 张图片"
+            )
+
+        one_based_actions = {
+            "midjourney-upscale",
+            "midjourney-variation",
+            "midjourney-high-variation",
+            "midjourney-low-variation",
+            "midjourney-remix-strong",
+            "midjourney-remix-subtle",
+        }
+        if (
+            operation in one_based_actions
+            and "custom_id" not in payload
+            and not 1 <= int(payload.get("index", -1)) <= 4
+        ):
+            raise SeedanceAPIError(
+                f"{operation} index must be 1-4 | {operation} 的 index 必须为 1-4"
+            )
+        if (
+            operation in {"midjourney-zoom", "midjourney-pan", "midjourney-inpaint"}
+            and "index" in payload
+            and not 1 <= int(payload["index"]) <= 4
+        ):
+            raise SeedanceAPIError(
+                f"{operation} index must be 1-4 when supplied"
+            )
+
+        if operation == "midjourney-video":
+            has_images = bool(payload.get("image_urls"))
+            has_task = bool(payload.get("task_id"))
+            if has_images == has_task:
+                raise SeedanceAPIError(
+                    "midjourney-video requires exactly one source: image or task_id | "
+                    "midjourney-video 必须且只能选择首帧图片或任务 ID"
+                )
+            if has_images and len(payload["image_urls"]) != 1:
+                raise SeedanceAPIError(
+                    "midjourney-video accepts exactly one start image"
+                )
+            if has_images and not prompt:
+                raise SeedanceAPIError(
+                    "midjourney-video direct image mode requires prompt"
+                )
+            if payload["animate_mode"] == "auto":
+                if not has_task or "index" not in payload:
+                    raise SeedanceAPIError(
+                        "midjourney-video auto mode requires task_id and index 0-3"
+                    )
+            if has_images and "index" in payload:
+                raise SeedanceAPIError(
+                    "midjourney-video index is only valid with task_id"
+                )
+            if has_task and "index" in payload and not 0 <= payload["index"] <= 3:
+                raise SeedanceAPIError(
+                    "midjourney-video task index must be 0-3"
+                )
+            if payload["batch_size"] not in MIDJOURNEY_BATCH_SIZES:
+                raise SeedanceAPIError(
+                    "midjourney-video batch_size must be 1, 2, or 4"
+                )
+            has_end = bool(payload.get("end_url"))
+            is_start_end = "_start_end_" in payload["video_type"]
+            if has_end and not is_start_end:
+                resolution = "720" if "720" in payload["video_type"] else "480"
+                payload["video_type"] = f"vid_1.1_i2v_start_end_{resolution}"
+            elif is_start_end and not has_end:
+                raise SeedanceAPIError(
+                    "start/end video_type requires end_image or end_url"
+                )
+
+        return {
+            key: value
+            for key, value in payload.items()
+            if key in allowed
+        }
+
+    @staticmethod
+    def _response_status(response: Dict[str, Any]) -> str:
+        if not isinstance(response, dict):
+            return ""
+        data = response.get("data")
+        if isinstance(data, list):
+            data = next((item for item in data if isinstance(item, dict)), {})
+        if isinstance(data, dict):
+            return str(data.get("status") or "").strip().upper()
+        return str(response.get("status") or "").strip().upper()
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        error_image = make_error_image(error_msg)
+        error_video = make_error_video(error_msg)
+        return {
+            "ui": {"text": ["", "", "", "", response_str]},
+            "result": (
+                error_image,
+                None,
+                None,
+                None,
+                None,
+                error_video,
+                None,
+                None,
+                None,
+                "",
+                "",
+                "[]",
+                "",
+                "[]",
+                "",
+                "[]",
+                response_str,
+            ),
+        }
+
+    def execute(
+        self,
+        operation: str,
+        prompt: str = "",
+        api_config=None,
+        skip_error: bool = False,
+        **kwargs,
+    ):
+        all_kwargs = {**kwargs, "prompt": prompt}
+        try:
+            return self._execute_inner(
+                operation=operation,
+                api_config=api_config,
+                **all_kwargs,
+            )
+        except Exception as error:
+            if skip_error:
+                error_msg = f"{self._log_prefix}: {error}"
+                print(f"[{self._log_prefix}] skip_error=True: {type(error).__name__}")
+                return self._make_error_result(error_msg)
+            raise
+
+    def _execute_inner(
+        self,
+        operation: str,
+        api_config=None,
+        **kwargs,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            operation=operation,
+            speed=kwargs.get("speed"),
+            version=kwargs.get("version"),
+            dimensions=kwargs.get("dimensions"),
+            quality=kwargs.get("quality"),
+            direction=kwargs.get("direction"),
+            modal_mode=kwargs.get("modal_mode"),
+            video_type=kwargs.get("video_type"),
+            animate_mode=kwargs.get("animate_mode"),
+            motion=kwargs.get("motion"),
+            batch_size=kwargs.get("batch_size"),
+            index=kwargs.get("index"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        spec = MIDJOURNEY_ACTION_SPECS[operation]
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        materials = self._collect_materials(
+            operation,
+            kwargs,
+            config,
+            lambda fraction: self._update_progress(pbar, fraction * 15),
+        )
+        payload = self._build_payload(operation, materials, **kwargs)
+        self._update_progress(pbar, 15)
+
+        submitted_task_id, submit_response = submit_midjourney_action(
+            spec["action"],
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+
+        final_response = submit_response
+        submit_extracted = extract_midjourney_results(submit_response)
+        submit_status = self._response_status(submit_response)
+        submit_is_complete = submit_status in {
+            "SUCCESS",
+            "SUCCEEDED",
+            "COMPLETED",
+            "COMPLETE",
+        }
+        submit_is_modal = submit_status == "MODAL"
+        submit_has_sync_result = (
+            spec["execution_mode"] == "sync_or_async"
+            and bool(self._text(submit_extracted.get("text")))
+        )
+        if (
+            submitted_task_id
+            and not submit_is_complete
+            and not submit_is_modal
+            and not submit_has_sync_result
+        ):
+            final_response = poll_midjourney_task(
+                submitted_task_id,
+                config,
+                on_progress=lambda progress: self._update_progress(
+                    pbar, 20 + progress / 100.0 * 60
+                ),
+                logger_prefix=self._log_prefix,
+                stop_on_modal=spec["execution_mode"] == "modal_stage",
+            )
+        elif (
+            not submitted_task_id
+            and spec["execution_mode"] not in {"sync_or_async"}
+        ):
+            raise SeedanceAPIError(
+                f"{operation} returned no task id"
+            )
+        self._update_progress(pbar, 82)
+
+        extracted = extract_midjourney_results(final_response)
+        result_task_id = submitted_task_id or extracted["task_id"]
+        if spec["execution_mode"] == "modal_stage":
+            final_status = self._response_status(final_response)
+            if final_status != "MODAL":
+                raise SeedanceAPIError(
+                    "midjourney-inpaint did not reach MODAL state"
+                )
+
+        image_objects: List[Any] = []
+        image_paths: List[str] = []
+        video_objects: List[Any] = []
+        video_paths: List[str] = []
+        download_warnings: List[Dict[str, Any]] = []
+        successful_downloads = 0
+
+        image_urls = list(extracted.get("image_urls") or [])
+        grid_url = self._text(extracted.get("grid_image_url"))
+        video_urls = list(extracted.get("video_urls") or [])
+        artifact_count = max(
+            1,
+            len(image_urls) + (1 if grid_url else 0) + len(video_urls),
+        )
+        artifact_index = 0
+
+        for url in image_urls:
+            artifact_index += 1
+            path = ""
+            image = None
+            try:
+                image, path = download_image_with_path(
+                    url, logger_prefix=self._log_prefix
+                )
+                successful_downloads += 1
+            except Exception as error:
+                download_warnings.append(
+                    {
+                        "artifact_index": artifact_index,
+                        "kind": "image",
+                        "error": type(error).__name__,
+                    }
+                )
+            image_objects.append(image)
+            image_paths.append(path)
+            self._update_progress(
+                pbar, 82 + artifact_index / artifact_count * 15
+            )
+
+        grid_image = None
+        grid_path = ""
+        if grid_url:
+            artifact_index += 1
+            try:
+                grid_image, grid_path = download_image_with_path(
+                    grid_url, logger_prefix=self._log_prefix
+                )
+                successful_downloads += 1
+            except Exception as error:
+                download_warnings.append(
+                    {
+                        "artifact_index": artifact_index,
+                        "kind": "grid_image",
+                        "error": type(error).__name__,
+                    }
+                )
+            self._update_progress(
+                pbar, 82 + artifact_index / artifact_count * 15
+            )
+
+        for url in video_urls:
+            artifact_index += 1
+            path = ""
+            video = None
+            try:
+                video, path = download_video_with_path(
+                    url, logger_prefix=self._log_prefix
+                )
+                successful_downloads += 1
+            except Exception as error:
+                download_warnings.append(
+                    {
+                        "artifact_index": artifact_index,
+                        "kind": "video",
+                        "error": type(error).__name__,
+                    }
+                )
+            video_objects.append(video)
+            video_paths.append(path)
+            self._update_progress(
+                pbar, 82 + artifact_index / artifact_count * 15
+            )
+
+        has_artifacts = bool(image_urls or grid_url or video_urls)
+        if has_artifacts and successful_downloads == 0:
+            raise SeedanceAPIError(
+                "All Midjourney result artifacts failed to download | "
+                "Midjourney 结果文件全部下载失败"
+            )
+        if (
+            not has_artifacts
+            and spec["result_family"] in {"image", "video"}
+        ):
+            raise SeedanceAPIError(
+                f"{operation} completed without downloadable media"
+            )
+
+        text = self._text(extracted.get("text"))
+        if spec["result_family"] == "text" and not text:
+            raise SeedanceAPIError(
+                f"{operation} completed without text output"
+            )
+
+        all_urls = [
+            *image_urls,
+            *([grid_url] if grid_url else []),
+            *video_urls,
+        ]
+        result_paths = [
+            *image_paths,
+            *([grid_path] if grid_url else []),
+            *video_paths,
+        ]
+        primary_url = all_urls[0] if all_urls else ""
+        primary_path = result_paths[0] if result_paths else ""
+        response_payload = final_response
+        if download_warnings:
+            response_payload = dict(final_response)
+            response_payload["_seedance_local"] = {
+                "download_warnings": download_warnings
+            }
+        response_str = json.dumps(
+            response_payload, ensure_ascii=False, indent=2
+        )
+        buttons_str = json.dumps(
+            extracted.get("buttons") or [], ensure_ascii=False
+        )
+        urls_str = json.dumps(all_urls, ensure_ascii=False)
+        paths_str = json.dumps(result_paths, ensure_ascii=False)
+        self._update_progress(pbar, 100)
+
+        padded_images = (image_objects + [None] * 4)[:4]
+        padded_videos = (video_objects + [None] * 4)[:4]
+        return {
+            "ui": {
+                "text": [
+                    text,
+                    primary_url,
+                    primary_path,
+                    result_task_id,
+                    response_str,
+                ]
+            },
+            "result": (
+                *padded_images,
+                grid_image,
+                *padded_videos,
+                text,
+                primary_url,
+                urls_str,
+                primary_path,
+                paths_str,
+                result_task_id,
+                buttons_str,
+                response_str,
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -4337,6 +5704,7 @@ NODE_CLASS_MAPPINGS = {
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Whisper_Transcription": WhisperTranscription,
     "Suno_Music": SunoMusic,
+    "Midjourney_Multi_Action": MidjourneyMultiAction,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -4361,4 +5729,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Whisper_Transcription": "Whisper 1 语音转写",
     "Suno_Music": "Suno 音乐生成与处理（31 合 1）",
+    "Midjourney_Multi_Action": "Midjourney 图像与视频（16 合 1）",
 }

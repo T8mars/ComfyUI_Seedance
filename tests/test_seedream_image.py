@@ -1,10 +1,12 @@
+import os
 import io
 import importlib.util
 import builtins
 import sys
+import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import torch
 from PIL import Image
@@ -78,15 +80,47 @@ class ImageClientTests(unittest.TestCase):
                 raise AssertionError("truststore should not be imported")
             return real_import(name, *args, **kwargs)
 
-        old_singleton = client._session_singleton
-        client._session_singleton = None
-        try:
-            with patch.object(builtins, "__import__", side_effect=guarded_import):
-                session = client._session()
-        finally:
-            client._session_singleton = old_singleton
+        with (
+            patch.object(client, "_session_local", threading.local()),
+            patch.object(builtins, "__import__", side_effect=guarded_import),
+        ):
+            session = client._session()
 
         self.assertIsNotNone(session)
+
+    def test_http_sessions_are_isolated_per_worker_thread(self):
+        session_local = threading.local()
+        created = [MagicMock(), MagicMock()]
+        child_sessions = []
+
+        def create_child_session():
+            child_sessions.append(client._session())
+            child_sessions.append(client._session())
+
+        with (
+            patch.object(client, "_session_local", session_local),
+            patch.object(client.requests, "Session", side_effect=created),
+            patch.object(
+                client, "_windows_cert_store_context", return_value=(None, 0)
+            ),
+            patch.dict(
+                os.environ,
+                {
+                    "SEEDANCE_CA_BUNDLE": "",
+                    "SEEDANCE_SSL_VERIFY": "",
+                },
+            ),
+        ):
+            main_session = client._session()
+            self.assertIs(client._session(), main_session)
+            worker = threading.Thread(target=create_child_session)
+            worker.start()
+            worker.join(timeout=5)
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(len(child_sessions), 2)
+        self.assertIs(child_sessions[0], child_sessions[1])
+        self.assertIsNot(child_sessions[0], main_session)
 
     def test_image_submit_uses_image_endpoint(self):
         session = FakeSession(

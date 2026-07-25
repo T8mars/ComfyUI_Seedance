@@ -18,9 +18,20 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK 图片生成、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件提供视频、图片、音频、语音转写与 Suno 音乐工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.4.0（2026-07-25）
+
+- 新增 `Midjourney 图像与视频（16 合 1）` 节点，覆盖官方登记的 16 个操作。
+- 使用独立 `/v1/midjourney/*` 客户端、显式动作规格表和动作级字段白名单；任务查询兼容三条官方文档路径。
+- 动态界面仅显示当前操作需要的字段，并保留外部 STRING 连线和已连接输入。
+- 支持最多 4 张本地图片或公网 URL、结构化生成参数、任务 ID / custom ID 串联、ComfyUI MASK、首尾帧视频和 1 / 2 / 4 路视频结果。
+- 固定输出 4 张候选图、四宫格、4 路视频、文本、全部结果 URL / 本地路径、任务 ID、按钮 JSON 和完整响应。
+- 新增 19 份示例工作流，覆盖全部 16 个操作，并补充参考图、任务复用视频和首尾帧视频。
+- 全量插件测试 165 项通过；16 个操作均已达到各自文档终态，图片、视频、文字、任务串联、本地素材上传和最多 4 路并发均正常。
+- Describe 的真实完成响应兼容已修正并复测成功；Modal 的 region 模式已完成 MASK 上传和最终图片下载。文档所述无 mask outpaint 当前仍被上游要求提供 mask，保留为上游待修复项。
 
 ## v0.3.0（2026-07-25）
 
@@ -122,6 +133,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
+- 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
 - 图像编辑支持 1 到 10 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
@@ -159,6 +171,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
 | `Suno 音乐生成与处理（31 合 1）` | 音乐生成、素材导入、续写、翻唱、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
+| `Midjourney 图像与视频（16 合 1）` | 图片生成、融合、描述、编辑、二次操作、局部重绘和图生视频 | `operation` 和当前操作动态显示的输入 |
 
 视频生成节点输出：
 
@@ -207,6 +220,22 @@ Suno 节点输出：
 | `primary_path` | 第一条已转存结果的本地路径 |
 | `result_paths` | 全部已转存结果路径的 JSON 数组 |
 | `task_id` | 可直接连接后续 Suno 节点 |
+| `response` | 完整 JSON 响应文本 |
+
+Midjourney 节点输出：
+
+| 输出 | 说明 |
+| --- | --- |
+| `image1` ... `image4` | 最多 4 张候选图片 |
+| `grid_image` | 四宫格或合成预览图 |
+| `video1` ... `video4` | 最多 4 路已下载视频 |
+| `text` | Describe 文本或动作返回的可读文本 |
+| `primary_url` | 第一条主要结果地址 |
+| `result_urls` | 全部图片、四宫格和视频地址的 JSON 数组 |
+| `primary_path` | 第一条已转存结果的本地路径 |
+| `result_paths` | 与 `result_urls` 对齐的本地路径 JSON 数组 |
+| `task_id` | 可直接连接后续 Midjourney 节点 |
+| `buttons_json` | 服务端返回的可用按钮及 custom ID |
 | `response` | 完整 JSON 响应文本 |
 
 ## 安装
@@ -343,6 +372,15 @@ Suno 音乐生成与处理：
 4. 续写、翻唱、编辑、分轨和导出可把前一个 Suno 节点的 `task_id` 直接连接过来；翻唱、双曲混合、采样和三项添加动作还需填写 `prompt`，双曲混合连接两个任务。
 5. 按结果类型连接 `audio1`、`video` 或 `text`，其余结果可从 URL、路径和完整响应输出读取。
 
+Midjourney 图片与视频：
+
+1. 添加 `Midjourney 图像与视频（16 合 1）`，选择 `operation`，节点会自动收起无关控件。
+2. Imagine / Edits 直接填写或连接 `prompt`；Blend / Describe / Edits 可连接本地 `IMAGE` 或填写同槽公网图片 URL。
+3. Upscale、Variation、Reroll、Zoom、Pan、Inpaint 和 Remix 可直接连接前一个 Midjourney 节点的 `task_id`。
+4. 普通图片二次操作的 `index` 使用 1 到 4；任务复用视频的 `index` 使用 0 到 3。也可从 `buttons_json` 取得 custom ID。
+5. 局部重绘先运行 Inpaint，待其到达 `MODAL` 后连接到 Modal；当前请使用已实测成功的 `region` 模式并连接 ComfyUI `MASK`。文档所述无 mask `outpaint` 目前会被上游拒绝。
+6. 按动作连接图片、视频或文本输出；完整示例已覆盖参考图、任务复用视频和首尾帧视频。
+
 示例工作流位于：
 
 - `examples/seedance_text_to_video.json`
@@ -374,6 +412,7 @@ Suno 音乐生成与处理：
 - `examples/seed-audio-1.0音频生成（语音克隆）.json`
 - `examples/whisper-1语音转写.json`
 - `examples/suno-*.json`（31 份，每个 operation 一份）
+- `examples/midjourney-*.json`（19 份，覆盖全部 16 个 operation 和 3 个常用变体）
 - `examples/vidu-q3文生视频.json`
 - `examples/vidu-q3图生视频.json`
 - `examples/vidu-q3首尾帧视频.json`
@@ -718,6 +757,24 @@ Suno 音乐节点参数：
 | `continue_at` / `start_s` / `end_s` / `duration_s` / `speed` | 续写与编辑操作的时间或速度参数 |
 | `api_config` / `skip_error` | 可选配置节点与批处理错误策略 |
 
+Midjourney 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `operation` | 16 项官方操作；选择后动态显示相关控件 |
+| `prompt` | Imagine / Edits 必填；Modal、Video 和 Remix 按当前操作选填；支持前置字符串节点 |
+| `image1` ... `image4` | 本地图片输入；同槽不能再填写 `image_url1` ... `image_url4` |
+| `task_id` / `custom_id` | 连接父任务，或使用服务端按钮提供的 custom ID |
+| `index` | 图片二次操作使用 1 到 4；任务复用视频使用 0 到 3；`-1` 表示不发送 |
+| `speed` / `size` / `dimensions` / `version` | 当前操作支持时才会发送；隐藏字段不会泄漏到其他操作 |
+| `seed` / `quality` / `stylize` / `chaos` / `weird` | Imagine / Edits 的结构化生成参数 |
+| `direction` / `zoom_ratio` | Pan 方向和 Zoom 比例 |
+| `modal_mode` / `mask` / `mask_url` | Modal 的局部重绘或外扩设置；本地 MASK 会自动转换并上传 |
+| `video_type` / `animate_mode` / `motion` / `batch_size` | 图生视频类型、衍生模式、运动幅度和结果数量 |
+| `end_image` / `end_url` | 可选结束帧；设置后自动使用首尾帧视频类型 |
+| `metadata_json` | 可选 JSON 对象，仅当前操作支持时发送 |
+| `api_config` / `skip_error` | 可选配置节点与批处理错误策略 |
+
 ## 多模态提示词
 
 多模态节点支持：
@@ -766,6 +823,13 @@ Suno 音乐节点参数：
 - Suno 任务查询兼容运行阶段的 `data[]` 和完成阶段的 `data` 对象响应。
 - Suno 会分类并转存识别出的音频、视频和通用文件结果，同时保留全部 URL 和本地路径。
 - Suno 多产物动作若个别直链失效，会保留原 URL 顺序、用空路径占位并在响应中加入脱敏警告；只有全部产物都无法下载时才中止。
+- Midjourney 提交使用显式 action 路径；任务查询会在文档登记的三条路径间兼容回退，并在首次成功后固定查询路径。
+- Midjourney 的 `MODAL` 是等待补充参数的合法中间状态；Inpaint 节点会在该状态正常返回任务 ID。
+- Midjourney 图像和视频结果支持多产物下载；单个产物失败时保留 URL 与空路径，全部下载失败时才中止。
+- Midjourney 结果只从 `data` / `result` / `task` / `output` 任务信封提取，不会把回显请求或自定义 metadata 中的素材 URL 误认成生成结果。
+- 每个执行线程使用独立 HTTP Session，同一线程内复用连接，多任务并发时不会共享可变 Session 状态。
+- `raw`、`draft`、`hd`、`stop` 与 Niji 的版本组合按官方约束在提交前校验。
+- Video 与两种 Remix 不发送文档未登记的 metadata；`CANCEL` 会作为失败终态立即结束查询；Midjourney 的 `skip_error` 同时提供图片和视频占位。
 - Seed Audio 已实测可在没有 `torchaudio` 时通过 SciPy 回退解码 24 kHz 双声道 WAV。
 - 音乐音频优先使用 `torchaudio` 解码；不可用时自动使用 `SEEDANCE_FFMPEG`、PATH 或整合包内的 FFmpeg。
 - 视频节点 `skip_error=True` 时会生成一个错误占位视频；音频节点会返回 1 秒静音，方便批量流程继续往下跑。
