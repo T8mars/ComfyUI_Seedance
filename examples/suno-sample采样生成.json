@@ -1,0 +1,396 @@
+{
+  "id": "2c45ee5b-ea31-5597-91fb-6b38a1158dde",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Suno_Music",
+      "title": "生成源音乐",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        470,
+        520
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio2",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio3",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio4",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio1",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "audio2",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_urls",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_paths",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Suno_Music"
+      },
+      "widgets_values": [
+        "suno-generation",
+        "short cinematic instrumental with piano and soft percussion",
+        "v5.5",
+        false,
+        true,
+        "",
+        "",
+        "unspecified",
+        "cinematic, emotional, piano",
+        "Studio Persona",
+        "",
+        "",
+        1,
+        30.0,
+        0.0,
+        4.0,
+        2.0,
+        1.1,
+        "",
+        "",
+        "",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Suno_Music",
+      "title": "Suno suno-sample",
+      "pos": [
+        580,
+        100
+      ],
+      "size": [
+        470,
+        520
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio2",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio3",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "audio4",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 2
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "widget": {
+            "name": "task_id"
+          },
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio1",
+          "type": "AUDIO",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "audio2",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_urls",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_paths",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Suno_Music"
+      },
+      "widgets_values": [
+        "suno-sample",
+        "short cinematic instrumental with piano and soft percussion",
+        "v5.5",
+        false,
+        false,
+        "",
+        "",
+        "unspecified",
+        "cinematic, emotional, piano",
+        "Studio Persona",
+        "",
+        "",
+        1,
+        30.0,
+        0.0,
+        4.0,
+        2.0,
+        1.1,
+        "",
+        "",
+        "",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        720
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SaveAudio",
+      "pos": [
+        1120,
+        180
+      ],
+      "size": [
+        270,
+        112
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "audio/suno-sample"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      3,
+      0,
+      1,
+      4,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      3,
+      0,
+      2,
+      4,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      3,
+      1,
+      8,
+      2,
+      5,
+      "STRING"
+    ],
+    [
+      4,
+      2,
+      0,
+      4,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 0.9,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -18,21 +18,27 @@ field and skip_error support for batch workflows.
 
 import json
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from .core.config import get_config, DEFAULT_BASE_URL
 from .core.client import (
     SeedanceAPIError,
     download_audio,
+    download_file,
     download_image,
     download_video,
+    download_video_with_path,
     extract_audio_url,
     extract_image_url,
+    extract_music_results,
     extract_video_url,
     poll_audio_task,
     poll_image_task,
+    poll_music_task,
     poll_task,
     submit_audio_task,
     submit_image_task,
+    submit_music_action,
     submit_task,
     transcribe_audio,
     upload_media,
@@ -234,6 +240,349 @@ DOUBAO_PROMPT_MAX_LENGTH = 2048
 MAX_DOUBAO_REFERENCE_AUDIOS = 3
 WHISPER_TRANSCRIPTION_MODEL = "whisper-1"
 WHISPER_RESPONSE_FORMATS = ["json", "verbose_json", "srt", "text", "vtt"]
+
+SUNO_VERSIONS = ["v3.5", "v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5"]
+SUNO_INSPO_VERSIONS = ["v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5"]
+SUNO_REPLACE_VERSIONS = ["v4", "v4.5+", "v5", "v5.5"]
+SUNO_REMASTER_VERSIONS = ["v4.5+", "v5", "v5.5"]
+SUNO_V5_VERSIONS = ["v5", "v5.5"]
+MAX_SUNO_REFERENCE_AUDIOS = 4
+SUNO_UPLOAD_MIN_SECONDS = 6.0
+
+SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
+    "suno-generation": {
+        "action": "",
+        "sync": False,
+        "reference_type": "none",
+        "required_fields": ("version", "prompt"),
+        "allowed_fields": (
+            "version",
+            "prompt",
+            "custom",
+            "instrumental",
+            "title",
+            "style",
+            "vocal_gender",
+        ),
+        "allowed_versions": tuple(SUNO_VERSIONS),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-lyrics": {
+        "action": "lyrics",
+        "sync": False,
+        "reference_type": "none",
+        "required_fields": ("prompt",),
+        "allowed_fields": ("prompt",),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-upload": {
+        "action": "upload",
+        "sync": False,
+        "reference_type": "url",
+        "required_fields": ("audioFilePath",),
+        "allowed_fields": ("audioFilePath",),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-extend": {
+        "action": "extend",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "continue_at"),
+        "allowed_fields": ("task_id", "audio_index", "continue_at", "version"),
+        "allowed_versions": tuple(SUNO_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-cover-song": {
+        "action": "cover-song",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "prompt"),
+        "allowed_fields": ("task_id", "audio_index", "prompt", "version"),
+        "allowed_versions": tuple(SUNO_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-inspo": {
+        "action": "inspo",
+        "sync": False,
+        "reference_type": "url",
+        "required_fields": ("audio_urls",),
+        "allowed_fields": ("audio_urls", "version"),
+        "allowed_versions": tuple(SUNO_INSPO_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-mashup": {
+        "action": "mashup",
+        "sync": False,
+        "reference_type": "mashup",
+        "required_fields": ("task_ids", "prompt"),
+        "allowed_fields": ("task_ids", "prompt", "version"),
+        "allowed_versions": tuple(SUNO_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-upsample-tags": {
+        "action": "upsample-tags",
+        "sync": True,
+        "reference_type": "none",
+        "required_fields": ("tags",),
+        "allowed_fields": ("tags",),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-sounds": {
+        "action": "sounds",
+        "sync": False,
+        "reference_type": "none",
+        "required_fields": ("prompt",),
+        "allowed_fields": ("prompt", "version"),
+        "allowed_versions": tuple(SUNO_V5_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-create-voice": {
+        "action": "create-voice",
+        "sync": False,
+        "reference_type": "url",
+        "required_fields": ("audio_url",),
+        "allowed_fields": ("audio_url",),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-stems": {
+        "action": "stems",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-stems-all": {
+        "action": "stems-all",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-wav": {
+        "action": "wav",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-generate-mp4": {
+        "action": "generate-mp4",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "video",
+    },
+    "suno-concat": {
+        "action": "concat",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-crop": {
+        "action": "crop",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "start_s", "end_s"),
+        "allowed_fields": ("task_id", "audio_index", "start_s", "end_s"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-fade-in": {
+        "action": "fade-in",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "duration_s"),
+        "allowed_fields": ("task_id", "audio_index", "duration_s"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-fade-out": {
+        "action": "fade-out",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "duration_s"),
+        "allowed_fields": ("task_id", "audio_index", "duration_s"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-remove-section": {
+        "action": "remove-section",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "start_s", "end_s"),
+        "allowed_fields": ("task_id", "audio_index", "start_s", "end_s"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-replace-music": {
+        "action": "replace-music",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "start_s", "end_s"),
+        "allowed_fields": (
+            "task_id",
+            "audio_index",
+            "start_s",
+            "end_s",
+            "version",
+        ),
+        "allowed_versions": tuple(SUNO_REPLACE_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-adjust-speed": {
+        "action": "adjust-speed",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "speed"),
+        "allowed_fields": ("task_id", "audio_index", "speed"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-remaster": {
+        "action": "remaster",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index", "version"),
+        "allowed_versions": tuple(SUNO_REMASTER_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-midi": {
+        "action": "midi",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "file",
+    },
+    "suno-bpm": {
+        "action": "bpm",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-aligned-lyrics": {
+        "action": "aligned-lyrics",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-persona": {
+        "action": "persona",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "name"),
+        "allowed_fields": ("task_id", "audio_index", "name"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "text",
+    },
+    "suno-vox": {
+        "action": "vox",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id",),
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-sample": {
+        "action": "sample",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "start_s", "end_s", "prompt"),
+        "allowed_fields": (
+            "task_id",
+            "audio_index",
+            "prompt",
+            "start_s",
+            "end_s",
+            "version",
+        ),
+        "allowed_versions": tuple(SUNO_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-add-vocals": {
+        "action": "add-vocals",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "prompt"),
+        "allowed_fields": ("task_id", "audio_index", "prompt", "version"),
+        "allowed_versions": tuple(SUNO_V5_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-add-instrumental": {
+        "action": "add-instrumental",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "prompt"),
+        "allowed_fields": ("task_id", "audio_index", "prompt", "version"),
+        "allowed_versions": tuple(SUNO_V5_VERSIONS),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+    "suno-add-stem": {
+        "action": "add-stem",
+        "sync": False,
+        "reference_type": "task_audio",
+        "required_fields": ("task_id", "prompt"),
+        "allowed_fields": ("task_id", "audio_index", "prompt", "version"),
+        "allowed_versions": ("v5.5",),
+        "default_version": "v5.5",
+        "result_family": "audio",
+    },
+}
+SUNO_OPERATIONS = list(SUNO_ACTION_SPECS)
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -3252,6 +3601,717 @@ class WhisperTranscription:
 
 
 # ---------------------------------------------------------------------------
+# Suno music generation and processing
+# ---------------------------------------------------------------------------
+
+class SunoMusic:
+    """All documented Suno music actions through the dedicated /v1/music API."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = (
+        "AUDIO",
+        "AUDIO",
+        "VIDEO",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+    )
+    RETURN_NAMES = (
+        "audio1",
+        "audio2",
+        "video",
+        "text",
+        "primary_url",
+        "result_urls",
+        "primary_path",
+        "result_paths",
+        "task_id",
+        "response",
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_SUNO_REFERENCE_AUDIOS + 1):
+            optional[f"audio{i}"] = (
+                "AUDIO",
+                {
+                    "tooltip": (
+                        f"Local audio reference {i}; used by upload, create-voice, "
+                        f"or inspo. Upload sources require at least 6 seconds. | "
+                        f"本地音频素材 {i}；导入源音频至少需要 6 秒。"
+                    )
+                },
+            )
+            optional[f"audio_url{i}"] = (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": (
+                        f"Public audio URL {i}; do not fill together with audio{i}. | "
+                        f"公网音频 URL {i}，不能与同槽本地音频同时使用。"
+                    ),
+                },
+            )
+        optional["api_config"] = (
+            "SEEDANCE_CONFIG",
+            {
+                "tooltip": (
+                    "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."
+                )
+            },
+        )
+        optional["skip_error"] = (
+            "BOOLEAN",
+            {
+                "default": False,
+                "tooltip": (
+                    "Return placeholders and an error response instead of stopping. | "
+                    "失败时返回占位结果和错误信息，不中断批处理。"
+                ),
+            },
+        )
+
+        return {
+            "required": {
+                "operation": (
+                    SUNO_OPERATIONS,
+                    {
+                        "default": "suno-generation",
+                        "tooltip": "Select one documented Suno action. | 选择 Suno 操作。",
+                    },
+                ),
+                "prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": (
+                            "Prompt, lyrics, or edit instruction for the selected action. | "
+                            "当前操作使用的提示词、歌词或编辑说明。"
+                        ),
+                    },
+                ),
+                "version": (
+                    SUNO_VERSIONS,
+                    {
+                        "default": "v5.5",
+                        "tooltip": (
+                            "Sent only when the selected action supports this version. | "
+                            "仅在当前操作支持时发送。"
+                        ),
+                    },
+                ),
+                "custom": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Generation custom-lyrics mode. | 自定义歌词模式。",
+                    },
+                ),
+                "instrumental": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Generation without vocals. | 生成纯伴奏。",
+                    },
+                ),
+                "title": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Optional generation title. | 可选曲名。",
+                    },
+                ),
+                "style": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Optional generation style. | 可选音乐风格。",
+                    },
+                ),
+                "vocal_gender": (
+                    ["unspecified", "Male", "Female"],
+                    {
+                        "default": "unspecified",
+                        "tooltip": "Optional generation vocal preference. | 可选人声偏好。",
+                    },
+                ),
+                "tags": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Style tags for upsample-tags. | 需要扩写的风格标签。",
+                    },
+                ),
+                "name": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Persona name. | Persona 名称。",
+                    },
+                ),
+                "task_id": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": (
+                            "Source Suno task id; connect a previous Suno node. | "
+                            "源任务 ID，可连接前一个 Suno 节点。"
+                        ),
+                    },
+                ),
+                "task_id_2": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Second source task id for mashup. | 混合作品的第二个任务 ID。",
+                    },
+                ),
+                "audio_index": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 2147483647,
+                        "step": 1,
+                        "tooltip": "1-based source track index. | 从 1 开始的音轨序号。",
+                    },
+                ),
+                "continue_at": (
+                    "FLOAT",
+                    {
+                        "default": 30.0,
+                        "step": 0.1,
+                        "tooltip": "Extend from this second. | 从该秒数开始续写。",
+                    },
+                ),
+                "start_s": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "step": 0.1,
+                        "tooltip": "Start second for range actions. | 时间范围起点。",
+                    },
+                ),
+                "end_s": (
+                    "FLOAT",
+                    {
+                        "default": 30.0,
+                        "step": 0.1,
+                        "tooltip": "End second for range actions. | 时间范围终点。",
+                    },
+                ),
+                "duration_s": (
+                    "FLOAT",
+                    {
+                        "default": 5.0,
+                        "step": 0.1,
+                        "tooltip": "Fade duration in seconds. | 淡入或淡出时长。",
+                    },
+                ),
+                "speed": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "step": 0.05,
+                        "tooltip": "Speed multiplier for adjust-speed. | 速度倍率。",
+                    },
+                ),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        operation=None,
+        version=None,
+        audio_index=None,
+        strict=False,
+        **kwargs,
+    ):
+        if operation not in SUNO_ACTION_SPECS:
+            return f"unsupported Suno operation: {operation}"
+
+        spec = SUNO_ACTION_SPECS[operation]
+        allowed_versions = spec["allowed_versions"]
+        if allowed_versions and version not in allowed_versions:
+            return (
+                f"{operation} does not support version '{version}'; "
+                f"allowed: {', '.join(allowed_versions)}"
+            )
+        if audio_index is not None and int(audio_index) < 1:
+            return "audio_index must be at least 1"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Suno_Music"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    @staticmethod
+    def _text(value: Any) -> str:
+        return str(value or "").strip()
+
+    @staticmethod
+    def _audio_duration_seconds(audio: Any) -> Optional[float]:
+        if not isinstance(audio, dict):
+            return None
+        waveform = audio.get("waveform")
+        sample_rate = int(audio.get("sample_rate") or 0)
+        shape = getattr(waveform, "shape", None)
+        if not shape or sample_rate <= 0:
+            return None
+        try:
+            return float(shape[-1]) / float(sample_rate)
+        except (TypeError, ValueError, IndexError):
+            return None
+
+    def _collect_audio_inputs(
+        self,
+        operation: str,
+        kwargs: Dict[str, Any],
+        config: Dict[str, Any],
+        progress_cb,
+    ) -> List[str]:
+        if operation not in {"suno-upload", "suno-create-voice", "suno-inspo"}:
+            return []
+
+        slots: List[Tuple[int, Any, str]] = []
+        for i in range(1, MAX_SUNO_REFERENCE_AUDIOS + 1):
+            audio = kwargs.get(f"audio{i}")
+            url = self._text(kwargs.get(f"audio_url{i}"))
+            if audio is not None and url:
+                raise SeedanceAPIError(
+                    f"audio{i} and audio_url{i} cannot both be used | "
+                    f"第 {i} 槽不能同时连接本地音频和填写 URL"
+                )
+            if url and not url.startswith(("http://", "https://")):
+                raise SeedanceAPIError(
+                    f"audio_url{i} must be an http(s) URL | "
+                    f"audio_url{i} 必须是 http(s) URL"
+                )
+            if audio is not None or url:
+                slots.append((i, audio, url))
+
+        if operation in {"suno-upload", "suno-create-voice"}:
+            if any(i != 1 for i, _audio, _url in slots):
+                raise SeedanceAPIError(
+                    f"{operation} only accepts audio slot 1 | "
+                    f"{operation} 只接受第 1 个音频槽"
+                )
+            if len(slots) != 1:
+                raise SeedanceAPIError(
+                    f"{operation} requires exactly one local audio or URL | "
+                    f"{operation} 必须提供一个本地音频或 URL"
+                )
+        elif not 1 <= len(slots) <= MAX_SUNO_REFERENCE_AUDIOS:
+            raise SeedanceAPIError(
+                "suno-inspo requires 1-4 local audios or URLs | "
+                "suno-inspo 必须提供 1-4 个本地音频或 URL"
+            )
+
+        resolved: List[str] = []
+        total_uploads = sum(1 for _i, audio, _url in slots if audio is not None)
+        uploaded = 0
+        for i, audio, url in slots:
+            if audio is not None:
+                duration = self._audio_duration_seconds(audio)
+                if (
+                    operation == "suno-upload"
+                    and duration is not None
+                    and duration < SUNO_UPLOAD_MIN_SECONDS
+                ):
+                    raise SeedanceAPIError(
+                        "suno-upload local audio must be at least 6 seconds | "
+                        "suno-upload 本地音频至少需要 6 秒"
+                    )
+                url = upload_media(
+                    audio_to_wav_bytes(audio),
+                    f"suno_reference_{i}.wav",
+                    "audio/wav",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+                uploaded += 1
+                progress_cb(uploaded / max(total_uploads, 1))
+            resolved.append(url)
+        if total_uploads == 0:
+            progress_cb(1.0)
+        return resolved
+
+    def _build_payload(
+        self,
+        operation: str,
+        audio_urls: List[str],
+        **kwargs,
+    ) -> Dict[str, Any]:
+        if operation not in SUNO_ACTION_SPECS:
+            raise SeedanceAPIError(f"unsupported Suno operation: {operation}")
+        spec = SUNO_ACTION_SPECS[operation]
+        allowed_fields = set(spec["allowed_fields"])
+        payload: Dict[str, Any] = {"model": "suno"}
+
+        version = self._text(kwargs.get("version"))
+        allowed_versions = spec["allowed_versions"]
+        if allowed_versions:
+            if version not in allowed_versions:
+                raise SeedanceAPIError(
+                    f"{operation} does not support version '{version}'; "
+                    f"allowed: {', '.join(allowed_versions)}"
+                )
+            payload["version"] = version
+
+        if "prompt" in allowed_fields:
+            prompt = self._text(kwargs.get("prompt"))
+            if prompt:
+                payload["prompt"] = prompt
+        if "tags" in allowed_fields:
+            tags = self._text(kwargs.get("tags"))
+            if tags:
+                payload["tags"] = tags
+        if "name" in allowed_fields:
+            name = self._text(kwargs.get("name"))
+            if name:
+                payload["name"] = name
+
+        if operation == "suno-generation":
+            payload["custom"] = bool(kwargs.get("custom", False))
+            payload["instrumental"] = bool(kwargs.get("instrumental", False))
+            for field in ("title", "style"):
+                value = self._text(kwargs.get(field))
+                if value:
+                    payload[field] = value
+            vocal_gender = self._text(kwargs.get("vocal_gender"))
+            if vocal_gender in {"Male", "Female"}:
+                payload["vocal_gender"] = vocal_gender
+
+        if spec["reference_type"] == "task_audio":
+            task_id = self._text(kwargs.get("task_id"))
+            if task_id:
+                payload["task_id"] = task_id
+            payload["audio_index"] = int(kwargs.get("audio_index") or 1)
+
+        if spec["reference_type"] == "mashup":
+            task_ids = [
+                self._text(kwargs.get("task_id")),
+                self._text(kwargs.get("task_id_2")),
+            ]
+            if all(task_ids):
+                payload["task_ids"] = task_ids
+
+        if operation == "suno-upload" and audio_urls:
+            payload["audioFilePath"] = audio_urls[0]
+        elif operation == "suno-create-voice" and audio_urls:
+            payload["audio_url"] = audio_urls[0]
+        elif operation == "suno-inspo" and audio_urls:
+            payload["audio_urls"] = audio_urls
+
+        numeric_fields = {
+            "continue_at": float,
+            "start_s": float,
+            "end_s": float,
+            "duration_s": float,
+            "speed": float,
+        }
+        for field, converter in numeric_fields.items():
+            if field in allowed_fields:
+                raw_value = kwargs.get(field)
+                if raw_value is not None and raw_value != "":
+                    payload[field] = converter(raw_value)
+
+        missing = [
+            field
+            for field in spec["required_fields"]
+            if field not in payload
+            or payload[field] is None
+            or payload[field] == ""
+            or payload[field] == []
+        ]
+        if missing:
+            raise SeedanceAPIError(
+                f"{operation} requires: {', '.join(missing)} | "
+                f"{operation} 缺少必填参数：{', '.join(missing)}"
+            )
+
+        if "task_ids" in payload and len(payload["task_ids"]) != 2:
+            raise SeedanceAPIError("suno-mashup requires exactly two task IDs")
+        if "audio_urls" in payload and not 1 <= len(payload["audio_urls"]) <= 4:
+            raise SeedanceAPIError("suno-inspo requires 1-4 audio URLs")
+        if "audio_index" in payload and payload["audio_index"] < 1:
+            raise SeedanceAPIError("audio_index must be at least 1")
+        if "start_s" in payload and "end_s" in payload:
+            if payload["end_s"] <= payload["start_s"]:
+                raise SeedanceAPIError("end_s must be greater than start_s")
+
+        return {
+            key: value
+            for key, value in payload.items()
+            if key == "model" or key in allowed_fields
+        }
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        silence = make_silent_audio(44100, 1.0)
+        error_video = make_error_video(error_msg)
+        return {
+            "ui": {"text": ["", "", "", response_str]},
+            "result": (
+                silence,
+                silence,
+                error_video,
+                "",
+                "",
+                "[]",
+                "",
+                "[]",
+                "",
+                response_str,
+            ),
+        }
+
+    def execute(
+        self,
+        operation: str,
+        prompt: str,
+        version: str,
+        custom: bool,
+        instrumental: bool,
+        title: str,
+        style: str,
+        vocal_gender: str,
+        tags: str,
+        name: str,
+        task_id: str,
+        task_id_2: str,
+        audio_index: int,
+        continue_at: float,
+        start_s: float,
+        end_s: float,
+        duration_s: float,
+        speed: float,
+        api_config=None,
+        skip_error: bool = False,
+        **kwargs,
+    ):
+        all_kwargs = {
+            **kwargs,
+            "prompt": prompt,
+            "version": version,
+            "custom": custom,
+            "instrumental": instrumental,
+            "title": title,
+            "style": style,
+            "vocal_gender": vocal_gender,
+            "tags": tags,
+            "name": name,
+            "task_id": task_id,
+            "task_id_2": task_id_2,
+            "audio_index": audio_index,
+            "continue_at": continue_at,
+            "start_s": start_s,
+            "end_s": end_s,
+            "duration_s": duration_s,
+            "speed": speed,
+        }
+        try:
+            return self._execute_inner(
+                operation=operation,
+                api_config=api_config,
+                **all_kwargs,
+            )
+        except Exception as e:
+            if skip_error:
+                error_msg = f"{self._log_prefix}: {e}"
+                print(f"[{self._log_prefix}] skip_error=True: {e}")
+                return self._make_error_result(error_msg)
+            raise
+
+    def _execute_inner(
+        self,
+        operation: str,
+        api_config=None,
+        **kwargs,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            operation=operation,
+            version=kwargs.get("version"),
+            audio_index=kwargs.get("audio_index"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        spec = SUNO_ACTION_SPECS[operation]
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        audio_urls = self._collect_audio_inputs(
+            operation,
+            kwargs,
+            config,
+            lambda fraction: self._update_progress(pbar, fraction * 15),
+        )
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(operation, audio_urls, **kwargs)
+        submitted_task_id, submit_response = submit_music_action(
+            spec["action"],
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+
+        final_response = submit_response
+        if submitted_task_id:
+            final_response = poll_music_task(
+                submitted_task_id,
+                config,
+                on_progress=lambda progress: self._update_progress(
+                    pbar, 20 + progress / 100.0 * 65
+                ),
+                logger_prefix=self._log_prefix,
+            )
+        elif not spec["sync"]:
+            raise SeedanceAPIError(
+                f"{operation} returned no task id in its asynchronous submit response"
+            )
+        self._update_progress(pbar, 85)
+
+        extracted = extract_music_results(final_response)
+        result_task_id = submitted_task_id or extracted["task_id"]
+        audio_objects: List[Any] = []
+        video = None
+        result_paths: List[str] = []
+        artifacts = extracted.get("artifacts") or []
+        artifact_count = max(1, len(artifacts))
+
+        download_warnings: List[Dict[str, Any]] = []
+        successful_downloads = 0
+
+        for index, artifact in enumerate(artifacts, 1):
+            url = str(artifact.get("url") or "")
+            kind = str(artifact.get("kind") or "file")
+            path = ""
+            try:
+                if kind == "audio":
+                    fallback_format = (
+                        "wav"
+                        if urlparse(url).path.lower().endswith(".wav")
+                        else "mp3"
+                    )
+                    audio, path = download_audio(
+                        url,
+                        output_format=fallback_format,
+                        sample_rate=44100,
+                        logger_prefix=self._log_prefix,
+                    )
+                    audio_objects.append(audio)
+                elif kind == "video" and video is None:
+                    video, path = download_video_with_path(
+                        url, logger_prefix=self._log_prefix
+                    )
+                else:
+                    prefix = {
+                        "video": "suno_video",
+                        "image": "suno_image",
+                        "file": "suno_file",
+                    }.get(kind, "suno_file")
+                    default_extension = {
+                        "video": "mp4",
+                        "image": "jpg",
+                        "file": "bin",
+                    }.get(kind, "bin")
+                    path = download_file(
+                        url,
+                        filename_prefix=prefix,
+                        default_extension=default_extension,
+                        logger_prefix=self._log_prefix,
+                    )
+                successful_downloads += 1
+            except Exception as error:
+                warning = {
+                    "artifact_index": index,
+                    "kind": kind,
+                    "error": type(error).__name__,
+                }
+                download_warnings.append(warning)
+                print(
+                    f"[{self._log_prefix}] result artifact "
+                    f"{index}/{artifact_count} ({kind}) download failed: "
+                    f"{warning['error']}"
+                )
+            result_paths.append(path)
+            self._update_progress(
+                pbar,
+                85 + min(10, index / artifact_count * 10),
+            )
+
+        if artifacts and successful_downloads == 0:
+            raise SeedanceAPIError(
+                "All music result artifacts failed to download | "
+                "音乐结果文件全部下载失败"
+            )
+
+        all_urls = [artifact["url"] for artifact in artifacts]
+        primary_url = all_urls[0] if all_urls else ""
+        primary_path = result_paths[0] if result_paths else ""
+        text = extracted["text"]
+        if not text and spec["result_family"] == "text":
+            text = json.dumps(extracted["result"], ensure_ascii=False, indent=2)
+        response_payload = final_response
+        if download_warnings:
+            response_payload = dict(final_response)
+            response_payload["_seedance_local"] = {
+                "download_warnings": download_warnings
+            }
+        response_str = json.dumps(response_payload, ensure_ascii=False, indent=2)
+        urls_str = json.dumps(all_urls, ensure_ascii=False)
+        paths_str = json.dumps(result_paths, ensure_ascii=False)
+        self._update_progress(pbar, 100)
+
+        return {
+            "ui": {
+                "text": [
+                    text,
+                    primary_url,
+                    primary_path,
+                    result_task_id,
+                    response_str,
+                ]
+            },
+            "result": (
+                audio_objects[0] if audio_objects else None,
+                audio_objects[1] if len(audio_objects) > 1 else None,
+                video,
+                text,
+                primary_url,
+                urls_str,
+                primary_path,
+                paths_str,
+                result_task_id,
+                response_str,
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -3276,6 +4336,7 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Whisper_Transcription": WhisperTranscription,
+    "Suno_Music": SunoMusic,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -3299,4 +4360,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Whisper_Transcription": "Whisper 1 语音转写",
+    "Suno_Music": "Suno 音乐生成与处理（31 合 1）",
 }

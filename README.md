@@ -18,9 +18,20 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK 图片生成、Doubao Seed Audio 音频生成与 Whisper 语音转写 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK 图片生成、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件提供文生视频、图生视频、多模态视频、HappyHorse 1.1 视频、Wan 2.7 Spicy 图生视频、Kling 视频生成、Kling O3 视频编辑、Hailuo 2.3 视频生成、Vidu Q3 视频生成、Vidu Q3 短剧成片、Zhenzhen Video G / GK / V3.1 视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream 文生图/图像编辑、Zhenzhen Image G / GK 文生图/图像编辑、Doubao Seed Audio 1.0 音频生成，以及 Whisper 1 语音转写节点。图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供视频、图片、音频、语音转写与 Suno 音乐工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；图片、视频、音频参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.3.0（2026-07-25）
+
+- 新增 `Suno 音乐生成与处理（31 合 1）` 节点，一个 `operation` 下拉覆盖官方登记的全部 31 项。
+- 使用独立 `/v1/music/*` 客户端、显式 action 注册表和动作级字段白名单，支持同步响应与异步任务查询。
+- 动态界面只显示当前操作所需字段；`prompt`、任务 ID 和 URL 均可连接前置字符串节点。
+- 支持本地音频自动上传、公网音频 URL、最多 4 段参考音频，以及前后 Suno 节点的任务串联。
+- 固定输出最多两路 `AUDIO`、一路 `VIDEO`、文本、全部结果 URL/本地路径、任务 ID 和完整响应。
+- 新增 31 份一一对应的示例工作流，并补充完整动作、前端联动、结果提取和工作流安全测试。
+- 已逐项真实验证全部 31 个操作到达最终成功状态；可下载产物均完成转存，音频完成解码，MV 使用 7 秒导入音频任务验证。
+- 全量插件测试 118 项通过，覆盖字段白名单、外部文本输入、失败与超时、部分产物容错、动态控件和示例安全检查。
 
 ## v0.2.10（2026-07-25）
 
@@ -110,10 +121,11 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 - 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK 文生图 / 图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
+- 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
 - 图像编辑支持 1 到 10 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
-- 新增 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型接入、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型接入、1 个 Zhenzhen Upscaler 视频超分模型、4 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、5 个 Zhenzhen Image G / GK 图片模型、1 个 Doubao Seed Audio 模型和 1 个 Whisper 转写模型
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、4 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、5 个 Zhenzhen Image G / GK 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -146,6 +158,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
+| `Suno 音乐生成与处理（31 合 1）` | 音乐生成、素材导入、续写、翻唱、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
 
 视频生成节点输出：
 
@@ -181,6 +194,20 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 | --- | --- |
 | `text` | 转写文本；`srt` / `vtt` / `text` 格式会直接返回对应文本 |
 | `response` | 原始响应文本；`json` / `verbose_json` 格式会格式化为 JSON 字符串 |
+
+Suno 节点输出：
+
+| 输出 | 说明 |
+| --- | --- |
+| `audio1` / `audio2` | 前两条可解码音频结果 |
+| `video` | `generate-mp4` 等操作返回的视频 |
+| `text` | 歌词、标签、分析结果或可读摘要 |
+| `primary_url` | 第一条主要结果地址 |
+| `result_urls` | 全部识别结果地址的 JSON 数组 |
+| `primary_path` | 第一条已转存结果的本地路径 |
+| `result_paths` | 全部已转存结果路径的 JSON 数组 |
+| `task_id` | 可直接连接后续 Suno 节点 |
+| `response` | 完整 JSON 响应文本 |
 
 ## 安装
 
@@ -308,6 +335,14 @@ Zhenzhen Image GK v1.5 图片生成或编辑：
 3. 选择 `response_format`，默认 `json` 会输出普通转写文本和格式化响应。
 4. 将 `text` 输出连接到文本展示、字幕处理或后续提示词节点。
 
+Suno 音乐生成与处理：
+
+1. 添加 `Suno 音乐生成与处理（31 合 1）`，选择 `operation`。
+2. 音乐生成、歌词、音效和风格标签操作直接填写当前显示的文本字段。
+3. 素材导入、创建音色和参考生成可连接本地 `AUDIO` 或填写公网音频 URL；导入源音频至少 6 秒。
+4. 续写、翻唱、编辑、分轨和导出可把前一个 Suno 节点的 `task_id` 直接连接过来；翻唱、双曲混合、采样和三项添加动作还需填写 `prompt`，双曲混合连接两个任务。
+5. 按结果类型连接 `audio1`、`video` 或 `text`，其余结果可从 URL、路径和完整响应输出读取。
+
 示例工作流位于：
 
 - `examples/seedance_text_to_video.json`
@@ -338,6 +373,7 @@ Zhenzhen Image GK v1.5 图片生成或编辑：
 - `examples/seed-audio-1.0音频生成（识别图片人物）.json`
 - `examples/seed-audio-1.0音频生成（语音克隆）.json`
 - `examples/whisper-1语音转写.json`
+- `examples/suno-*.json`（31 份，每个 operation 一份）
 - `examples/vidu-q3文生视频.json`
 - `examples/vidu-q3图生视频.json`
 - `examples/vidu-q3首尾帧视频.json`
@@ -402,6 +438,15 @@ Whisper 节点使用同步 `/v1/audio/transcriptions` 转写端点：
 | 模型 | 输入 | 输出 |
 | --- | --- | --- |
 | `whisper-1` | ComfyUI `AUDIO`，节点转换为 wav multipart 文件 | `text` 和原始响应 |
+
+Suno 节点使用独立的音乐接口：
+
+- `suno-generation` 提交到 `POST /v1/music/generations`。
+- 其余操作提交到显式的 `POST /v1/music/generations/{action}`。
+- 异步任务通过 `GET /v1/music/tasks/{task_id}` 查询到最终状态。
+- 请求体中的 `model` 固定为 `suno`，`operation` 只用于选择 action。
+- 节点按操作执行字段白名单，隐藏字段不会进入请求。
+- 真实接口确认 `suno-cover-song`、`suno-mashup`、`suno-sample`、`suno-add-vocals`、`suno-add-instrumental` 和 `suno-add-stem` 在默认模式下还需要 `prompt`。
 
 HappyHorse 节点使用同一个 `/v1/videos` 视频端点：
 
@@ -659,6 +704,20 @@ Whisper 1 语音转写参数：
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回空转写和错误 JSON，而不是中断整个工作流 |
 
+Suno 音乐节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `operation` | 31 项官方操作；选择后动态显示相关控件 |
+| `prompt` | 音乐生成、歌词、音效、翻唱、双曲混合、采样和三项添加动作使用；支持前置字符串节点 |
+| `version` | 仅当前操作支持版本时发送 |
+| `custom` / `instrumental` / `title` / `style` / `vocal_gender` | 音乐生成专用设置 |
+| `task_id` / `task_id_2` / `audio_index` | 引用前置 Suno 任务；`audio_index` 从 1 开始 |
+| `audio1` ... `audio4` | 本地音频；用于素材导入、创建音色或参考生成 |
+| `audio_url1` ... `audio_url4` | 公网音频 URL，不能与同槽本地音频同时使用 |
+| `continue_at` / `start_s` / `end_s` / `duration_s` / `speed` | 续写与编辑操作的时间或速度参数 |
+| `api_config` / `skip_error` | 可选配置节点与批处理错误策略 |
+
 ## 多模态提示词
 
 多模态节点支持：
@@ -690,6 +749,7 @@ Whisper 1 语音转写参数：
 | `SEEDANCE_TIMEOUT` | `60` | 提交任务请求超时，单位秒 |
 | `SEEDANCE_UPLOAD_TIMEOUT` | `180` | 上传素材请求超时，单位秒 |
 | `SEEDANCE_CA_BUNDLE` | 空 | 可选，自定义 CA 证书包路径，用于证书链排障 |
+| `SEEDANCE_FFMPEG` | 自动查找 | 可选，指定 FFmpeg 可执行文件；未设置时检查 PATH 和整合包内置路径 |
 | `SEEDANCE_SSL_VERIFY` | `1` | 设为 `0` 可关闭 SSL 校验，仅建议临时排障使用 |
 
 ## 稳定性策略
@@ -703,8 +763,11 @@ Whisper 1 语音转写参数：
 - 下载图片失败时会自动重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - 音频任务使用 `/v1/audio/generations` 独立状态规则轮询，成功后自动下载并返回 ComfyUI `AUDIO`。
 - Whisper 转写使用同步 `/v1/audio/transcriptions` multipart 请求，不进行任务轮询。
+- Suno 任务查询兼容运行阶段的 `data[]` 和完成阶段的 `data` 对象响应。
+- Suno 会分类并转存识别出的音频、视频和通用文件结果，同时保留全部 URL 和本地路径。
+- Suno 多产物动作若个别直链失效，会保留原 URL 顺序、用空路径占位并在响应中加入脱敏警告；只有全部产物都无法下载时才中止。
 - Seed Audio 已实测可在没有 `torchaudio` 时通过 SciPy 回退解码 24 kHz 双声道 WAV。
-- 如果 `mp3` / `ogg_opus` 无法在本机解码，请安装 `torchaudio`，或把 `output_format` 切回默认 `wav`。
+- 音乐音频优先使用 `torchaudio` 解码；不可用时自动使用 `SEEDANCE_FFMPEG`、PATH 或整合包内的 FFmpeg。
 - 视频节点 `skip_error=True` 时会生成一个错误占位视频；音频节点会返回 1 秒静音，方便批量流程继续往下跑。
 
 ## 常见问题

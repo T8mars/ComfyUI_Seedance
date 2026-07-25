@@ -2,7 +2,7 @@
 ComfyUI_Seedance - ComfyUI nodes for Seedance/HappyHorse/Wan/Kling/Hailuo/
 Vidu video, Zhenzhen Upscaler video super-resolution, Seedream/Dola Seedream/
 Zhenzhen Image G/GK image, Zhenzhen Video G/GK/V3.1, Doubao Seed Audio,
-and Whisper transcription APIs (api.seedance.nz).
+Whisper transcription, and Suno music APIs (api.seedance.nz).
 """
 
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS

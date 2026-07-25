@@ -26,11 +26,14 @@ Reliability rules:
 """
 
 import json
+import mimetypes
 import os
+import shutil
 import ssl
+import subprocess
 import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -277,7 +280,7 @@ def upload_media(
             last_error = RuntimeError(f"No url in upload response: {_truncate(response.text, 200)}")
             continue
 
-        _log(logger_prefix, f"  Upload success: {_truncate(file_url, 200)}")
+        _log(logger_prefix, "  Upload success")
         return file_url
 
     raise RuntimeError(f"Upload failed after {_UPLOAD_MAX_ATTEMPTS} attempts: {last_error}")
@@ -345,7 +348,7 @@ def submit_task(
         if not task_id:
             raise SeedanceAPIError(f"No task id in submit response: {_truncate(response.text, 300)}")
 
-        _log(logger_prefix, f"  Submit success: task_id={task_id}")
+        _log(logger_prefix, "  Submit accepted")
         return str(task_id)
 
     raise RuntimeError(f"Submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
@@ -387,7 +390,7 @@ def poll_task(
     poll_interval = config.get("poll_interval", 4.0)
     max_poll_time = config.get("max_poll_time", 1800)
 
-    _log(logger_prefix, f"Poll -> task_id={task_id}, interval={poll_interval}s, max={max_poll_time}s")
+    _log(logger_prefix, f"Poll -> interval={poll_interval}s, max={max_poll_time}s")
 
     start_time = time.time()
     consecutive_failures = 0
@@ -548,7 +551,7 @@ def submit_image_task(
         if not task_id:
             raise SeedanceAPIError(f"No image task id in submit response: {_truncate(response.text, 300)}")
 
-        _log(logger_prefix, f"  Submit success: task_id={task_id}")
+        _log(logger_prefix, "  Submit accepted")
         return str(task_id)
 
     raise RuntimeError(f"Image submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
@@ -565,7 +568,7 @@ def poll_image_task(
     poll_interval = config.get("poll_interval", 4.0)
     max_poll_time = config.get("max_poll_time", 1800)
 
-    _log(logger_prefix, f"Poll image -> task_id={task_id}, interval={poll_interval}s, max={max_poll_time}s")
+    _log(logger_prefix, f"Poll image -> interval={poll_interval}s, max={max_poll_time}s")
     start_time = time.time()
     consecutive_failures = 0
     last_status = ""
@@ -679,8 +682,8 @@ def download_image(
     import torch
     from PIL import Image
 
-    _log(logger_prefix, f"Download image -> {_truncate(url, 200)}")
-    last_error: Optional[Exception] = None
+    _log(logger_prefix, "Download image -> remote result")
+    last_error: Optional[str] = None
     for attempt in range(max_retries):
         try:
             if attempt > 0:
@@ -694,8 +697,8 @@ def download_image(
             _log(logger_prefix, f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]}")
             return tensor
         except Exception as e:
-            last_error = e
-            _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+            last_error = type(e).__name__
+            _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {last_error}")
 
     raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
 
@@ -757,7 +760,7 @@ def submit_audio_task(
         if not task_id:
             raise SeedanceAPIError(f"No audio task id in submit response: {_truncate(response.text, 300)}")
 
-        _log(logger_prefix, f"  Submit success: task_id={task_id}")
+        _log(logger_prefix, "  Submit accepted")
         return str(task_id)
 
     raise RuntimeError(f"Audio submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
@@ -774,7 +777,7 @@ def poll_audio_task(
     poll_interval = config.get("poll_interval", 4.0)
     max_poll_time = config.get("max_poll_time", 1800)
 
-    _log(logger_prefix, f"Poll audio -> task_id={task_id}, interval={poll_interval}s, max={max_poll_time}s")
+    _log(logger_prefix, f"Poll audio -> interval={poll_interval}s, max={max_poll_time}s")
     start_time = time.time()
     consecutive_failures = 0
     last_status = ""
@@ -1030,6 +1033,78 @@ def _load_pcm_audio(audio_path: str, sample_rate: int) -> Dict[str, Any]:
     return {"waveform": waveform, "sample_rate": int(sample_rate)}
 
 
+def _find_ffmpeg() -> Optional[str]:
+    configured = (
+        os.environ.get("SEEDANCE_FFMPEG")
+        or os.environ.get("FFMPEG_BINARY")
+        or ""
+    ).strip()
+    if configured and os.path.isfile(configured):
+        return configured
+
+    path_binary = shutil.which("ffmpeg")
+    if path_binary:
+        return path_binary
+
+    bundle_candidate = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "..",
+            "..",
+            "ffmpeg",
+            "bin",
+            "ffmpeg.exe",
+        )
+    )
+    if os.path.isfile(bundle_candidate):
+        return bundle_candidate
+    return None
+
+
+def _decode_audio_with_ffmpeg(audio_path: str) -> Dict[str, Any]:
+    ffmpeg = _find_ffmpeg()
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg executable was not found")
+
+    wav_path = f"{audio_path}.decoded.wav"
+    creation_flags = (
+        getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if os.name == "nt"
+        else 0
+    )
+    try:
+        completed = subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                audio_path,
+                "-acodec",
+                "pcm_s16le",
+                wav_path,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=180,
+            creationflags=creation_flags,
+        )
+        if completed.returncode != 0:
+            error = completed.stderr.decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(f"FFmpeg decode failed: {error}")
+        return _load_wav_audio(wav_path)
+    finally:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
+
+
 def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) -> Dict[str, Any]:
     last_error: Optional[Exception] = None
     try:
@@ -1052,9 +1127,18 @@ def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) ->
     except Exception as e:
         last_error = e
 
+    try:
+        return _decode_audio_with_ffmpeg(audio_path)
+    except Exception as e:
+        last_error = e
+        _log(
+            logger_prefix,
+            f"FFmpeg decode unavailable/failed: {type(e).__name__}: {_truncate(str(e), 200)}",
+        )
+
     raise RuntimeError(
         f"Audio downloaded to {audio_path}, but it could not be decoded into a ComfyUI AUDIO object. "
-        f"Install torchaudio in ComfyUI's Python, or choose output_format=wav. "
+        f"Install torchaudio or provide FFmpeg via SEEDANCE_FFMPEG. "
         f"Last decoder error: {last_error}"
     )
 
@@ -1076,8 +1160,8 @@ def download_audio(
 
     os.makedirs(output_dir, exist_ok=True)
 
-    _log(logger_prefix, f"Download audio -> {_truncate(url, 200)}")
-    last_error: Optional[Exception] = None
+    _log(logger_prefix, "Download audio -> remote result")
+    last_error: Optional[str] = None
     for attempt in range(max_retries):
         try:
             if attempt > 0:
@@ -1101,23 +1185,485 @@ def download_audio(
             audio = _decode_audio_file(audio_path, int(sample_rate), logger_prefix)
             return audio, audio_path
         except Exception as e:
-            last_error = e
-            _log(logger_prefix, f"Audio download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+            last_error = type(e).__name__
+            _log(logger_prefix, f"Audio download attempt {attempt + 1} failed: {last_error}")
 
     raise RuntimeError(f"Failed to download audio after {max_retries} attempts: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# Suno music
+# ---------------------------------------------------------------------------
+
+_MUSIC_RUNNING_STATUSES = {
+    "created",
+    "submitted",
+    "queued",
+    "pending",
+    "processing",
+    "in_progress",
+    "running",
+}
+_MUSIC_COMPLETED_STATUSES = {"completed", "complete", "success", "succeeded"}
+_MUSIC_FAILED_STATUSES = {"failed", "failure", "error", "cancelled", "canceled"}
+
+
+def _extract_music_task_id(data: Any) -> Optional[str]:
+    if isinstance(data, list):
+        for item in data:
+            task_id = _extract_music_task_id(item)
+            if task_id:
+                return task_id
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    for key in ("task_id", "id"):
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    nested = data.get("data")
+    if isinstance(nested, (dict, list)):
+        return _extract_music_task_id(nested)
+    return None
+
+
+def submit_music_action(
+    action: str,
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Suno_Music",
+) -> Tuple[Optional[str], Dict[str, Any]]:
+    """Submit one Suno action and return ``(task_id, response_json)``.
+
+    ``action`` is empty for the base generation route and kebab-case for every
+    other route. Some actions may return their result synchronously, so a
+    missing task id is not rejected here.
+    """
+    action_text = str(action or "").strip().strip("/")
+    suffix = f"/{action_text}" if action_text else ""
+    url = f"{config['base_url']}/v1/music/generations{suffix}"
+    route_label = f"/v1/music/generations{suffix}"
+    _log(logger_prefix, f"Submit -> POST {route_label}")
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(
+                logger_prefix,
+                f"Music submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
+            )
+            time.sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"]),
+                json=payload,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as e:
+            last_error = RuntimeError(f"Music submit network error: {_network_error_text(e)}")
+            _log(
+                logger_prefix,
+                f"Music submit network error (attempt {attempt + 1}): {type(e).__name__}",
+            )
+            continue
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+            _log(
+                logger_prefix,
+                f"Music submit HTTP {response.status_code} "
+                f"(attempt {attempt + 1}), retrying...",
+            )
+            continue
+
+        if response.status_code < 200 or response.status_code >= 300:
+            raise SeedanceAPIError(
+                f"Music submit rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(data, response.text[:300])}"
+            )
+        if not isinstance(data, dict):
+            raise SeedanceAPIError(
+                f"Music submit returned invalid JSON object: {_truncate(response.text, 300)}"
+            )
+
+        task_id = _extract_music_task_id(data)
+        response_mode = "asynchronous" if task_id else "synchronous"
+        _log(
+            logger_prefix,
+            f"  Music submit accepted with {response_mode} response",
+        )
+        return task_id, data
+
+    raise RuntimeError(
+        f"Music submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+    )
+
+
+def poll_music_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Suno_Music",
+) -> Dict[str, Any]:
+    """Poll one Suno task until a documented terminal state."""
+    task_id_text = str(task_id or "").strip()
+    if not task_id_text:
+        raise SeedanceAPIError("Music task_id is required for polling")
+
+    url = f"{config['base_url']}/v1/music/tasks/{task_id_text}"
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+    _log(
+        logger_prefix,
+        f"Poll music -> interval={poll_interval}s, max={max_poll_time}s",
+    )
+
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"Music task exceeded {max_poll_time}s, polling stopped | "
+                f"音乐任务超过 {max_poll_time}s，已停止查询"
+            )
+
+        time.sleep(poll_interval)
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as e:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"Music poll network error "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): "
+                f"{type(e).__name__}",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError("Music polling failed after repeated network errors")
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"Music poll HTTP {response.status_code} "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"Music polling failed: HTTP {response.status_code} repeatedly"
+                )
+            time.sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError("Music polling returned invalid JSON repeatedly")
+            continue
+
+        task_data = (
+            response_data.get("data")
+            if isinstance(response_data, dict)
+            else None
+        )
+        if (
+            isinstance(task_data, list)
+            and task_data
+            and isinstance(task_data[0], dict)
+        ):
+            task_data = task_data[0]
+        elif not isinstance(task_data, dict) and isinstance(response_data, dict):
+            if response_data.get("status"):
+                task_data = response_data
+        if not isinstance(task_data, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError("Music polling response has no data object")
+            continue
+
+        consecutive_failures = 0
+        status = str(task_data.get("status") or "").strip().lower()
+        progress = _coerce_progress(task_data.get("progress"))
+
+        if status != last_status:
+            _log(
+                logger_prefix,
+                f"  Music poll: status={status}, progress={progress}, "
+                f"elapsed={int(elapsed)}s",
+            )
+            last_status = status
+
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status in _MUSIC_COMPLETED_STATUSES:
+            _log(logger_prefix, f"  Music task completed in {int(elapsed)}s")
+            return response_data
+
+        if status in _MUSIC_FAILED_STATUSES:
+            reason = (
+                task_data.get("fail_reason")
+                or task_data.get("error")
+                or _extract_error_message(task_data, "music task failed")
+            )
+            raise SeedanceAPIError(f"Music task failed: {reason}")
+
+        if status and status not in _MUSIC_RUNNING_STATUSES:
+            _log(logger_prefix, f"  Unknown music status '{status}', continue polling...")
+
+
+def _url_media_kind(key: str, url: str) -> str:
+    key_text = str(key or "").lower()
+    path = urlparse(url).path.lower()
+    ext = os.path.splitext(path)[1]
+    if "image" in key_text or ext in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        return "image"
+    if (
+        "video" in key_text
+        or "mp4" in key_text
+        or ext in {".mp4", ".mov", ".mkv", ".avi", ".webm"}
+    ):
+        return "video"
+    if (
+        "audio" in key_text
+        or "wav" in key_text
+        or ext in {".mp3", ".wav", ".flac", ".ogg", ".opus", ".m4a", ".aac"}
+    ):
+        return "audio"
+    return "file"
+
+
+def _collect_music_urls(
+    value: Any,
+    key: str,
+    buckets: Dict[str, List[str]],
+    seen: Set[str],
+    artifacts: List[Dict[str, str]],
+):
+    if isinstance(value, dict):
+        for child_key, child_value in value.items():
+            _collect_music_urls(child_value, str(child_key), buckets, seen, artifacts)
+        return
+    if isinstance(value, list):
+        for item in value:
+            _collect_music_urls(item, key, buckets, seen, artifacts)
+        return
+    if not isinstance(value, str):
+        return
+
+    url = value.strip()
+    if not url.startswith(("http://", "https://")):
+        return
+    if url in seen:
+        return
+    seen.add(url)
+    kind = _url_media_kind(key, url)
+    buckets[kind].append(url)
+    buckets["all"].append(url)
+    artifacts.append({"url": url, "kind": kind})
+
+
+def _extract_music_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        simple = [item for item in value if isinstance(item, (str, int, float, bool))]
+        if simple and len(simple) == len(value):
+            return json.dumps(simple, ensure_ascii=False)
+    if not isinstance(value, dict):
+        return ""
+
+    priority_keys = (
+        "text",
+        "lyrics",
+        "tags",
+        "aligned_lyrics",
+        "bpm",
+        "persona_id",
+        "voice_id",
+        "audio_id",
+        "content",
+        "message",
+    )
+    for key in priority_keys:
+        if key in value:
+            text = _extract_music_text(value.get(key))
+            if text:
+                return text
+
+    music = value.get("music")
+    if isinstance(music, list):
+        for item in music:
+            if isinstance(item, dict):
+                for key in ("lyrics", "title", "audio_id"):
+                    text = _extract_music_text(item.get(key))
+                    if text:
+                        return text
+
+    for key, child in value.items():
+        if key in {"id", "task_id", "status", "progress"}:
+            continue
+        text = _extract_music_text(child)
+        if text:
+            return text
+    return ""
+
+
+def extract_music_results(final_response: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize documented and observed Suno result shapes without losing raw data."""
+    if not isinstance(final_response, dict):
+        raise SeedanceAPIError("Music response must be a JSON object")
+
+    data = final_response.get("data")
+    task_data = data if isinstance(data, dict) else final_response
+    result = task_data.get("result") if isinstance(task_data, dict) else None
+    result_data = result if result is not None else task_data
+
+    buckets: Dict[str, List[str]] = {
+        "audio": [],
+        "video": [],
+        "image": [],
+        "file": [],
+        "all": [],
+    }
+    artifacts: List[Dict[str, str]] = []
+    _collect_music_urls(result_data, "", buckets, set(), artifacts)
+
+    task_id = _extract_music_task_id(final_response) or ""
+    status = (
+        str(task_data.get("status") or "").strip()
+        if isinstance(task_data, dict)
+        else ""
+    )
+    music = (
+        result_data.get("music")
+        if isinstance(result_data, dict) and isinstance(result_data.get("music"), list)
+        else []
+    )
+    return {
+        "task_id": task_id,
+        "status": status,
+        "result": result_data,
+        "music": music,
+        "audio_urls": buckets["audio"],
+        "video_urls": buckets["video"],
+        "image_urls": buckets["image"],
+        "file_urls": buckets["file"],
+        "all_urls": buckets["all"],
+        "artifacts": artifacts,
+        "text": _extract_music_text(result_data),
+    }
+
+
+def _guess_file_extension(
+    url: str,
+    content_type: str,
+    default_extension: str,
+) -> str:
+    ext = os.path.splitext(urlparse(url).path)[1].lower()
+    if 1 < len(ext) <= 10 and ext[1:].replace("_", "").isalnum():
+        return ext
+
+    media_type = str(content_type or "").split(";", 1)[0].strip().lower()
+    guessed = mimetypes.guess_extension(media_type) if media_type else None
+    if guessed:
+        return guessed
+
+    fallback = str(default_extension or "bin").strip().lower().lstrip(".")
+    return f".{fallback or 'bin'}"
+
+
+def download_file(
+    url: str,
+    filename_prefix: str = "suno_result",
+    default_extension: str = "bin",
+    timeout: int = 300,
+    max_retries: int = 3,
+    logger_prefix: str = "Suno_Music",
+) -> str:
+    """Download an arbitrary result file into the ComfyUI output directory."""
+    try:
+        import folder_paths
+        output_dir = folder_paths.get_output_directory()
+    except ImportError:
+        output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
+
+    os.makedirs(output_dir, exist_ok=True)
+    last_error: Optional[str] = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                time.sleep(2 ** attempt)
+            response = _session().get(url, stream=True, timeout=timeout)
+            response.raise_for_status()
+            content_type = (getattr(response, "headers", {}) or {}).get(
+                "Content-Type", ""
+            )
+            extension = _guess_file_extension(url, content_type, default_extension)
+            path = os.path.join(
+                output_dir,
+                f"{filename_prefix}_{uuid.uuid4().hex[:12]}{extension}",
+            )
+            with open(path, "wb") as f:
+                if hasattr(response, "iter_content"):
+                    for chunk in response.iter_content(chunk_size=1 << 16):
+                        if chunk:
+                            f.write(chunk)
+                else:
+                    f.write(response.content)
+            _log(logger_prefix, f"  Downloaded result -> {path}")
+            return path
+        except Exception as e:
+            last_error = type(e).__name__
+            _log(
+                logger_prefix,
+                f"File download attempt {attempt + 1} failed: {last_error}",
+            )
+    raise RuntimeError(
+        f"Failed to download result file after {max_retries} attempts: {last_error}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Result download
 # ---------------------------------------------------------------------------
 
-def download_video(
+def download_video_with_path(
     url: str,
     timeout: int = 300,
     max_retries: int = 3,
     logger_prefix: str = "Seedance_Video",
-) -> Any:
-    """Download the result mp4 into ComfyUI's output dir, return VIDEO object.
+) -> Tuple[Any, str]:
+    """Download an MP4 and return ``(VIDEO object, local path)``.
 
     Returns comfy_api VideoFromFile when running inside ComfyUI, otherwise the
     local file path (useful for testing outside ComfyUI).
@@ -1133,8 +1679,8 @@ def download_video(
     os.makedirs(output_dir, exist_ok=True)
     video_path = os.path.join(output_dir, f"seedance_{uuid.uuid4().hex[:12]}.mp4")
 
-    _log(logger_prefix, f"Download -> {_truncate(url, 200)}")
-    last_error: Optional[Exception] = None
+    _log(logger_prefix, "Download video -> remote result")
+    last_error: Optional[str] = None
     for attempt in range(max_retries):
         try:
             if attempt > 0:
@@ -1147,11 +1693,27 @@ def download_video(
             size_mb = os.path.getsize(video_path) / (1024 * 1024)
             _log(logger_prefix, f"  Downloaded {size_mb:.1f} MB -> {video_path}")
             if VideoFromFile is not None:
-                return VideoFromFile(video_path)
-            return video_path
+                return VideoFromFile(video_path), video_path
+            return video_path, video_path
         except Exception as e:
-            last_error = e
-            _log(logger_prefix, f"Download attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+            last_error = type(e).__name__
+            _log(logger_prefix, f"Download attempt {attempt + 1} failed: {last_error}")
             continue
 
     raise RuntimeError(f"Failed to download video after {max_retries} attempts: {last_error}")
+
+
+def download_video(
+    url: str,
+    timeout: int = 300,
+    max_retries: int = 3,
+    logger_prefix: str = "Seedance_Video",
+) -> Any:
+    """Download the result MP4 into the ComfyUI output directory."""
+    video, _path = download_video_with_path(
+        url,
+        timeout=timeout,
+        max_retries=max_retries,
+        logger_prefix=logger_prefix,
+    )
+    return video
