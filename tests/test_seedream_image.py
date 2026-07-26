@@ -447,6 +447,8 @@ class ImageNodeTests(unittest.TestCase):
             "1k",
             "adaptive",
             ["https://cdn.test/ignored.png"],
+            size="1:1",
+            n=1,
         )
 
         self.assertEqual(payload["model"], "zhenzhen-image-g2-t2i")
@@ -462,6 +464,8 @@ class ImageNodeTests(unittest.TestCase):
             "1k",
             "1:1",
             ["https://cdn.test/reference.png"],
+            size="1:1",
+            n=1,
         )
 
         self.assertEqual(payload["model"], "zhenzhen-image-g2-i2i")
@@ -473,28 +477,38 @@ class ImageNodeTests(unittest.TestCase):
         payload = node._build_payload(
             nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
             "clean product photo on a white background",
-            "1k",
+            "4k",
             "adaptive",
             [],
+            size="2048x1024",
+            n=10,
         )
 
         self.assertEqual(payload["model"], "zhenzhen-image-g-v2-lowprice")
-        self.assertEqual(payload["metadata"], {"resolution": "1k"})
+        self.assertEqual(payload["metadata"], {"resolution": "4k"})
+        self.assertEqual(payload["size"], "2048x1024")
+        self.assertEqual(payload["n"], 10)
+        self.assertNotIn("ratio", payload["metadata"])
         self.assertNotIn("images", payload)
 
     def test_zhenzhen_image_g_lowprice_forwards_optional_images(self):
         node = nodes.ZhenzhenImageG2()
+        references = [f"https://cdn.test/reference-{index}.png" for index in range(1, 17)]
         payload = node._build_payload(
             nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
             "edit the reference into a product icon",
-            "1k",
+            "2k",
             "1:1",
-            ["https://cdn.test/reference.png"],
+            references,
+            size="16:9",
+            n=3,
         )
 
         self.assertEqual(payload["model"], "zhenzhen-image-g-v2-lowprice")
-        self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
-        self.assertEqual(payload["metadata"], {"resolution": "1k", "ratio": "1:1"})
+        self.assertEqual(payload["images"], references)
+        self.assertEqual(payload["metadata"], {"resolution": "2k"})
+        self.assertEqual(payload["size"], "16:9")
+        self.assertEqual(payload["n"], 3)
 
     def test_zhenzhen_image_g2_image_to_image_requires_reference(self):
         node = nodes.ZhenzhenImageG2()
@@ -505,7 +519,28 @@ class ImageNodeTests(unittest.TestCase):
                 "1k",
                 "adaptive",
                 [],
+                size="1:1",
+                n=1,
             )
+
+    def test_zhenzhen_image_g_default_and_input_limits_match_documented_models(self):
+        inputs = nodes.ZhenzhenImageG2.INPUT_TYPES()
+        self.assertEqual(
+            inputs["required"]["model"][1]["default"],
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+        )
+        self.assertEqual(
+            inputs["required"]["model"][0][0],
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+        )
+        self.assertEqual(
+            inputs["required"]["resolution"][0],
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS,
+        )
+        self.assertEqual(
+            [name for name in inputs["optional"] if name.startswith("image")],
+            [f"image{index}" for index in range(1, 17)],
+        )
 
     def test_zhenzhen_image_g2_validation_matches_documented_limits(self):
         self.assertIs(
@@ -554,6 +589,51 @@ class ImageNodeTests(unittest.TestCase):
             ),
             True,
         )
+        for resolution in nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS:
+            with self.subTest(resolution=resolution):
+                self.assertIs(
+                    nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                        model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                        prompt="valid prompt",
+                        resolution=resolution,
+                        ratio="stale-hidden-value",
+                        size="16:9",
+                        n=10,
+                    ),
+                    True,
+                )
+        for invalid_size in ("", "square", "0:1", "1024x0"):
+            with self.subTest(invalid_size=invalid_size):
+                self.assertIsNot(
+                    nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                        model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                        prompt="valid prompt",
+                        resolution="2k",
+                        size=invalid_size,
+                        n=1,
+                    ),
+                    True,
+                )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                prompt="valid prompt",
+                resolution="8k",
+                size="1:1",
+                n=1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                prompt="valid prompt",
+                resolution="1k",
+                size="1:1",
+                n=11,
+            ),
+            True,
+        )
 
     def test_zhenzhen_image_g2_execute_uploads_reference_and_returns_image_outputs(self):
         node = nodes.ZhenzhenImageG2()
@@ -579,6 +659,8 @@ class ImageNodeTests(unittest.TestCase):
                 prompt="turn this into a glossy blue app icon",
                 resolution="1k",
                 ratio="1:1",
+                size="1:1",
+                n=1,
                 image1=torch.zeros((1, 8, 8, 3), dtype=torch.float32),
             )
 

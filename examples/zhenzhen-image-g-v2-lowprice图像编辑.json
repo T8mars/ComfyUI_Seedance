@@ -154,6 +154,42 @@
           "link": null
         },
         {
+          "name": "image11",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image12",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image13",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image14",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image15",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image16",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -191,8 +227,10 @@
       "widgets_values": [
         "zhenzhen-image-g-v2-lowprice",
         "keep the main subject and composition, change the background into a clean futuristic studio, polished commercial lighting",
-        "1k",
-        "adaptive"
+        "2k",
+        "adaptive",
+        "1:1",
+        1
       ]
     },
     {
@@ -247,7 +285,7 @@
       2,
       0,
       3,
-      10,
+      16,
       "SEEDANCE_CONFIG"
     ],
     [

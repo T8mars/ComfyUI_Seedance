@@ -114,6 +114,42 @@
           "link": null
         },
         {
+          "name": "image11",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image12",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image13",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image14",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image15",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image16",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -151,8 +187,10 @@
       "widgets_values": [
         "zhenzhen-image-g-v2-lowprice",
         "a bright travel poster of a peaceful seaside town at sunrise, clean composition, rich details",
-        "1k",
-        "16:9"
+        "2k",
+        "adaptive",
+        "16:9",
+        1
       ]
     },
     {
@@ -199,7 +237,7 @@
       1,
       0,
       2,
-      10,
+      16,
       "SEEDANCE_CONFIG"
     ],
     [

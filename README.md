@@ -1,5 +1,12 @@
 # ComfyUI_Seedance
 
+## v0.5.1（2026-07-26）
+
+- 修正同一节点内 G-2 与 `zhenzhen-image-g-v2-lowprice` 的参数分流，Lowprice 现为默认模型。
+- Lowprice 支持 `1k` / `2k` / `4k`、顶层 `size`、`n=1..10` 和最多 16 张可选参考图。
+- G-2 两个模型继续使用固定 `1k` 与 `metadata.ratio`，图像编辑最多 10 张参考图。
+
+
 ## 入口导航
 
 | 入口 | 适合用户 | 说明 | 打开 |
@@ -345,9 +352,9 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 Zhenzhen Image G 图片生成或编辑：
 
 1. 添加 `Zhenzhen Image G 图像生成/编辑`。
-2. 选择 `zhenzhen-image-g2-t2i` 生成图片，选择 `zhenzhen-image-g2-i2i` 编辑参考图，或选择 `zhenzhen-image-g-v2-lowprice` 使用 G v2 lowprice 模型。
-3. 填写提示词，`resolution` 保持 `1k`，按需选择 `ratio`。
-4. 使用 `zhenzhen-image-g2-i2i` 时连接 `image1` 到 `image10` 中至少 1 张参考图；`zhenzhen-image-g-v2-lowprice` 可不连接图，也可连接参考图。
+2. 默认使用 `zhenzhen-image-g-v2-lowprice`；也可切换到 `zhenzhen-image-g2-t2i` 或 `zhenzhen-image-g2-i2i`。
+3. Lowprice 可选择 `1k`、`2k`、`4k`，并设置 `size` 与 `n`；G-2 固定 `1k`，按需选择 `ratio`。
+4. `zhenzhen-image-g2-i2i` 需要连接 1 到 10 张参考图；Lowprice 可不连接图，也可连接最多 16 张参考图。
 5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
 Zhenzhen Image GK v1.5 图片生成或编辑：
@@ -474,7 +481,7 @@ Zhenzhen Image G 节点使用独立的 `/v1/image/generations` 图片端点：
 | --- | --- | --- |
 | `zhenzhen-image-g2-t2i` | 文生图 | `prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
 | `zhenzhen-image-g2-i2i` | 图像编辑 | 需要 1 到 10 张参考图；`prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
-| `zhenzhen-image-g-v2-lowprice` | 文生图 / 图像编辑 | `prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio`；连接参考图时提交 `images[]` |
+| `zhenzhen-image-g-v2-lowprice` | 文生图 / 图像编辑 | 默认模型；`resolution` 为 `1k` / `2k` / `4k`；顶层 `size` 支持比例或 WxH；`n` 为 1 到 10；参考图最多 16 张 |
 
 Zhenzhen Image GK v1.5 节点使用同一个 `/v1/image/generations` 图片端点：
 
@@ -608,11 +615,13 @@ Zhenzhen Image G 参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | `zhenzhen-image-g2-t2i`、`zhenzhen-image-g2-i2i` 或 `zhenzhen-image-g-v2-lowprice` |
+| `model` | 默认 `zhenzhen-image-g-v2-lowprice`；也可选择两个 G-2 模型 |
 | `prompt` | 必填，最多 20000 字符 |
-| `resolution` | 固定为 `1k` |
-| `ratio` | 可选画幅比例，`adaptive` 时不提交该字段 |
-| `image1` ... `image10` | `zhenzhen-image-g2-i2i` 至少连接 1 张；`zhenzhen-image-g-v2-lowprice` 可选 |
+| `resolution` | G-2 固定 `1k`；Lowprice 支持 `1k` / `2k` / `4k` |
+| `ratio` | 仅 G-2 使用；`adaptive` 时不提交 |
+| `size` | 仅 Lowprice 使用；顶层比例值或 WxH |
+| `n` | 仅 Lowprice 使用；1 到 10 |
+| `image1` ... `image16` | G-2 图像编辑使用前 10 张且至少 1 张；Lowprice 最多 16 张且可不连接 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 Zhenzhen Image GK v1.5 参数：

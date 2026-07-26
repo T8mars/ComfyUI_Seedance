@@ -1,7 +1,10 @@
 import { app } from "../../../scripts/app.js";
 
+const G2_NODE_NAME = "Zhenzhen_Image_G2";
 const NB_NODE_NAME = "Zhenzhen_Image_NB";
 const V31_NODE_NAME = "Zhenzhen_Video_V31";
+const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice";
+const CONVERTED_WIDGET_PREFIX = "converted-widget";
 
 const STANDARD_SIZES = [
     "1:1", "2:3", "3:2", "3:4", "4:3",
@@ -65,6 +68,72 @@ function updateInteger(widget, maximum) {
     }
 }
 
+function setWidgetVisible(widget, visible) {
+    if (!widget) {
+        return;
+    }
+    const isConvertedInput = (
+        String(widget.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)
+        || Object.prototype.hasOwnProperty.call(widget, "origType")
+    );
+    if (isConvertedInput) {
+        return;
+    }
+    if (!widget.seedanceZhenzhenOriginal) {
+        widget.seedanceZhenzhenOriginal = {
+            type: widget.type,
+            computeSize: widget.computeSize,
+        };
+    }
+    if (visible) {
+        widget.type = widget.seedanceZhenzhenOriginal.type;
+        widget.computeSize = widget.seedanceZhenzhenOriginal.computeSize;
+    } else {
+        widget.type = "hidden";
+        widget.computeSize = () => [0, -4];
+    }
+}
+
+function resizeNode(node, minimumWidth = 320) {
+    requestAnimationFrame(() => {
+        const computed = node.computeSize?.();
+        if (computed) {
+            node.setSize?.([
+                Math.max(node.size?.[0] ?? minimumWidth, computed[0], minimumWidth),
+                Math.max(computed[1], 120),
+            ]);
+        }
+        node.setDirtyCanvas?.(true, true);
+    });
+}
+
+function refreshG2Node(node) {
+    const model = String(widgetByName(node, "model")?.value ?? LOWPRICE_MODEL);
+    const isLowprice = model === LOWPRICE_MODEL;
+    updateCombo(
+        widgetByName(node, "resolution"),
+        isLowprice ? ["1k", "2k", "4k"] : ["1k"],
+        "1k",
+    );
+    setWidgetVisible(widgetByName(node, "ratio"), !isLowprice);
+    setWidgetVisible(widgetByName(node, "size"), isLowprice);
+    setWidgetVisible(widgetByName(node, "n"), isLowprice);
+
+    for (const input of node.inputs ?? []) {
+        const match = /^image([1-9]|1[0-6])$/.exec(input.name);
+        if (!match) {
+            continue;
+        }
+        const index = Number(match[1]);
+        const allowed = (
+            isLowprice
+            || (model === "zhenzhen-image-g2-i2i" && index <= 10)
+        );
+        input.hidden = !allowed && input.link == null;
+    }
+    resizeNode(node, 340);
+}
+
 function refreshNBNode(node) {
     const model = String(widgetByName(node, "model")?.value ?? "");
     const options = NB_MODEL_OPTIONS[model] ?? NB_MODEL_OPTIONS["zhenzhen-image-nb-flash"];
@@ -106,10 +175,15 @@ function wrapRefresh(node, refresh) {
 app.registerExtension({
     name: "ComfyUI_Seedance.ZhenzhenModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (![NB_NODE_NAME, V31_NODE_NAME].includes(nodeData.name)) {
+        if (![G2_NODE_NAME, NB_NODE_NAME, V31_NODE_NAME].includes(nodeData.name)) {
             return;
         }
-        const refresh = nodeData.name === NB_NODE_NAME ? refreshNBNode : refreshV31Node;
+        const refreshers = {
+            [G2_NODE_NAME]: refreshG2Node,
+            [NB_NODE_NAME]: refreshNBNode,
+            [V31_NODE_NAME]: refreshV31Node,
+        };
+        const refresh = refreshers[nodeData.name];
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

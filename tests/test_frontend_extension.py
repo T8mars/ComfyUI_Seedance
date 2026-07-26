@@ -155,8 +155,19 @@ class FrontendExtensionTests(unittest.TestCase):
             PLUGIN_ROOT / "web" / "js" / "zhenzhen_model_ui.js"
         ).read_text(encoding="utf-8")
         required_fragments = (
+            'const G2_NODE_NAME = "Zhenzhen_Image_G2"',
             'const NB_NODE_NAME = "Zhenzhen_Image_NB"',
             'const V31_NODE_NAME = "Zhenzhen_Video_V31"',
+            'const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"',
+            'const CONVERTED_WIDGET_PREFIX = "converted-widget"',
+            'String(widget.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)',
+            'Object.prototype.hasOwnProperty.call(widget, "origType")',
+            "function refreshG2Node(node)",
+            'isLowprice ? ["1k", "2k", "4k"] : ["1k"]',
+            'setWidgetVisible(widgetByName(node, "ratio"), !isLowprice)',
+            'setWidgetVisible(widgetByName(node, "size"), isLowprice)',
+            'setWidgetVisible(widgetByName(node, "n"), isLowprice)',
+            'model === "zhenzhen-image-g2-i2i" && index <= 10',
             '"zhenzhen-image-nb-flash": {',
             '"zhenzhen-image-nb-2": {',
             '"zhenzhen-image-nb-2-lite": {',
@@ -170,6 +181,40 @@ class FrontendExtensionTests(unittest.TestCase):
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)
+
+    def test_zhenzhen_g2_and_lowprice_workflows_match_model_contracts(self):
+        workflow_names = (
+            "zhenzhen-image-g2文生图.json",
+            "zhenzhen-image-g2图像编辑.json",
+            "zhenzhen-image-g-v2-lowprice文生图.json",
+            "zhenzhen-image-g-v2-lowprice图像编辑.json",
+        )
+        for workflow_name in workflow_names:
+            workflow = json.loads(
+                (PLUGIN_ROOT / "examples" / workflow_name).read_text(encoding="utf-8")
+            )
+            node = next(
+                item for item in workflow["nodes"]
+                if item["type"] == "Zhenzhen_Image_G2"
+            )
+            self.assertEqual(
+                [item["name"] for item in node["inputs"]],
+                [f"image{index}" for index in range(1, 17)] + ["api_config"],
+            )
+            config_link = next(
+                link for link in workflow["links"]
+                if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
+            )
+            self.assertEqual(config_link[4], 16)
+            self.assertEqual(len(node["widgets_values"]), 6)
+            model, _, resolution, ratio, size, n = node["widgets_values"]
+            self.assertEqual(size, "1:1" if "图像编辑" in workflow_name else "16:9")
+            self.assertEqual(n, 1)
+            if model == "zhenzhen-image-g-v2-lowprice":
+                self.assertEqual(resolution, "2k")
+                self.assertEqual(ratio, "adaptive")
+            else:
+                self.assertEqual(resolution, "1k")
 
     def test_nano_banana_and_v31_lite_workflows_are_complete(self):
         expected_nb = {

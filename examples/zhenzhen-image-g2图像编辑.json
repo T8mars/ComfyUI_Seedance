@@ -151,6 +151,42 @@
           "link": null
         },
         {
+          "name": "image11",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image12",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image13",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image14",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image15",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image16",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -189,7 +225,9 @@
         "zhenzhen-image-g2-i2i",
         "turn the reference into a polished blue app icon, clean edges, centered composition",
         "1k",
-        "1:1"
+        "1:1",
+        "1:1",
+        1
       ]
     },
     {
@@ -243,7 +281,7 @@
       1,
       0,
       3,
-      10,
+      16,
       "SEEDANCE_CONFIG"
     ],
     [

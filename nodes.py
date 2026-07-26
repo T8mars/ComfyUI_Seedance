@@ -112,13 +112,15 @@ ZHENZHEN_IMAGE_G2_T2I_MODEL = "zhenzhen-image-g2-t2i"
 ZHENZHEN_IMAGE_G2_I2I_MODEL = "zhenzhen-image-g2-i2i"
 ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"
 ZHENZHEN_IMAGE_G2_MODELS = [
+    ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
     ZHENZHEN_IMAGE_G2_T2I_MODEL,
     ZHENZHEN_IMAGE_G2_I2I_MODEL,
-    ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
 ]
 ZHENZHEN_IMAGE_G2_RESOLUTIONS = ["1k"]
+ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS = ["1k", "2k", "4k"]
 ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH = 20000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
+MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES = 16
 ZHENZHEN_IMAGE_GK_V15_MODEL = "zhenzhen-image-gk-v15"
 ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL = "zhenzhen-image-gk-v15-edit"
 ZHENZHEN_IMAGE_GK_V15_MODELS = [
@@ -3125,12 +3127,12 @@ class ZhenzhenImageG2:
         optional: Dict[str, tuple] = {
             f"image{i}": ("IMAGE", {
                 "tooltip": (
-                    f"Optional editing reference image {i} of {MAX_ZHENZHEN_IMAGE_G2_IMAGES}; "
-                    "used by zhenzhen-image-g2-i2i and optionally by lowprice. | "
-                    "可选编辑参考图，g2-i2i 必填，lowprice 可选。"
+                    f"Optional reference image {i} of {MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES}; "
+                    "G-2 i2i accepts image1..image10; lowprice accepts image1..image16. | "
+                    "可选参考图；G-2 图像编辑支持前 10 张，lowprice 支持 16 张。"
                 ),
             })
-            for i in range(1, MAX_ZHENZHEN_IMAGE_G2_IMAGES + 1)
+            for i in range(1, MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES + 1)
         }
         optional["api_config"] = ("SEEDANCE_CONFIG", {
             "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
@@ -3139,7 +3141,7 @@ class ZhenzhenImageG2:
         return {
             "required": {
                 "model": (ZHENZHEN_IMAGE_G2_MODELS, {
-                    "default": ZHENZHEN_IMAGE_G2_T2I_MODEL,
+                    "default": ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
                     "tooltip": (
                         "Zhenzhen Image G task type. g2-t2i uses prompt only; "
                         "g2-i2i requires images; lowprice can run with or without images. | "
@@ -3151,17 +3153,56 @@ class ZhenzhenImageG2:
                     "default": "",
                     "tooltip": "Prompt, up to 20000 characters. | 提示词，最多 20000 字符。",
                 }),
-                "resolution": (ZHENZHEN_IMAGE_G2_RESOLUTIONS, {
+                "resolution": (ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS, {
                     "default": "1k",
-                    "tooltip": "Zhenzhen Image G currently supports 1k only. | Image G 当前仅支持 1k。",
+                    "tooltip": (
+                        "G-2 supports 1k only; lowprice supports 1k, 2k, and 4k. | "
+                        "G-2 仅支持 1k；lowprice 支持 1k、2k、4k。"
+                    ),
                 }),
                 "ratio": (RATIOS, {
                     "default": "adaptive",
-                    "tooltip": "Optional aspect ratio forwarded as metadata.ratio. | 可选画幅比例，透传为 metadata.ratio。",
+                    "tooltip": (
+                        "G-2 only: optional metadata.ratio. Hidden for lowprice. | "
+                        "仅 G-2 使用 metadata.ratio；lowprice 模型会隐藏。"
+                    ),
+                }),
+                "size": ("STRING", {
+                    "default": "1:1",
+                    "tooltip": (
+                        "Lowprice only: top-level size as an aspect ratio or WxH. | "
+                        "仅 lowprice 使用：顶层 size，可填写画幅比例或 WxH。"
+                    ),
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 10,
+                    "step": 1,
+                    "tooltip": (
+                        "Lowprice only: top-level image count, 1 to 10. | "
+                        "仅 lowprice 使用：顶层图片数量，1 到 10。"
+                    ),
                 }),
             },
             "optional": optional,
         }
+
+    @staticmethod
+    def _normalize_lowprice_size(value: Any) -> str:
+        return str(value or "").strip().replace("X", "x")
+
+    @classmethod
+    def _valid_lowprice_size(cls, value: Any) -> bool:
+        size_text = cls._normalize_lowprice_size(value)
+        separator = ":" if ":" in size_text else "x" if "x" in size_text else ""
+        if not separator:
+            return False
+        parts = [part.strip() for part in size_text.split(separator)]
+        return (
+            len(parts) == 2
+            and all(part.isdigit() and int(part) > 0 for part in parts)
+        )
 
     @classmethod
     def VALIDATE_INPUTS(
@@ -3170,6 +3211,8 @@ class ZhenzhenImageG2:
         prompt=None,
         resolution=None,
         ratio=None,
+        size=None,
+        n=None,
         strict=False,
         **kwargs,
     ):
@@ -3183,10 +3226,21 @@ class ZhenzhenImageG2:
                 f"prompt exceeds {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} characters "
                 f"({len(prompt_text)}) | 提示词不能超过 {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} 字符"
             )
-        if resolution is not None and resolution not in ZHENZHEN_IMAGE_G2_RESOLUTIONS:
-            return "Zhenzhen Image G resolution must be 1k | Zhenzhen Image G 分辨率只能是 1k"
-        if ratio is not None and ratio not in RATIOS:
-            return f"unsupported ratio: {ratio}"
+        if model in (ZHENZHEN_IMAGE_G2_T2I_MODEL, ZHENZHEN_IMAGE_G2_I2I_MODEL):
+            if resolution is not None and resolution not in ZHENZHEN_IMAGE_G2_RESOLUTIONS:
+                return "Zhenzhen Image G-2 resolution must be 1k | Zhenzhen Image G-2 分辨率只能是 1k"
+            if ratio is not None and ratio not in RATIOS:
+                return f"unsupported G-2 ratio: {ratio}"
+        elif model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL:
+            if (
+                resolution is not None
+                and resolution not in ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS
+            ):
+                return f"unsupported lowprice resolution: {resolution}"
+            if size is not None and not cls._valid_lowprice_size(size):
+                return "lowprice size must be an aspect ratio or WxH | lowprice size 必须是画幅比例或 WxH"
+            if n is not None and not 1 <= int(n) <= 10:
+                return "lowprice n must be between 1 and 10 | lowprice n 必须在 1 到 10 之间"
         return True
 
     @property
@@ -3203,13 +3257,13 @@ class ZhenzhenImageG2:
     def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
         slots = [
             (i, kwargs.get(f"image{i}"))
-            for i in range(1, MAX_ZHENZHEN_IMAGE_G2_IMAGES + 1)
+            for i in range(1, MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES + 1)
             if kwargs.get(f"image{i}") is not None
         ]
         connected = [i for i, _ in slots]
         if connected and connected != list(range(1, len(connected) + 1)):
             print(
-                f"[{self._log_prefix}] WARNING: G-2 image slots {connected} have gaps; "
+                f"[{self._log_prefix}] WARNING: Image G slots {connected} have gaps; "
                 f"they will be compacted to images order 1..{len(connected)}."
             )
         return slots
@@ -3221,27 +3275,65 @@ class ZhenzhenImageG2:
         resolution: str,
         ratio: str,
         images: List[str],
+        size: str = "1:1",
+        n: int = 1,
     ) -> Dict[str, Any]:
-        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL and not images:
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            resolution=resolution,
+            ratio=ratio,
+            size=size,
+            n=n,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
+            if not images:
+                raise SeedanceAPIError(
+                    "at least one image is required for zhenzhen-image-g2-i2i | "
+                    "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
+                )
+            if len(images) > MAX_ZHENZHEN_IMAGE_G2_IMAGES:
+                raise SeedanceAPIError(
+                    f"zhenzhen-image-g2-i2i supports at most {MAX_ZHENZHEN_IMAGE_G2_IMAGES} images"
+                )
+
+        if (
+            model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL
+            and len(images) > MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES
+        ):
             raise SeedanceAPIError(
-                "at least one image is required for zhenzhen-image-g2-i2i | "
-                "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
+                f"zhenzhen-image-g-v2-lowprice supports at most "
+                f"{MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES} images"
             )
+
+        if model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL:
+            payload: Dict[str, Any] = {
+                "model": model,
+                "prompt": prompt,
+                "n": int(n),
+                "size": self._normalize_lowprice_size(size),
+                "metadata": {"resolution": resolution},
+            }
+            if images:
+                payload["images"] = images
+            return payload
 
         metadata: Dict[str, Any] = {"resolution": resolution}
         ratio_text = str(ratio or "").strip()
         if ratio_text and ratio_text != "adaptive":
             metadata["ratio"] = ratio_text
 
-        payload: Dict[str, Any] = {
+        payload = {
             "model": model,
             "prompt": prompt,
             "metadata": metadata,
         }
         if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
-            payload["images"] = images[:MAX_ZHENZHEN_IMAGE_G2_IMAGES]
-        elif model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL and images:
-            payload["images"] = images[:MAX_ZHENZHEN_IMAGE_G2_IMAGES]
+            payload["images"] = images
         return payload
 
     def execute(
@@ -3250,6 +3342,8 @@ class ZhenzhenImageG2:
         prompt: str,
         resolution: str,
         ratio: str,
+        size: str = "1:1",
+        n: int = 1,
         api_config=None,
         **kwargs,
     ):
@@ -3259,6 +3353,8 @@ class ZhenzhenImageG2:
             prompt=prompt_text,
             resolution=resolution,
             ratio=ratio,
+            size=size,
+            n=n,
             strict=True,
         )
         if validation is not True:
@@ -3271,15 +3367,21 @@ class ZhenzhenImageG2:
         image_urls: List[str] = []
         if model in (ZHENZHEN_IMAGE_G2_I2I_MODEL, ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL):
             references = self._connected_images(kwargs)
-            if model == ZHENZHEN_IMAGE_G2_I2I_MODEL and not references:
-                raise SeedanceAPIError(
-                    "at least one image is required for zhenzhen-image-g2-i2i | "
-                    "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
-                )
+            if model == ZHENZHEN_IMAGE_G2_I2I_MODEL:
+                if not references:
+                    raise SeedanceAPIError(
+                        "at least one image is required for zhenzhen-image-g2-i2i | "
+                        "zhenzhen-image-g2-i2i 至少需要 1 张参考图"
+                    )
+                if len(references) > MAX_ZHENZHEN_IMAGE_G2_IMAGES:
+                    raise SeedanceAPIError(
+                        f"zhenzhen-image-g2-i2i supports at most "
+                        f"{MAX_ZHENZHEN_IMAGE_G2_IMAGES} images"
+                    )
             for done, (slot, tensor) in enumerate(references, start=1):
                 image_url = upload_media(
                     image_to_png_bytes(tensor),
-                    f"zhenzhen_image_g2_reference_{slot}.png",
+                    f"zhenzhen_image_g_reference_{slot}.png",
                     "image/png",
                     config,
                     logger_prefix=self._log_prefix,
@@ -3288,7 +3390,15 @@ class ZhenzhenImageG2:
                 self._update_progress(pbar, done / len(references) * 15)
         self._update_progress(pbar, 15)
 
-        payload = self._build_payload(model, prompt_text, resolution, ratio, image_urls)
+        payload = self._build_payload(
+            model,
+            prompt_text,
+            resolution,
+            ratio,
+            image_urls,
+            size=size,
+            n=n,
+        )
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
 
