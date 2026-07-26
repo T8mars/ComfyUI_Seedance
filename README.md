@@ -1,12 +1,5 @@
 # ComfyUI_Seedance
 
-## v0.5.1（2026-07-26）
-
-- 修正同一节点内 G-2 与 `zhenzhen-image-g-v2-lowprice` 的参数分流，Lowprice 现为默认模型。
-- Lowprice 支持 `1k` / `2k` / `4k`、顶层 `size`、`n=1..10` 和最多 16 张可选参考图。
-- G-2 两个模型继续使用固定 `1k` 与 `metadata.ratio`，图像编辑最多 10 张参考图。
-
-
 ## 入口导航
 
 | 入口 | 适合用户 | 说明 | 打开 |
@@ -28,6 +21,12 @@ My favorite girl Go YounJung
 Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.1（2026-07-26）
+
+- 修正同一节点内 G-2 与 `zhenzhen-image-g-v2-lowprice` 的参数分流，Lowprice 现为默认模型。
+- Lowprice 支持 `1k` / `2k` / `4k`、顶层 `size`、`n=1..10` 和最多 16 张可选参考图。
+- G-2 两个模型继续使用固定 `1k` 与 `metadata.ratio`，图像编辑最多 10 张参考图。
 
 ## v0.5.0（2026-07-26）
 
