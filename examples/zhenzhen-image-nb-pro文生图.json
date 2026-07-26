@@ -1,5 +1,5 @@
 {
-  "id": "d7309c83-d7f8-4215-99be-d8f9bb097ebb",
+  "id": "e85829d7-24aa-46a4-a1bf-46e838c78c45",
   "revision": 0,
   "last_node_id": 3,
   "last_link_id": 2,
@@ -39,15 +39,15 @@
     },
     {
       "id": 2,
-      "type": "Zhenzhen_Video_V31",
-      "title": "Zhenzhen Video V3.1 Fast 文生视频",
+      "type": "Zhenzhen_Image_NB",
+      "title": "Nano Banana Pro 文生图",
       "pos": [
         400,
-        100
+        80
       ],
       "size": [
-        450,
-        390
+        500,
+        520
       ],
       "flags": {},
       "order": 1,
@@ -72,6 +72,72 @@
           "link": null
         },
         {
+          "name": "image4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image9",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image10",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image11",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image12",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image13",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image14",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -80,14 +146,14 @@
       ],
       "outputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "image",
+          "type": "IMAGE",
           "links": [
             2
           ]
         },
         {
-          "name": "video_url",
+          "name": "image_url",
           "type": "STRING",
           "links": null
         },
@@ -104,56 +170,51 @@
       ],
       "properties": {
         "aux_id": "T8mars/ComfyUI_Seedance",
-        "Node name for S&R": "Zhenzhen_Video_V31"
+        "Node name for S&R": "Zhenzhen_Image_NB"
       },
       "widgets_values": [
-        "zhenzhen-video-v31-fast",
-        "a close-up shot of fresh coffee being poured into a glass cup, morning sunlight, realistic steam",
-        "8",
-        "720p",
-        "16:9",
-        "",
-        -1,
-        false
+        "zhenzhen-image-nb-pro",
+        "a refined product photograph on a clean studio set, natural light, crisp details",
+        "1k",
+        "1:1",
+        1
       ]
     },
     {
       "id": 3,
-      "type": "SaveVideo",
+      "type": "SaveImage",
       "pos": [
-        920,
-        150
+        980,
+        160
       ],
       "size": [
         270,
-        180
+        270
       ],
       "flags": {},
       "order": 2,
       "mode": 0,
       "inputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "images",
+          "type": "IMAGE",
           "link": 2
         }
       ],
       "outputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "images",
+          "type": "IMAGE",
           "links": null
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.27.0",
-        "Node name for S&R": "SaveVideo"
+        "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "video/zhenzhen_v31_fast",
-        "auto",
-        "auto"
+        "zhenzhen_image_nb_pro"
       ]
     }
   ],
@@ -163,7 +224,7 @@
       1,
       0,
       2,
-      3,
+      14,
       "SEEDANCE_CONFIG"
     ],
     [
@@ -172,7 +233,7 @@
       0,
       3,
       0,
-      "VIDEO"
+      "IMAGE"
     ]
   ],
   "groups": [],

@@ -925,3 +925,31 @@
 - `concat` 已使用真实续写任务成功串联，但不限制其他官方允许的任务来源。
 
 后续新增或调整 Suno 操作时，继续先核对公开文档和动作注册表，再用最小真实请求确认差异，不依据操作名称推断字段。
+
+## 16. Zhenzhen Nano Banana 与 V3.1 Lite（2026-07-26）
+
+### 范围
+
+- 一个 `Zhenzhen_Image_NB` 节点合并 4 个文档登记模型。
+- 4 个模型均支持文生图和最多 14 张参考图编辑。
+- 现有 `Zhenzhen_Video_V31` 节点加入 Lite，并按模型限制图片模式。
+
+### 契约
+
+- 图片提交：`POST /v1/image/generations`；查询：`GET /v1/image/generations/{task_id}`。
+- 图片请求使用顶层 `model`、`prompt`、`n`、`size`、可选 `images[]`，分辨率写入 `metadata.resolution`。
+- NB Flash 固定 1k / n=1；NB 2 支持 0.5k 到 4k / n=1；NB 2 Lite 固定 1k / n=1..4；NB Pro 支持 1k、2k、4k / n=1。
+- V3.1 Lite 仅文生视频；V3.1 全系列固定 8 秒，分辨率为 720p、1080p、4k，比例为 16:9、9:16。
+- Fast 最多 3 图；Quality 最多 2 图；Lite 禁止图片。
+
+### 工作流
+
+- 4 个 NB 模型各保存文生图和图像编辑工作流，共 8 份。
+- 保存 V3.1 Lite 文生视频工作流 1 份。
+- 原有 4 份 V3.1 Fast / Quality 工作流迁移到 image3 + api_config 新插槽布局。
+
+### 验证
+
+- 单元测试覆盖模型清单、payload 白名单、模型级参数、14 图上传顺序、V3.1 图片模式和工作流连线。
+- 动态界面按 NB 模型切换分辨率、比例和 n，并按 V3.1 模型隐藏不支持的图片插槽。
+- 真实 API 验证结果只记录到被忽略的 `skill.md`，不保存 API Key、任务 ID、结果地址或原始响应。

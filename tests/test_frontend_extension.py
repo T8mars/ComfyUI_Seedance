@@ -50,6 +50,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedream_V5_Pro_Image",
             "Zhenzhen_Image_G2",
             "Zhenzhen_Image_GK_V15",
+            "Zhenzhen_Image_NB",
             "Zhenzhen_Video_G_Omni_Flash",
             "Zhenzhen_Video_GK_V15",
             "Zhenzhen_Video_V31",
@@ -148,6 +149,108 @@ class FrontendExtensionTests(unittest.TestCase):
         from ComfyUI_Seedance.nodes import MIDJOURNEY_OPERATIONS
 
         self.assertEqual(operation_keys, set(MIDJOURNEY_OPERATIONS))
+
+    def test_zhenzhen_model_ui_enforces_model_specific_controls(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "zhenzhen_model_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const NB_NODE_NAME = "Zhenzhen_Image_NB"',
+            'const V31_NODE_NAME = "Zhenzhen_Video_V31"',
+            '"zhenzhen-image-nb-flash": {',
+            '"zhenzhen-image-nb-2": {',
+            '"zhenzhen-image-nb-2-lite": {',
+            '"zhenzhen-image-nb-pro": {',
+            'model !== "zhenzhen-video-v31-lite"',
+            'model === "zhenzhen-video-v31-quality" && input.name === "image3"',
+            "input.hidden = !allowed && input.link == null",
+            "originalOnConfigure?.apply(this, arguments)",
+            "originalOnConnectionsChange?.apply(this, arguments)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_nano_banana_and_v31_lite_workflows_are_complete(self):
+        expected_nb = {
+            f"{model}{mode}.json"
+            for model in (
+                "zhenzhen-image-nb-flash",
+                "zhenzhen-image-nb-2",
+                "zhenzhen-image-nb-2-lite",
+                "zhenzhen-image-nb-pro",
+            )
+            for mode in ("文生图", "图像编辑")
+        }
+        actual_nb = {
+            path.name
+            for path in (PLUGIN_ROOT / "examples").glob("zhenzhen-image-nb-*.json")
+        }
+        self.assertEqual(actual_nb, expected_nb)
+
+        for workflow_name in sorted(expected_nb):
+            workflow = json.loads(
+                (PLUGIN_ROOT / "examples" / workflow_name).read_text(encoding="utf-8")
+            )
+            node = next(
+                item for item in workflow["nodes"]
+                if item["type"] == "Zhenzhen_Image_NB"
+            )
+            expected_model = workflow_name.removesuffix("文生图.json").removesuffix("图像编辑.json")
+            self.assertEqual(node["widgets_values"][0], expected_model)
+            self.assertEqual(
+                [item["name"] for item in node["inputs"]],
+                [f"image{index}" for index in range(1, 15)] + ["api_config"],
+            )
+            config_link = next(
+                link for link in workflow["links"]
+                if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
+            )
+            self.assertEqual(config_link[4], 14)
+            image_links = [
+                link for link in workflow["links"]
+                if link[3] == node["id"] and link[5] == "IMAGE"
+            ]
+            self.assertEqual(len(image_links), 1 if "图像编辑" in workflow_name else 0)
+            if image_links:
+                self.assertEqual(image_links[0][4], 0)
+
+        lite_path = PLUGIN_ROOT / "examples" / "zhenzhen-video-v31-lite文生视频.json"
+        workflow = json.loads(lite_path.read_text(encoding="utf-8"))
+        node = next(
+            item for item in workflow["nodes"]
+            if item["type"] == "Zhenzhen_Video_V31"
+        )
+        self.assertEqual(node["widgets_values"][:5], [
+            "zhenzhen-video-v31-lite",
+            "a paper airplane gliding through warm sunrise clouds, smooth cinematic camera movement",
+            "8",
+            "720p",
+            "16:9",
+        ])
+        self.assertEqual(
+            [item["name"] for item in node["inputs"]],
+            ["image1", "image2", "image3", "api_config"],
+        )
+
+        for workflow_path in sorted(
+            (PLUGIN_ROOT / "examples").glob("zhenzhen-video-v31-*.json")
+        ):
+            workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+            node = next(
+                item for item in workflow["nodes"]
+                if item["type"] == "Zhenzhen_Video_V31"
+            )
+            self.assertEqual(node["widgets_values"][2], "8")
+            self.assertEqual(
+                [item["name"] for item in node["inputs"]],
+                ["image1", "image2", "image3", "api_config"],
+            )
+            config_link = next(
+                link for link in workflow["links"]
+                if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
+            )
+            self.assertEqual(config_link[4], 3)
 
     def test_example_workflows_do_not_store_runtime_secrets_or_results(self):
         forbidden_patterns = {

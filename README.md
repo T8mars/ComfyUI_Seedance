@@ -18,9 +18,17 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.0（2026-07-26）
+
+- 新增 `Zhenzhen Image Nano Banana 生成/编辑` 节点，一个节点合并 `zhenzhen-image-nb-flash`、`zhenzhen-image-nb-2`、`zhenzhen-image-nb-2-lite` 和 `zhenzhen-image-nb-pro`。
+- 四个模型均支持文生图和最多 14 张参考图编辑；节点按模型动态限制 `resolution`、`size` 和 `n`。
+- `Zhenzhen Video V3.1` 节点新增 `zhenzhen-video-v31-lite`，Lite 仅支持文生视频；V3.1 时长固定为 8 秒，并支持 720p、1080p 和 4k。
+- V3.1 Fast 支持最多 3 张参考图，Quality 禁止三图 reference，Lite 禁止任何图片输入；前端会自动隐藏当前模型不支持的图片插槽。
+- 新增 8 份 Nano Banana 文生图/图像编辑工作流和 1 份 V3.1 Lite 文生视频工作流；原有 4 份 V3.1 工作流已迁移到新插槽布局。
 
 ## v0.4.0（2026-07-25）
 
@@ -128,16 +136,16 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 - 支持 Hailuo 2.3 文生视频、图生视频和 fast 图生视频
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 Zhenzhen Upscaler 视频超分
-- 支持 Zhenzhen Video G / GK / V3.1 视频生成
-- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK 文生图 / 图像编辑
+- 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
+- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK / Nano Banana 文生图 / 图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
 - 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
-- 图像编辑支持 1 到 10 张参考图
+- 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、4 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、5 个 Zhenzhen Image G / GK 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -157,9 +165,10 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
 | `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
+| `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
-| `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` 视频生成 | `model`、`prompt`、时长、分辨率、比例、可选参考图 |
+| `Zhenzhen Video V3.1` | Fast / Quality / Lite 视频生成；Lite 仅文生视频 | `model`、`prompt`、固定 8 秒、分辨率、比例、按模型可选参考图 |
 | `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
 | `Wan 2.7 Spicy 图生视频` | `wan-2.7-spicy-i2v` 图生视频 | `first_image`、`prompt`、时长、分辨率、可选音频 URL |
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
@@ -318,7 +327,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Vidu Q3 短剧成片`：填写短剧脚本内容、`script_name`，并连接至少 1 张参考资产图
    - `Zhenzhen Video G Omni Flash`：使用 `zhenzhen-video-g-omni-flash`
    - `Zhenzhen Video GK v1.5`：使用 `zhenzhen-video-gk-v15`
-   - `Zhenzhen Video V3.1`：在 `zhenzhen-video-v31-fast` 和 `zhenzhen-video-v31-quality` 间切换
+   - `Zhenzhen Video V3.1`：在 `zhenzhen-video-v31-fast`、`zhenzhen-video-v31-quality` 和仅文生视频的 `zhenzhen-video-v31-lite` 间切换
    - `Zhenzhen Upscaler 视频超分`：连接 `input_video` 或填写公网 MP4 `video_url`
 3. 选择 `model`，设置 `seconds`、`resolution`、`ratio`。
 4. 运行工作流。
@@ -347,6 +356,14 @@ Zhenzhen Image GK v1.5 图片生成或编辑：
 2. 选择 `zhenzhen-image-gk-v15` 生成图片，或选择 `zhenzhen-image-gk-v15-edit` 编辑参考图。
 3. 填写提示词，选择 `size`，按需设置 `n`。
 4. 使用编辑模型时连接 `image1`；节点会按文档只提交第一张参考图。
+5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
+
+Zhenzhen Image Nano Banana 图片生成或编辑：
+
+1. 添加 `Zhenzhen Image Nano Banana 生成/编辑`。
+2. 在 Flash、NB 2、NB 2 Lite 和 NB Pro 四个模型间切换；分辨率、比例和图片数量会随模型自动调整。
+3. 填写提示词；不连接参考图时执行文生图，连接 `image1` 到 `image14` 时执行图像编辑。
+4. `nb-flash` 固定 1k；`nb-2` 支持 0.5k 到 4k；`nb-2-lite` 固定 1k 且 `n` 可为 1 到 4；`nb-pro` 支持 1k、2k、4k。
 5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
 音频生成：
@@ -395,6 +412,7 @@ Midjourney 图片与视频：
 - `examples/zhenzhen-image-g-v2-lowprice图像编辑.json`
 - `examples/zhenzhen-image-gk-v15文生图.json`
 - `examples/zhenzhen-image-gk-v15图像编辑.json`
+- `examples/zhenzhen-image-nb-*.json`（8 份，4 个模型各含文生图和图像编辑）
 - `examples/zhenzhen-video-g-omni-flash文生视频.json`
 - `examples/zhenzhen-video-g-omni-flash图生视频.json`
 - `examples/zhenzhen-video-gk-v15文生视频.json`
@@ -403,6 +421,7 @@ Midjourney 图片与视频：
 - `examples/zhenzhen-video-v31-fast图生视频.json`
 - `examples/zhenzhen-video-v31-quality文生视频.json`
 - `examples/zhenzhen-video-v31-quality图生视频.json`
+- `examples/zhenzhen-video-v31-lite文生视频.json`
 - `examples/wan2.7图生视频宽审核.json`
 - `examples/zhenzhen-video-upscaler-视频高清化.json`
 - `examples/快乐马happy-horse-1.1文生视频.json`
@@ -464,13 +483,22 @@ Zhenzhen Image GK v1.5 节点使用同一个 `/v1/image/generations` 图片端�
 | `zhenzhen-image-gk-v15` | 文生图 | `prompt` 必填；`size` 为 `1:1`、`16:9`、`9:16`、`3:2` 或 `2:3`；`n` 为 1 到 10 |
 | `zhenzhen-image-gk-v15-edit` | 图像编辑 | `prompt` 必填；`image1` 必填且只提交第一张；`size` 和 `n` 使用同上 |
 
+Zhenzhen Image Nano Banana 节点使用同一个 `/v1/image/generations` 图片端点：
+
+| 模型 | 分辨率 | 数量 | 参考图与比例 |
+| --- | --- | --- | --- |
+| `zhenzhen-image-nb-flash` | 固定 `1k` | 固定 `1` | 最多 14 张；支持 `auto` 与常用比例；提示词最多 1000 字符 |
+| `zhenzhen-image-nb-2` | `0.5k` / `1k` / `2k` / `4k` | 固定 `1` | 最多 14 张；支持 `1:4`、`4:1`、`1:8`、`8:1` 等扩展比例 |
+| `zhenzhen-image-nb-2-lite` | 固定 `1k` | `1` 到 `4` | 最多 14 张；支持扩展比例 |
+| `zhenzhen-image-nb-pro` | `1k` / `2k` / `4k` | 固定 `1` | 最多 14 张；支持常用比例 |
+
 Zhenzhen Video 节点使用 `/v1/videos` 视频端点：
 
 | 节点 | 模型 | 素材 |
 | --- | --- | --- |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` | 可选 `image1` / `image2` |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` | 可选 `image1` / `image2` |
-| `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` | 可选 `image1` / `image2` |
+| `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` / `zhenzhen-video-v31-lite` | Fast 最多 3 图；Quality 最多 2 图；Lite 禁止图片 |
 
 Whisper 节点使用同步 `/v1/audio/transcriptions` 转写端点：
 
@@ -598,18 +626,30 @@ Zhenzhen Image GK v1.5 参数：
 | `image1` | 编辑模型必填；文生图模型不使用 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
+Zhenzhen Image Nano Banana 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | `zhenzhen-image-nb-flash`、`zhenzhen-image-nb-2`、`zhenzhen-image-nb-2-lite` 或 `zhenzhen-image-nb-pro` |
+| `prompt` | 必填；`nb-flash` 最多 1000 字符 |
+| `resolution` | 按模型动态限制为 `0.5k`、`1k`、`2k`、`4k` 的可用子集 |
+| `size` | 按模型动态限制；NB 2 / NB 2 Lite 支持扩展比例 |
+| `n` | 仅 NB 2 Lite 支持 1 到 4；其余模型固定为 1 |
+| `image1` ... `image14` | 可选参考图；未连接时文生图，连接后按槽位顺序提交图像编辑 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
 Zhenzhen Video G / GK / V3.1 参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | 当前节点支持的 Zhenzhen 视频模型；V3.1 节点可在 fast / quality 间切换 |
+| `model` | 当前节点支持的 Zhenzhen 视频模型；V3.1 节点可在 fast / quality / lite 间切换 |
 | `prompt` | 必填，最多 20480 字符 |
-| `seconds` | 4 到 15 秒，按字符串提交；GK v1.5 节点支持 6 到 30 秒 |
-| `resolution` | `720p` 或 `1080p` |
-| `ratio` | 可选画幅比例，`adaptive` 时不提交该字段 |
+| `seconds` | 通用节点为 4 到 15 秒，GK v1.5 为 6 到 30 秒；V3.1 固定为 8 秒 |
+| `resolution` | 通用节点为 `720p` / `1080p`；V3.1 另支持 `4k` |
+| `ratio` | 通用节点支持可选画幅；V3.1 仅支持 `16:9` / `9:16` |
 | `negative_prompt` | 可选反向提示词，透传为 `metadata.negative_prompt` |
 | `seed` | `-1` 为随机种子；非负整数透传为 `metadata.seed` |
-| `image1` / `image2` | 可选参考图，连接后通过顶层 `images[]` 提交 |
+| `image1` / `image2` / `image3` | 通用节点最多 2 图；V3.1 Fast 最多 3 图，Quality 最多 2 图，Lite 禁止图片 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 HappyHorse 节点参数：

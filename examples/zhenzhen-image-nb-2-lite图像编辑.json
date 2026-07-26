@@ -1,5 +1,5 @@
 {
-  "id": "83334085-f680-4f9c-a0de-af3415a3601d",
+  "id": "5603bcb3-2832-4bc1-afc6-ba26c80f982a",
   "revision": 0,
   "last_node_id": 4,
   "last_link_id": 3,
@@ -7,7 +7,7 @@
     {
       "id": 1,
       "type": "LoadImage",
-      "title": "选择首帧.png",
+      "title": "选择参考图.png",
       "pos": [
         40,
         40
@@ -40,7 +40,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "选择首帧.png",
+        "选择参考图.png",
         "image"
       ]
     },
@@ -79,15 +79,15 @@
     },
     {
       "id": 3,
-      "type": "Zhenzhen_Video_V31",
-      "title": "Zhenzhen Video V3.1 Fast 图生视频",
+      "type": "Zhenzhen_Image_NB",
+      "title": "Nano Banana 2 Lite 图像编辑",
       "pos": [
         400,
-        100
+        80
       ],
       "size": [
-        450,
-        390
+        500,
+        520
       ],
       "flags": {},
       "order": 2,
@@ -112,6 +112,72 @@
           "link": null
         },
         {
+          "name": "image4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image9",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image10",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image11",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image12",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image13",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image14",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -120,14 +186,14 @@
       ],
       "outputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "image",
+          "type": "IMAGE",
           "links": [
             3
           ]
         },
         {
-          "name": "video_url",
+          "name": "image_url",
           "type": "STRING",
           "links": null
         },
@@ -144,56 +210,51 @@
       ],
       "properties": {
         "aux_id": "T8mars/ComfyUI_Seedance",
-        "Node name for S&R": "Zhenzhen_Video_V31"
+        "Node name for S&R": "Zhenzhen_Image_NB"
       },
       "widgets_values": [
-        "zhenzhen-video-v31-fast",
-        "bring the reference image to life with smooth motion, natural lighting changes, subtle handheld camera movement",
-        "8",
-        "720p",
-        "adaptive",
-        "",
-        -1,
-        false
+        "zhenzhen-image-nb-2-lite",
+        "keep the subject identity and composition, replace the background with a clean cinematic studio scene",
+        "1k",
+        "1:1",
+        1
       ]
     },
     {
       "id": 4,
-      "type": "SaveVideo",
+      "type": "SaveImage",
       "pos": [
-        920,
-        150
+        980,
+        160
       ],
       "size": [
         270,
-        180
+        270
       ],
       "flags": {},
       "order": 3,
       "mode": 0,
       "inputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "images",
+          "type": "IMAGE",
           "link": 3
         }
       ],
       "outputs": [
         {
-          "name": "video",
-          "type": "VIDEO",
+          "name": "images",
+          "type": "IMAGE",
           "links": null
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.27.0",
-        "Node name for S&R": "SaveVideo"
+        "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "video/zhenzhen_v31_fast_i2v",
-        "auto",
-        "auto"
+        "zhenzhen_image_nb_2_lite_edit"
       ]
     }
   ],
@@ -211,7 +272,7 @@
       2,
       0,
       3,
-      3,
+      14,
       "SEEDANCE_CONFIG"
     ],
     [
@@ -220,7 +281,7 @@
       0,
       4,
       0,
-      "VIDEO"
+      "IMAGE"
     ]
   ],
   "groups": [],

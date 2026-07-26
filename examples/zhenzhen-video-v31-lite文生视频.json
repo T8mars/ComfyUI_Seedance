@@ -1,51 +1,11 @@
 {
-  "id": "83334085-f680-4f9c-a0de-af3415a3601d",
+  "id": "3e7f4f35-ddfd-4ada-a328-8e957bd3dbd7",
   "revision": 0,
-  "last_node_id": 4,
-  "last_link_id": 3,
+  "last_node_id": 3,
+  "last_link_id": 2,
   "nodes": [
     {
       "id": 1,
-      "type": "LoadImage",
-      "title": "选择首帧.png",
-      "pos": [
-        40,
-        40
-      ],
-      "size": [
-        270,
-        314
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.27.0",
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "选择首帧.png",
-        "image"
-      ]
-    },
-    {
-      "id": 2,
       "type": "Seedance_Config",
       "pos": [
         40,
@@ -56,7 +16,7 @@
         82
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -64,7 +24,7 @@
           "name": "api_config",
           "type": "SEEDANCE_CONFIG",
           "links": [
-            2
+            1
           ]
         }
       ],
@@ -78,26 +38,26 @@
       ]
     },
     {
-      "id": 3,
+      "id": 2,
       "type": "Zhenzhen_Video_V31",
-      "title": "Zhenzhen Video V3.1 Fast 图生视频",
+      "title": "Zhenzhen Video V3.1 Lite 文生视频",
       "pos": [
         400,
-        100
+        80
       ],
       "size": [
-        450,
-        390
+        470,
+        420
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
           "name": "image1",
           "shape": 7,
           "type": "IMAGE",
-          "link": 1
+          "link": null
         },
         {
           "name": "image2",
@@ -115,7 +75,7 @@
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
-          "link": 2
+          "link": 1
         }
       ],
       "outputs": [
@@ -123,7 +83,7 @@
           "name": "video",
           "type": "VIDEO",
           "links": [
-            3
+            2
           ]
         },
         {
@@ -147,35 +107,35 @@
         "Node name for S&R": "Zhenzhen_Video_V31"
       },
       "widgets_values": [
-        "zhenzhen-video-v31-fast",
-        "bring the reference image to life with smooth motion, natural lighting changes, subtle handheld camera movement",
+        "zhenzhen-video-v31-lite",
+        "a paper airplane gliding through warm sunrise clouds, smooth cinematic camera movement",
         "8",
         "720p",
-        "adaptive",
+        "16:9",
         "",
         -1,
         false
       ]
     },
     {
-      "id": 4,
+      "id": 3,
       "type": "SaveVideo",
       "pos": [
-        920,
-        150
+        980,
+        170
       ],
       "size": [
         270,
         180
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 3
+          "link": 2
         }
       ],
       "outputs": [
@@ -191,7 +151,7 @@
         "Node name for S&R": "SaveVideo"
       },
       "widgets_values": [
-        "video/zhenzhen_v31_fast_i2v",
+        "video/zhenzhen_v31_lite",
         "auto",
         "auto"
       ]
@@ -202,23 +162,15 @@
       1,
       1,
       0,
-      3,
-      0,
-      "IMAGE"
-    ],
-    [
       2,
-      2,
-      0,
-      3,
       3,
       "SEEDANCE_CONFIG"
     ],
     [
-      3,
-      3,
+      2,
+      2,
       0,
-      4,
+      3,
       0,
       "VIDEO"
     ]

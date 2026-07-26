@@ -106,6 +106,12 @@
           "link": null
         },
         {
+          "name": "image3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -143,7 +149,7 @@
       "widgets_values": [
         "zhenzhen-video-v31-quality",
         "animate the reference image with premium cinematic motion, realistic depth, soft atmosphere, stable subject identity",
-        "4",
+        "8",
         "720p",
         "adaptive",
         "",
@@ -205,7 +211,7 @@
       2,
       0,
       3,
-      2,
+      3,
       "SEEDANCE_CONFIG"
     ],
     [

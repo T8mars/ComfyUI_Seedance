@@ -1,13 +1,13 @@
 """
 ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, Vidu,
-Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G, Zhenzhen
+Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G/NB, Zhenzhen
 Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
 HappyHorse, Wan, Kling, Hailuo, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
-selector, Zhenzhen Image G uses its own image node, Zhenzhen Video models
+selector, Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
 Whisper transcription uses a synchronous audio node.
 
@@ -127,16 +127,64 @@ ZHENZHEN_IMAGE_GK_V15_MODELS = [
 ]
 ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
 ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
+ZHENZHEN_IMAGE_NB_FLASH_MODEL = "zhenzhen-image-nb-flash"
+ZHENZHEN_IMAGE_NB_2_MODEL = "zhenzhen-image-nb-2"
+ZHENZHEN_IMAGE_NB_2_LITE_MODEL = "zhenzhen-image-nb-2-lite"
+ZHENZHEN_IMAGE_NB_PRO_MODEL = "zhenzhen-image-nb-pro"
+ZHENZHEN_IMAGE_NB_MODELS = [
+    ZHENZHEN_IMAGE_NB_FLASH_MODEL,
+    ZHENZHEN_IMAGE_NB_2_MODEL,
+    ZHENZHEN_IMAGE_NB_2_LITE_MODEL,
+    ZHENZHEN_IMAGE_NB_PRO_MODEL,
+]
+ZHENZHEN_IMAGE_NB_STANDARD_SIZES = [
+    "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9",
+]
+ZHENZHEN_IMAGE_NB_EXTREME_SIZES = [
+    "1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1",
+    "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9",
+]
+ZHENZHEN_IMAGE_NB_SIZES = ["auto", *ZHENZHEN_IMAGE_NB_EXTREME_SIZES]
+ZHENZHEN_IMAGE_NB_RESOLUTIONS = ["0.5k", "1k", "2k", "4k"]
+ZHENZHEN_IMAGE_NB_MODEL_RESOLUTIONS = {
+    ZHENZHEN_IMAGE_NB_FLASH_MODEL: ("1k",),
+    ZHENZHEN_IMAGE_NB_2_MODEL: ("0.5k", "1k", "2k", "4k"),
+    ZHENZHEN_IMAGE_NB_2_LITE_MODEL: ("1k",),
+    ZHENZHEN_IMAGE_NB_PRO_MODEL: ("1k", "2k", "4k"),
+}
+ZHENZHEN_IMAGE_NB_MODEL_SIZES = {
+    ZHENZHEN_IMAGE_NB_FLASH_MODEL: ("auto", *ZHENZHEN_IMAGE_NB_STANDARD_SIZES),
+    ZHENZHEN_IMAGE_NB_2_MODEL: tuple(ZHENZHEN_IMAGE_NB_EXTREME_SIZES),
+    ZHENZHEN_IMAGE_NB_2_LITE_MODEL: tuple(ZHENZHEN_IMAGE_NB_EXTREME_SIZES),
+    ZHENZHEN_IMAGE_NB_PRO_MODEL: tuple(ZHENZHEN_IMAGE_NB_STANDARD_SIZES),
+}
+ZHENZHEN_IMAGE_NB_MODEL_N_RANGE = {
+    ZHENZHEN_IMAGE_NB_FLASH_MODEL: (1, 1),
+    ZHENZHEN_IMAGE_NB_2_MODEL: (1, 1),
+    ZHENZHEN_IMAGE_NB_2_LITE_MODEL: (1, 4),
+    ZHENZHEN_IMAGE_NB_PRO_MODEL: (1, 1),
+}
+MAX_ZHENZHEN_IMAGE_NB_IMAGES = 14
+ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH = 1000
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
 ZHENZHEN_VIDEO_GK_V15_MODEL = "zhenzhen-video-gk-v15"
 ZHENZHEN_VIDEO_V31_FAST_MODEL = "zhenzhen-video-v31-fast"
 ZHENZHEN_VIDEO_V31_QUALITY_MODEL = "zhenzhen-video-v31-quality"
-ZHENZHEN_VIDEO_V31_MODELS = [ZHENZHEN_VIDEO_V31_FAST_MODEL, ZHENZHEN_VIDEO_V31_QUALITY_MODEL]
+ZHENZHEN_VIDEO_V31_LITE_MODEL = "zhenzhen-video-v31-lite"
+ZHENZHEN_VIDEO_V31_MODELS = [
+    ZHENZHEN_VIDEO_V31_FAST_MODEL,
+    ZHENZHEN_VIDEO_V31_QUALITY_MODEL,
+    ZHENZHEN_VIDEO_V31_LITE_MODEL,
+]
 ZHENZHEN_VIDEO_RESOLUTIONS = ["720p", "1080p"]
 ZHENZHEN_VIDEO_SECONDS = [str(s) for s in range(4, 16)]
 ZHENZHEN_VIDEO_GK_SECONDS = [str(s) for s in range(6, 31)]
 MAX_ZHENZHEN_VIDEO_IMAGES = 2
+ZHENZHEN_VIDEO_V31_RESOLUTIONS = ["720p", "1080p", "4k"]
+ZHENZHEN_VIDEO_V31_RATIOS = ["16:9", "9:16"]
+ZHENZHEN_VIDEO_V31_SECONDS = ["8"]
+MAX_ZHENZHEN_VIDEO_V31_IMAGES = 3
 
 HAPPYHORSE_T2V_MODEL = "happyhorse-1.1-t2v"
 HAPPYHORSE_I2V_MODEL = "happyhorse-1.1-i2v"
@@ -1517,11 +1565,15 @@ class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
     LOG_PREFIX = "Zhenzhen_video"
     SECONDS = ZHENZHEN_VIDEO_SECONDS
     DEFAULT_SECONDS = "4"
+    SUPPORTED_RESOLUTIONS = ZHENZHEN_VIDEO_RESOLUTIONS
+    SUPPORTED_RATIOS = RATIOS
+    DEFAULT_RATIO = "16:9"
+    MAX_IMAGES = MAX_ZHENZHEN_VIDEO_IMAGES
 
     @classmethod
     def INPUT_TYPES(cls):
         optional: Dict[str, tuple] = {}
-        for i in range(1, MAX_ZHENZHEN_VIDEO_IMAGES + 1):
+        for i in range(1, cls.MAX_IMAGES + 1):
             optional[f"image{i}"] = ("IMAGE", {
                 "tooltip": (
                     f"Optional reference image {i}; connected images are submitted as images[]. | "
@@ -1547,12 +1599,12 @@ class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
                     "default": cls.DEFAULT_SECONDS,
                     "tooltip": "Video duration in seconds, submitted as a string. | 视频时长，按字符串提交。",
                 }),
-                "resolution": (ZHENZHEN_VIDEO_RESOLUTIONS, {
-                    "default": "720p",
+                "resolution": (cls.SUPPORTED_RESOLUTIONS, {
+                    "default": cls.SUPPORTED_RESOLUTIONS[0],
                     "tooltip": "Target resolution. | 目标分辨率。",
                 }),
-                "ratio": (RATIOS, {
-                    "default": "16:9",
+                "ratio": (cls.SUPPORTED_RATIOS, {
+                    "default": cls.DEFAULT_RATIO,
                     "tooltip": "Optional aspect ratio forwarded as metadata.ratio. | 可选画幅比例，透传为 metadata.ratio。",
                 }),
                 "negative_prompt": ("STRING", {
@@ -1591,9 +1643,12 @@ class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
                 f"Zhenzhen video seconds must be one of {', '.join(cls.SECONDS)} | "
                 "Zhenzhen 视频时长不在当前模型支持范围内"
             )
-        if resolution is not None and resolution not in ZHENZHEN_VIDEO_RESOLUTIONS:
-            return "Zhenzhen video resolution must be 720p or 1080p | Zhenzhen 视频分辨率只能是 720p 或 1080p"
-        if ratio is not None and ratio not in RATIOS:
+        if resolution is not None and resolution not in cls.SUPPORTED_RESOLUTIONS:
+            return (
+                f"Zhenzhen video resolution must be one of {', '.join(cls.SUPPORTED_RESOLUTIONS)} | "
+                "Zhenzhen 视频分辨率不在当前模型支持范围内"
+            )
+        if ratio is not None and ratio not in cls.SUPPORTED_RATIOS:
             return f"unsupported ratio: {ratio}"
         if prompt is not None and len(str(prompt)) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(str(prompt))})"
@@ -1617,7 +1672,7 @@ class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
     def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
         slots = [
             (i, kwargs.get(f"image{i}"))
-            for i in range(1, MAX_ZHENZHEN_VIDEO_IMAGES + 1)
+            for i in range(1, self.MAX_IMAGES + 1)
             if kwargs.get(f"image{i}") is not None
         ]
         connected = [i for i, _ in slots]
@@ -1681,7 +1736,7 @@ class ZhenzhenVideoGenerationBase(SeedanceVideoNodeBase):
         }
         images = media.get("images") or []
         if images:
-            payload["images"] = images[:MAX_ZHENZHEN_VIDEO_IMAGES]
+            payload["images"] = images[:self.MAX_IMAGES]
         return payload
 
 
@@ -1704,11 +1759,38 @@ class ZhenzhenVideoGKV15(ZhenzhenVideoGenerationBase):
 
 
 class ZhenzhenVideoV31(ZhenzhenVideoGenerationBase):
-    """Zhenzhen Video V3.1 fast/quality via /v1/videos."""
+    """Zhenzhen Video V3.1 fast/quality/lite via /v1/videos."""
 
     MODELS = ZHENZHEN_VIDEO_V31_MODELS
     DEFAULT_MODEL = ZHENZHEN_VIDEO_V31_FAST_MODEL
     LOG_PREFIX = "Zhenzhen_video_v31"
+    SECONDS = ZHENZHEN_VIDEO_V31_SECONDS
+    DEFAULT_SECONDS = "8"
+    SUPPORTED_RESOLUTIONS = ZHENZHEN_VIDEO_V31_RESOLUTIONS
+    SUPPORTED_RATIOS = ZHENZHEN_VIDEO_V31_RATIOS
+    MAX_IMAGES = MAX_ZHENZHEN_VIDEO_V31_IMAGES
+
+    def _validate_image_mode(self, model: str, images: List[Any]):
+        if model == ZHENZHEN_VIDEO_V31_LITE_MODEL and images:
+            raise SeedanceAPIError(
+                "zhenzhen-video-v31-lite is text-to-video only and does not accept images | "
+                "zhenzhen-video-v31-lite 仅支持文生视频，不能连接图片"
+            )
+        if model == ZHENZHEN_VIDEO_V31_QUALITY_MODEL and len(images) >= 3:
+            raise SeedanceAPIError(
+                "zhenzhen-video-v31-quality does not accept 3-image reference mode | "
+                "zhenzhen-video-v31-quality 不支持三图 reference 模式"
+            )
+
+    def collect_media(self, kwargs, config, progress_cb):
+        image_slots = self._connected_images(kwargs)
+        self._validate_image_mode(kwargs.get("model"), [image for _, image in image_slots])
+        return super().collect_media(kwargs, config, progress_cb)
+
+    def build_payload(self, kwargs, media):
+        images = list(media.get("images") or [])
+        self._validate_image_mode(kwargs.get("model"), images)
+        return super().build_payload(kwargs, media)
 
 
 # ---------------------------------------------------------------------------
@@ -3393,6 +3475,254 @@ class ZhenzhenImageGKV15:
         self._update_progress(pbar, 15)
 
         payload = self._build_payload(model, prompt_text, size, n, image_urls)
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Image Nano Banana generation and editing
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageNB:
+    """Zhenzhen Nano Banana text-to-image and image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{i}": ("IMAGE", {
+                "tooltip": (
+                    f"Optional reference image {i} of {MAX_ZHENZHEN_IMAGE_NB_IMAGES}; "
+                    "connected images are uploaded and submitted in slot order. | "
+                    f"可选参考图 {i}/{MAX_ZHENZHEN_IMAGE_NB_IMAGES}，按槽位顺序上传提交。"
+                ),
+            })
+            for i in range(1, MAX_ZHENZHEN_IMAGE_NB_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+
+        return {
+            "required": {
+                "model": (ZHENZHEN_IMAGE_NB_MODELS, {
+                    "default": ZHENZHEN_IMAGE_NB_FLASH_MODEL,
+                    "tooltip": (
+                        "Nano Banana model. Every model supports text-to-image and optional "
+                        "reference-image editing. | Nano Banana 模型，均支持文生图和可选参考图编辑。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required prompt. zhenzhen-image-nb-flash supports up to 1000 characters. | "
+                        "必填提示词；zhenzhen-image-nb-flash 最多 1000 字符。"
+                    ),
+                }),
+                "resolution": (ZHENZHEN_IMAGE_NB_RESOLUTIONS, {
+                    "default": "1k",
+                    "tooltip": "Model-specific output resolution. | 按模型限制的输出分辨率。",
+                }),
+                "size": (ZHENZHEN_IMAGE_NB_SIZES, {
+                    "default": "1:1",
+                    "tooltip": "Model-specific aspect ratio. | 按模型限制的画幅比例。",
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 4,
+                    "step": 1,
+                    "tooltip": (
+                        "Requested image count. Only nb-2-lite supports 1 to 4; other models require 1. "
+                        "The node downloads the primary gateway result. | 请求图片数量；仅 nb-2-lite "
+                        "支持 1 到 4，其他模型固定为 1。节点下载网关返回的主结果。"
+                    ),
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        resolution=None,
+        size=None,
+        n=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *ZHENZHEN_IMAGE_NB_MODELS):
+            return f"unsupported Zhenzhen Image NB model: {model}"
+
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Zhenzhen Image NB | Zhenzhen Image NB 必须填写提示词"
+        if (
+            model == ZHENZHEN_IMAGE_NB_FLASH_MODEL
+            and len(prompt_text) > ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH
+        ):
+            return (
+                f"zhenzhen-image-nb-flash prompt exceeds "
+                f"{ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)}) | nb-flash 提示词不能超过 "
+                f"{ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH} 字符"
+            )
+
+        if model in ZHENZHEN_IMAGE_NB_MODEL_RESOLUTIONS:
+            allowed_resolutions = ZHENZHEN_IMAGE_NB_MODEL_RESOLUTIONS[model]
+            if resolution is not None and resolution not in allowed_resolutions:
+                return (
+                    f"{model} resolution must be one of {', '.join(allowed_resolutions)} | "
+                    "当前模型不支持所选分辨率"
+                )
+
+        if model in ZHENZHEN_IMAGE_NB_MODEL_SIZES:
+            allowed_sizes = ZHENZHEN_IMAGE_NB_MODEL_SIZES[model]
+            if size is not None and size not in allowed_sizes:
+                return (
+                    f"{model} size must be one of {', '.join(allowed_sizes)} | "
+                    "当前模型不支持所选画幅比例"
+                )
+
+        if n is not None and model in ZHENZHEN_IMAGE_NB_MODEL_N_RANGE:
+            try:
+                n_value = int(n)
+            except (TypeError, ValueError):
+                return "n must be an integer | n 必须是整数"
+            minimum, maximum = ZHENZHEN_IMAGE_NB_MODEL_N_RANGE[model]
+            if not minimum <= n_value <= maximum:
+                return (
+                    f"{model} n must be between {minimum} and {maximum} | "
+                    "当前模型不支持所选图片数量"
+                )
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_nb"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_ZHENZHEN_IMAGE_NB_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: NB image slots {connected} have gaps; "
+                f"they will be compacted to images order 1..{len(connected)}."
+            )
+        return slots
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        resolution: str,
+        size: str,
+        n: int,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            resolution=resolution,
+            size=size,
+            n=n,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "n": int(n),
+            "size": size,
+            "metadata": {"resolution": resolution},
+        }
+        if images:
+            payload["images"] = images[:MAX_ZHENZHEN_IMAGE_NB_IMAGES]
+        return payload
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        resolution: str,
+        size: str,
+        n: int,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            resolution=resolution,
+            size=size,
+            n=n,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        self._update_progress(pbar, 0)
+
+        references = self._connected_images(kwargs)
+        image_urls: List[str] = []
+        for done, (slot, tensor) in enumerate(references, start=1):
+            image_url = upload_media(
+                image_to_png_bytes(tensor),
+                f"zhenzhen_image_nb_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            image_urls.append(image_url)
+            self._update_progress(pbar, done / len(references) * 15)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(model, prompt_text, resolution, size, n, image_urls)
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
 
@@ -5690,6 +6020,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
+    "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_GK_V15": ZhenzhenVideoGKV15,
     "Zhenzhen_Video_V31": ZhenzhenVideoV31,
@@ -5715,6 +6046,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
+    "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_GK_V15": "Zhenzhen Video GK v1.5",
     "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",

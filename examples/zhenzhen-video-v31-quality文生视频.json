@@ -66,6 +66,12 @@
           "link": null
         },
         {
+          "name": "image3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "api_config",
           "shape": 7,
           "type": "SEEDANCE_CONFIG",
@@ -103,7 +109,7 @@
       "widgets_values": [
         "zhenzhen-video-v31-quality",
         "a serene mountain lake with drifting mist, subtle ripples, cinematic landscape photography",
-        "4",
+        "8",
         "720p",
         "16:9",
         "",
@@ -157,7 +163,7 @@
       1,
       0,
       2,
-      2,
+      3,
       "SEEDANCE_CONFIG"
     ],
     [

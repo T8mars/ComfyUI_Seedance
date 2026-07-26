@@ -768,7 +768,7 @@ class ImageNodeTests(unittest.TestCase):
             {
                 "model": nodes.ZHENZHEN_VIDEO_V31_QUALITY_MODEL,
                 "prompt": "a cinematic city sunrise",
-                "seconds": "4",
+                "seconds": "8",
                 "resolution": "720p",
                 "ratio": "9:16",
                 "negative_prompt": "",
@@ -785,7 +785,7 @@ class ImageNodeTests(unittest.TestCase):
             nodes.ZhenzhenVideoV31.VALIDATE_INPUTS(
                 model=nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
                 prompt="",
-                seconds="4",
+                seconds="8",
                 resolution="720p",
                 ratio="16:9",
                 negative_prompt="",
@@ -797,7 +797,7 @@ class ImageNodeTests(unittest.TestCase):
             nodes.ZhenzhenVideoV31.VALIDATE_INPUTS(
                 model=nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
                 prompt="",
-                seconds="4",
+                seconds="8",
                 resolution="720p",
                 ratio="16:9",
                 negative_prompt="",
@@ -819,6 +819,223 @@ class ImageNodeTests(unittest.TestCase):
             True,
         )
 
+
+    def test_zhenzhen_image_nb_catalog_matches_documented_models(self):
+        self.assertEqual(
+            nodes.ZHENZHEN_IMAGE_NB_MODELS,
+            [
+                "zhenzhen-image-nb-flash",
+                "zhenzhen-image-nb-2",
+                "zhenzhen-image-nb-2-lite",
+                "zhenzhen-image-nb-pro",
+            ],
+        )
+
+    def test_zhenzhen_image_nb_payloads_follow_model_contracts(self):
+        node = nodes.ZhenzhenImageNB()
+        cases = (
+            (nodes.ZHENZHEN_IMAGE_NB_FLASH_MODEL, "1k", "auto", 1),
+            (nodes.ZHENZHEN_IMAGE_NB_2_MODEL, "0.5k", "1:8", 1),
+            (nodes.ZHENZHEN_IMAGE_NB_2_LITE_MODEL, "1k", "8:1", 4),
+            (nodes.ZHENZHEN_IMAGE_NB_PRO_MODEL, "4k", "21:9", 1),
+        )
+        for model, resolution, size, n in cases:
+            with self.subTest(model=model):
+                payload = node._build_payload(
+                    model,
+                    "a clean editorial product image",
+                    resolution,
+                    size,
+                    n,
+                    ["https://cdn.test/a.png", "https://cdn.test/b.png"],
+                )
+                self.assertEqual(payload["model"], model)
+                self.assertEqual(payload["prompt"], "a clean editorial product image")
+                self.assertEqual(payload["metadata"], {"resolution": resolution})
+                self.assertEqual(payload["size"], size)
+                self.assertEqual(payload["n"], n)
+                self.assertEqual(
+                    payload["images"],
+                    ["https://cdn.test/a.png", "https://cdn.test/b.png"],
+                )
+
+    def test_zhenzhen_image_nb_text_payload_omits_images(self):
+        payload = nodes.ZhenzhenImageNB()._build_payload(
+            nodes.ZHENZHEN_IMAGE_NB_PRO_MODEL,
+            "a clean editorial product image",
+            "1k",
+            "1:1",
+            1,
+            [],
+        )
+        self.assertNotIn("images", payload)
+
+    def test_zhenzhen_image_nb_validation_is_model_specific(self):
+        validate = nodes.ZhenzhenImageNB.VALIDATE_INPUTS
+        self.assertIs(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_FLASH_MODEL,
+                prompt="valid",
+                resolution="1k",
+                size="auto",
+                n=1,
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_FLASH_MODEL,
+                prompt="x" * 1001,
+                resolution="1k",
+                size="1:1",
+                n=1,
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_FLASH_MODEL,
+                prompt="valid",
+                resolution="2k",
+                size="1:1",
+                n=1,
+            ),
+            True,
+        )
+        self.assertIs(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_2_LITE_MODEL,
+                prompt="valid",
+                resolution="1k",
+                size="1:8",
+                n=4,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_PRO_MODEL,
+                prompt="valid",
+                resolution="1k",
+                size="auto",
+                n=1,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            validate(
+                model=nodes.ZHENZHEN_IMAGE_NB_PRO_MODEL,
+                prompt="valid",
+                resolution="1k",
+                size="1:1",
+                n=2,
+            ),
+            True,
+        )
+
+    def test_zhenzhen_image_nb_execute_uploads_references_and_returns_image(self):
+        node = nodes.ZhenzhenImageNB()
+        result_tensor = torch.zeros((1, 4, 4, 3), dtype=torch.float32)
+        final_response = {
+            "data": {
+                "status": "SUCCESS",
+                "result_url": "https://cdn.test/result.png",
+            }
+        }
+
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "upload_media", side_effect=[
+                "https://cdn.test/a.png",
+                "https://cdn.test/b.png",
+            ]
+        ) as upload, patch.object(
+            nodes, "submit_image_task", return_value="image-task"
+        ) as submit, patch.object(
+            nodes, "poll_image_task", return_value=final_response
+        ), patch.object(
+            nodes, "download_image", return_value=result_tensor
+        ):
+            output = node.execute(
+                model=nodes.ZHENZHEN_IMAGE_NB_2_LITE_MODEL,
+                prompt="edit the product into a studio scene",
+                resolution="1k",
+                size="16:9",
+                n=1,
+                image1=torch.zeros((1, 8, 8, 3), dtype=torch.float32),
+                image3=torch.zeros((1, 8, 8, 3), dtype=torch.float32),
+            )
+
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(
+            submit.call_args.args[0]["images"],
+            ["https://cdn.test/a.png", "https://cdn.test/b.png"],
+        )
+        self.assertIs(output["result"][0], result_tensor)
+        self.assertEqual(output["result"][1:3], ("https://cdn.test/result.png", "image-task"))
+
+    def test_zhenzhen_video_v31_contract_uses_fixed_duration_and_model_limits(self):
+        input_types = nodes.ZhenzhenVideoV31.INPUT_TYPES()
+        self.assertEqual(input_types["required"]["seconds"][0], ["8"])
+        self.assertEqual(
+            input_types["required"]["resolution"][0],
+            ["720p", "1080p", "4k"],
+        )
+        self.assertEqual(input_types["required"]["ratio"][0], ["16:9", "9:16"])
+        self.assertIn("image3", input_types["optional"])
+
+        node = nodes.ZhenzhenVideoV31()
+        lite_payload = node.build_payload(
+            {
+                "model": nodes.ZHENZHEN_VIDEO_V31_LITE_MODEL,
+                "prompt": "a cinematic city sunrise",
+                "seconds": "8",
+                "resolution": "720p",
+                "ratio": "16:9",
+                "negative_prompt": "",
+                "seed": -1,
+            },
+            {},
+        )
+        self.assertEqual(lite_payload["model"], "zhenzhen-video-v31-lite")
+        self.assertEqual(lite_payload["seconds"], "8")
+        self.assertNotIn("images", lite_payload)
+
+        fast_payload = node.build_payload(
+            {
+                "model": nodes.ZHENZHEN_VIDEO_V31_FAST_MODEL,
+                "prompt": "a product reference sequence",
+                "seconds": "8",
+                "resolution": "4k",
+                "ratio": "9:16",
+                "negative_prompt": "",
+                "seed": -1,
+            },
+            {"images": ["a", "b", "c"]},
+        )
+        self.assertEqual(fast_payload["images"], ["a", "b", "c"])
+
+    def test_zhenzhen_video_v31_rejects_invalid_image_modes(self):
+        node = nodes.ZhenzhenVideoV31()
+        common = {
+            "prompt": "valid prompt",
+            "seconds": "8",
+            "resolution": "720p",
+            "ratio": "16:9",
+            "negative_prompt": "",
+            "seed": -1,
+        }
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {"model": nodes.ZHENZHEN_VIDEO_V31_LITE_MODEL, **common},
+                {"images": ["a"]},
+            )
+        with self.assertRaises(client.SeedanceAPIError):
+            node.build_payload(
+                {"model": nodes.ZHENZHEN_VIDEO_V31_QUALITY_MODEL, **common},
+                {"images": ["a", "b", "c"]},
+            )
 
 class NewModelNodeTests(unittest.TestCase):
     def test_kling_text_to_video_payload(self):
