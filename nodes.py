@@ -640,21 +640,32 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
 }
 SUNO_OPERATIONS = list(SUNO_ACTION_SPECS)
 
-MIDJOURNEY_SPEEDS = ["unset", "relax", "fast", "turbo"]
+MIDJOURNEY_SPEEDS = ["relax", "fast", "turbo", "unset"]
 MIDJOURNEY_VERSIONS = [
-    "unset",
+    "8.2",
+    "8.1",
+    "7",
+    "6.1",
+    "6",
     "5",
     "5.1",
     "5.2",
-    "6",
-    "6.1",
-    "7",
-    "8.1",
-    "8.2",
+    "unset",
 ]
-MIDJOURNEY_DIMENSIONS = ["unset", "SQUARE", "PORTRAIT", "LANDSCAPE"]
-MIDJOURNEY_QUALITIES = ["unset", "0.25", "0.5", "1", "2"]
-MIDJOURNEY_DIRECTIONS = ["unset", "left", "right", "up", "down"]
+MIDJOURNEY_DIMENSIONS = ["SQUARE", "PORTRAIT", "LANDSCAPE", "unset"]
+MIDJOURNEY_QUALITIES = ["1", "0.25", "0.5", "2", "unset"]
+MIDJOURNEY_DIRECTIONS = ["right", "left", "up", "down", "unset"]
+MIDJOURNEY_SIZES = [
+    "1:1",
+    "16:9",
+    "9:16",
+    "4:3",
+    "3:4",
+    "3:2",
+    "2:3",
+    "21:9",
+    "custom",
+]
 MIDJOURNEY_MODAL_MODES = ["region", "outpaint"]
 MIDJOURNEY_VIDEO_TYPES = [
     "vid_1.1_i2v_480",
@@ -913,6 +924,37 @@ MIDJOURNEY_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
     },
 }
 MIDJOURNEY_OPERATIONS = list(MIDJOURNEY_ACTION_SPECS)
+MIDJOURNEY_OPERATION_LABELS = {
+    "midjourney-imagine": "midjourney-imagine｜文生图 / 参考图生成",
+    "midjourney-blend": "midjourney-blend｜2-4 张图片融合",
+    "midjourney-describe": "midjourney-describe｜图片反推提示词",
+    "midjourney-edits": "midjourney-edits｜图片编辑",
+    "midjourney-upscale": "midjourney-upscale｜指定图片放大",
+    "midjourney-variation": "midjourney-variation｜生成图片变体",
+    "midjourney-high-variation": "midjourney-high-variation｜大幅变体",
+    "midjourney-low-variation": "midjourney-low-variation｜轻微变体",
+    "midjourney-reroll": "midjourney-reroll｜重新生成整组",
+    "midjourney-zoom": "midjourney-zoom｜缩放扩图",
+    "midjourney-pan": "midjourney-pan｜平移扩图",
+    "midjourney-inpaint": "midjourney-inpaint｜进入局部重绘",
+    "midjourney-modal": "midjourney-modal｜提交局部重绘",
+    "midjourney-video": "midjourney-video｜图生视频 / 首尾帧",
+    "midjourney-remix-strong": "midjourney-remix-strong｜强重塑",
+    "midjourney-remix-subtle": "midjourney-remix-subtle｜弱重塑",
+}
+MIDJOURNEY_OPERATION_CHOICES = [
+    *MIDJOURNEY_OPERATION_LABELS.values(),
+    *MIDJOURNEY_OPERATIONS,
+]
+MIDJOURNEY_OPERATION_BY_LABEL = {
+    label: operation
+    for operation, label in MIDJOURNEY_OPERATION_LABELS.items()
+}
+
+
+def _normalize_midjourney_operation(value: Any) -> str:
+    operation = str(value or "").strip()
+    return MIDJOURNEY_OPERATION_BY_LABEL.get(operation, operation)
 
 
 def _is_standard_tier(model: str) -> bool:
@@ -5128,13 +5170,15 @@ class MidjourneyMultiAction:
                 ),
             },
         )
-
         required: Dict[str, tuple] = {
             "operation": (
-                MIDJOURNEY_OPERATIONS,
+                MIDJOURNEY_OPERATION_CHOICES,
                 {
-                    "default": "midjourney-imagine",
-                    "tooltip": "Select one documented Midjourney action. | 选择操作。",
+                    "default": MIDJOURNEY_OPERATION_LABELS["midjourney-imagine"],
+                    "tooltip": (
+                        "Select a documented Midjourney action; the suffix explains its use. | "
+                        "选择 Midjourney 操作，后缀标明用途。"
+                    ),
                 },
             ),
             "prompt": (
@@ -5151,29 +5195,42 @@ class MidjourneyMultiAction:
             "speed": (
                 MIDJOURNEY_SPEEDS,
                 {
-                    "default": "unset",
-                    "tooltip": "Optional action speed. | 可选速度模式。",
+                    "default": "relax",
+                    "tooltip": "Action speed; relax is the documented default. | 速度模式，默认 relax。",
                 },
             ),
             "size": (
+                MIDJOURNEY_SIZES,
+                {
+                    "default": "1:1",
+                    "tooltip": (
+                        "Common aspect ratios; choose custom to enter another w:h ratio. | "
+                        "常用画面比例，选择 custom 可手填其他 w:h 比例。"
+                    ),
+                },
+            ),
+            "custom_size": (
                 "STRING",
                 {
                     "default": "",
-                    "tooltip": "Aspect ratio such as 16:9. | 画面比例，如 16:9。",
+                    "tooltip": (
+                        "Used only when size is custom; enter a positive w:h ratio. | "
+                        "仅 size 选择 custom 时使用，请填写正整数比例 w:h。"
+                    ),
                 },
             ),
             "dimensions": (
                 MIDJOURNEY_DIMENSIONS,
                 {
-                    "default": "unset",
+                    "default": "SQUARE",
                     "tooltip": "Blend preset ratio; size takes priority. | Blend 预设比例。",
                 },
             ),
             "quality": (
                 MIDJOURNEY_QUALITIES,
                 {
-                    "default": "unset",
-                    "tooltip": "Optional Imagine/Edits quality flag. | 可选质量参数。",
+                    "default": "1",
+                    "tooltip": "Imagine/Edits quality; default 1. | Imagine/Edits 质量，默认 1。",
                 },
             ),
             "style": (
@@ -5182,7 +5239,10 @@ class MidjourneyMultiAction:
             ),
             "version": (
                 MIDJOURNEY_VERSIONS,
-                {"default": "unset", "tooltip": "Optional Midjourney version. | 可选版本。"},
+                {
+                    "default": "8.2",
+                    "tooltip": "Midjourney version; default 8.2. | Midjourney 版本，默认 8.2。",
+                },
             ),
             "seed": (
                 "INT",
@@ -5269,7 +5329,7 @@ class MidjourneyMultiAction:
             ),
             "direction": (
                 MIDJOURNEY_DIRECTIONS,
-                {"default": "unset", "tooltip": "Pan direction. | Pan 平移方向。"},
+                {"default": "right", "tooltip": "Pan direction. | Pan 平移方向。"},
             ),
             "zoom_ratio": (
                 "FLOAT",
@@ -5343,9 +5403,12 @@ class MidjourneyMultiAction:
         motion=None,
         batch_size=None,
         index=None,
+        size=None,
+        custom_size=None,
         strict=False,
         **kwargs,
     ):
+        operation = _normalize_midjourney_operation(operation)
         if operation not in MIDJOURNEY_ACTION_SPECS:
             return f"unsupported Midjourney operation: {operation}"
         enum_values = {
@@ -5366,6 +5429,22 @@ class MidjourneyMultiAction:
             return "batch_size must be 1, 2, or 4"
         if index is not None and not -1 <= int(index) <= 4:
             return "index must be between -1 and 4"
+        supports_size = (
+            "size" in MIDJOURNEY_ACTION_SPECS[operation]["allowed_fields"]
+        )
+        should_validate_size = (
+            size is not None
+            and (
+                str(size).strip() != "custom"
+                or strict
+                or str(custom_size or "").strip()
+            )
+        )
+        if supports_size and should_validate_size:
+            try:
+                cls._resolve_size(size, custom_size)
+            except SeedanceAPIError as error:
+                return str(error)
         return True
 
     @property
@@ -5375,6 +5454,28 @@ class MidjourneyMultiAction:
     @staticmethod
     def _text(value: Any) -> str:
         return str(value or "").strip()
+
+    @staticmethod
+    def _is_aspect_ratio(value: str) -> bool:
+        parts = value.split(":")
+        return (
+            len(parts) == 2
+            and all(part.isdigit() for part in parts)
+            and all(int(part) > 0 for part in parts)
+        )
+
+    @classmethod
+    def _resolve_size(cls, size: Any, custom_size: Any = "") -> str:
+        selected = cls._text(size)
+        if selected in {"", "unset"}:
+            return "1:1"
+        resolved = cls._text(custom_size) if selected == "custom" else selected
+        if not cls._is_aspect_ratio(resolved):
+            raise SeedanceAPIError(
+                "size must be a positive w:h ratio, for example 16:9 | "
+                "画面比例必须为正整数 w:h 格式，例如 16:9"
+            )
+        return resolved
 
     def _update_progress(self, pbar, value: float):
         if pbar is not None:
@@ -5571,6 +5672,7 @@ class MidjourneyMultiAction:
         materials: Dict[str, Any],
         **kwargs,
     ) -> Dict[str, Any]:
+        operation = _normalize_midjourney_operation(operation)
         if operation not in MIDJOURNEY_ACTION_SPECS:
             raise SeedanceAPIError(
                 f"unsupported Midjourney operation: {operation}"
@@ -5603,9 +5705,12 @@ class MidjourneyMultiAction:
         if "speed" in allowed and speed and speed != "unset":
             payload["speed"] = speed
 
-        size = self._text(kwargs.get("size"))
-        if "size" in allowed and size:
-            payload["size"] = size
+        if "size" in allowed:
+            payload["size"] = self._resolve_size(
+                kwargs.get("size"),
+                kwargs.get("custom_size"),
+            )
+        size = self._text(payload.get("size"))
         dimensions = self._text(kwargs.get("dimensions"))
         if "dimensions" in allowed and dimensions and dimensions != "unset" and not size:
             payload["dimensions"] = dimensions
@@ -5872,6 +5977,7 @@ class MidjourneyMultiAction:
         api_config=None,
         **kwargs,
     ):
+        operation = _normalize_midjourney_operation(operation)
         validation = self.VALIDATE_INPUTS(
             operation=operation,
             speed=kwargs.get("speed"),
@@ -5885,6 +5991,8 @@ class MidjourneyMultiAction:
             motion=kwargs.get("motion"),
             batch_size=kwargs.get("batch_size"),
             index=kwargs.get("index"),
+            size=kwargs.get("size"),
+            custom_size=kwargs.get("custom_size"),
             strict=True,
         )
         if validation is not True:

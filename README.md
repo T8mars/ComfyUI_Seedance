@@ -22,6 +22,13 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.2（2026-07-27）
+
+- 优化 `Midjourney 图像与视频（16 合 1）` 节点，下拉项在 action ID 后显示中文用途。
+- `size` 改为常用比例选择，并提供 `custom` 手填 `w:h` 比例；仅选择 custom 时显示手填框。
+- 默认使用 `relax`、`1:1`、`quality=1`、`version=8.2`、`SQUARE` 和向右平移，旧工作流中的 `unset`、空比例及自由比例会自动迁移。
+- 同步更新 19 份 Midjourney 示例工作流。
+
 ## v0.5.1（2026-07-26）
 
 - 修正同一节点内 G-2 与 `zhenzhen-image-g-v2-lowprice` 的参数分流，Lowprice 现为默认模型。
@@ -809,12 +816,13 @@ Midjourney 节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `operation` | 16 项官方操作；选择后动态显示相关控件 |
+| `operation` | 16 项官方操作；action ID 后附中文用途，选择后动态显示相关控件 |
 | `prompt` | Imagine / Edits 必填；Modal、Video 和 Remix 按当前操作选填；支持前置字符串节点 |
 | `image1` ... `image4` | 本地图片输入；同槽不能再填写 `image_url1` ... `image_url4` |
 | `task_id` / `custom_id` | 连接父任务，或使用服务端按钮提供的 custom ID |
 | `index` | 图片二次操作使用 1 到 4；任务复用视频使用 0 到 3；`-1` 表示不发送 |
-| `speed` / `size` / `dimensions` / `version` | 当前操作支持时才会发送；隐藏字段不会泄漏到其他操作 |
+| `speed` / `dimensions` / `version` | 默认 `relax` / `SQUARE` / `8.2`；当前操作支持时才会发送 |
+| `size` / `custom_size` | 常用比例下拉，默认 `1:1`；选择 `custom` 后可手填正整数 `w:h` 比例 |
 | `seed` / `quality` / `stylize` / `chaos` / `weird` | Imagine / Edits 的结构化生成参数 |
 | `direction` / `zoom_ratio` | Pan 方向和 Zoom 比例 |
 | `modal_mode` / `mask` / `mask_url` | Modal 的局部重绘或外扩设置；本地 MASK 会自动转换并上传 |

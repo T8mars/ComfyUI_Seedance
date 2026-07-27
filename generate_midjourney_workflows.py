@@ -86,7 +86,7 @@ def widget_values(operation, overrides=None):
     values.update({
         "operation": operation,
         "prompt": "a small red paper boat on a quiet lake, soft natural light",
-        "speed": "unset",
+        "speed": "relax",
         "index": -1,
         "modal_mode": "region",
         "batch_size": 1,
@@ -348,7 +348,7 @@ def add_midjourney(builder, config, operation, x, y, title=None, overrides=None)
     return node
 
 
-def add_imagine_source(builder, config, x=380, y=80, version="unset"):
+def add_imagine_source(builder, config, x=380, y=80, version="8.2"):
     return add_midjourney(
         builder,
         config,
@@ -462,7 +462,7 @@ def build_direct(operation, label):
 def build_task_action(operation, label):
     builder = WorkflowBuilder(f"{operation}-{label}")
     config = add_config(builder)
-    version = "8.1" if operation.startswith("midjourney-remix-") else "unset"
+    version = "8.1" if operation.startswith("midjourney-remix-") else "8.2"
     if operation == "midjourney-pan":
         version = "6.1"
     imagine = add_imagine_source(builder, config, version=version)

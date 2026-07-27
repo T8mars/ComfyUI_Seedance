@@ -41,12 +41,13 @@ EXPECTED_OPERATIONS = [
 def base_kwargs():
     return {
         "prompt": "a small red paper boat on a quiet lake",
-        "speed": "unset",
-        "size": "",
-        "dimensions": "unset",
-        "quality": "unset",
+        "speed": "relax",
+        "size": "1:1",
+        "custom_size": "",
+        "dimensions": "SQUARE",
+        "quality": "1",
         "style": "",
-        "version": "unset",
+        "version": "8.2",
         "seed": -1,
         "negative_prompt": "",
         "stylize": -1,
@@ -70,7 +71,7 @@ def base_kwargs():
         "task_id": "source-grid",
         "index": 1,
         "custom_id": "",
-        "direction": "left",
+        "direction": "right",
         "zoom_ratio": 2.0,
         "modal_mode": "region",
         "video_type": "vid_1.1_i2v_480",
@@ -122,6 +123,35 @@ class MidjourneyActionSpecTests(unittest.TestCase):
                     operation.removeprefix("midjourney-"),
                 )
 
+    def test_friendly_operation_labels_preserve_canonical_action_ids(self):
+        self.assertEqual(
+            set(nodes.MIDJOURNEY_OPERATION_LABELS),
+            set(EXPECTED_OPERATIONS),
+        )
+        self.assertEqual(
+            len(set(nodes.MIDJOURNEY_OPERATION_LABELS.values())),
+            len(EXPECTED_OPERATIONS),
+        )
+        for operation, label in nodes.MIDJOURNEY_OPERATION_LABELS.items():
+            with self.subTest(operation=operation):
+                self.assertTrue(label.startswith(f"{operation}｜"))
+                self.assertEqual(
+                    nodes._normalize_midjourney_operation(label),
+                    operation,
+                )
+
+    def test_input_defaults_are_ready_to_use_and_size_has_custom_mode(self):
+        inputs = nodes.MidjourneyMultiAction.INPUT_TYPES()
+        required = inputs["required"]
+        self.assertEqual(required["speed"][1]["default"], "relax")
+        self.assertEqual(required["size"][1]["default"], "1:1")
+        self.assertIn("custom", required["size"][0])
+        self.assertIn("custom_size", required)
+        self.assertEqual(required["dimensions"][1]["default"], "SQUARE")
+        self.assertEqual(required["quality"][1]["default"], "1")
+        self.assertEqual(required["version"][1]["default"], "8.2")
+        self.assertEqual(required["direction"][1]["default"], "right")
+
     def test_required_fields_are_whitelisted(self):
         for operation, spec in nodes.MIDJOURNEY_ACTION_SPECS.items():
             with self.subTest(operation=operation):
@@ -134,17 +164,19 @@ class MidjourneyActionSpecTests(unittest.TestCase):
         result = nodes.MidjourneyMultiAction.VALIDATE_INPUTS(
             operation="midjourney-imagine",
             prompt="",
-            speed="unset",
-            version="unset",
-            dimensions="unset",
-            quality="unset",
-            direction="unset",
+            speed="relax",
+            version="8.2",
+            dimensions="SQUARE",
+            quality="1",
+            direction="right",
             modal_mode="region",
             video_type="vid_1.1_i2v_480",
             animate_mode="manual",
             motion="high",
             batch_size=1,
             index=-1,
+            size="1:1",
+            custom_size="",
         )
         self.assertIs(result, True)
 
@@ -171,6 +203,28 @@ class MidjourneyActionSpecTests(unittest.TestCase):
                 self.assertTrue(operations)
             selected.update(operations)
         self.assertEqual(selected, set(EXPECTED_OPERATIONS))
+
+    def test_example_workflows_use_ready_to_run_widget_defaults(self):
+        required_names = list(
+            nodes.MidjourneyMultiAction.INPUT_TYPES()["required"]
+        )
+        indexes = {
+            name: required_names.index(name)
+            for name in ("speed", "size", "quality", "version", "direction")
+        }
+        for path in sorted((PLUGIN_ROOT / "examples").glob("midjourney-*.json")):
+            workflow = json.loads(path.read_text(encoding="utf-8"))
+            for node in workflow["nodes"]:
+                if node["type"] != "Midjourney_Multi_Action":
+                    continue
+                values = node["widgets_values"]
+                with self.subTest(workflow=path.name, node=node["id"]):
+                    self.assertEqual(values[indexes["speed"]], "relax")
+                    self.assertEqual(values[indexes["size"]], "1:1")
+                    self.assertEqual(values[indexes["quality"]], "1")
+                    self.assertNotEqual(values[indexes["version"]], "unset")
+                    self.assertEqual(values[indexes["direction"]], "right")
+                    self.assertEqual(len(values), len(required_names) + 1)
 
     def test_task_workflows_connect_upstream_task_ids(self):
         task_actions = {
@@ -292,6 +346,44 @@ class MidjourneyPayloadTests(unittest.TestCase):
         self.assertEqual(payload["metadata"], {"origin": "workflow"})
         self.assertNotIn("model", payload)
 
+    def test_custom_size_resolves_to_ratio_and_rejects_invalid_values(self):
+        values = base_kwargs()
+        values.update({
+            "task_id": "",
+            "size": "custom",
+            "custom_size": "5:4",
+        })
+        payload = self.node._build_payload(
+            "midjourney-imagine",
+            materials(),
+            **values,
+        )
+        self.assertEqual(payload["size"], "5:4")
+
+        values["custom_size"] = "1280x1024"
+        with self.assertRaisesRegex(client.SeedanceAPIError, "w:h"):
+            self.node._build_payload(
+                "midjourney-imagine",
+                materials(),
+                **values,
+            )
+
+    def test_friendly_operation_label_builds_the_same_payload(self):
+        values = base_kwargs()
+        values["task_id"] = ""
+        operation = "midjourney-imagine"
+        canonical = self.node._build_payload(
+            operation,
+            materials(),
+            **values,
+        )
+        friendly = self.node._build_payload(
+            nodes.MIDJOURNEY_OPERATION_LABELS[operation],
+            materials(),
+            **values,
+        )
+        self.assertEqual(friendly, canonical)
+
     def test_video_and_remix_do_not_send_undocumented_metadata(self):
         for operation in (
             "midjourney-video",
@@ -351,6 +443,7 @@ class MidjourneyPayloadTests(unittest.TestCase):
         )
         self.assertEqual(payload, {
             "image_urls": ["https://example.test/a.png"],
+            "speed": "relax",
         })
 
     def test_imagine_runtime_requires_prompt(self):

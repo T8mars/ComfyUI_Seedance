@@ -131,6 +131,13 @@ class FrontendExtensionTests(unittest.TestCase):
             "input.hidden = !fields.has(input.name) && !connected",
             'wrapRefreshWidget(this, "operation")',
             'wrapRefreshWidget(this, "modal_mode")',
+            'wrapRefreshWidget(this, "size")',
+            "normalizeFriendlyWidgets(this)",
+            "migrateLegacyWidgetValues(arguments[0])",
+            "values.splice(CUSTOM_SIZE_WIDGET_INDEX, 0, \"\")",
+            'fields.delete("custom_size")',
+            'widget.value = "custom"',
+            "setComboValues(widget, SIZE_OPTIONS)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
             "refreshMidjourneyNode(this)",
@@ -149,6 +156,14 @@ class FrontendExtensionTests(unittest.TestCase):
         from ComfyUI_Seedance.nodes import MIDJOURNEY_OPERATIONS
 
         self.assertEqual(operation_keys, set(MIDJOURNEY_OPERATIONS))
+        label_pairs = dict(re.findall(
+            r'^\s{4}"(midjourney-[a-z0-9-]+)": "([^"]+)",$',
+            source,
+            re.MULTILINE,
+        ))
+        from ComfyUI_Seedance.nodes import MIDJOURNEY_OPERATION_LABELS
+
+        self.assertEqual(label_pairs, MIDJOURNEY_OPERATION_LABELS)
 
     def test_zhenzhen_model_ui_enforces_model_specific_controls(self):
         source = (
