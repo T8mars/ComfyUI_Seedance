@@ -118,6 +118,19 @@ ZHENZHEN_IMAGE_G2_MODELS = [
 ]
 ZHENZHEN_IMAGE_G2_RESOLUTIONS = ["1k"]
 ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS = ["1k", "2k", "4k"]
+ZHENZHEN_IMAGE_G_V2_LOWPRICE_SIZES = [
+    "1:1",
+    "2:3",
+    "3:2",
+    "3:4",
+    "4:3",
+    "4:5",
+    "5:4",
+    "9:16",
+    "16:9",
+    "21:9",
+    "custom",
+]
 ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH = 20000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
 MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES = 16
@@ -3209,11 +3222,18 @@ class ZhenzhenImageG2:
                         "仅 G-2 使用 metadata.ratio；lowprice 模型会隐藏。"
                     ),
                 }),
-                "size": ("STRING", {
+                "size": (ZHENZHEN_IMAGE_G_V2_LOWPRICE_SIZES, {
                     "default": "1:1",
                     "tooltip": (
-                        "Lowprice only: top-level size as an aspect ratio or WxH. | "
-                        "仅 lowprice 使用：顶层 size，可填写画幅比例或 WxH。"
+                        "Lowprice only: common aspect ratios; choose custom for another ratio or WxH. | "
+                        "仅 lowprice 使用：常用画幅比例；选择 custom 可填写其他比例或 WxH。"
+                    ),
+                }),
+                "custom_size": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Lowprice custom size, for example 5:4 or 2048x1024. | "
+                        "Lowprice 自定义尺寸，例如 5:4 或 2048x1024。"
                     ),
                 }),
                 "n": ("INT", {
@@ -3247,6 +3267,26 @@ class ZhenzhenImageG2:
         )
 
     @classmethod
+    def _resolve_lowprice_size(
+        cls,
+        size: Any,
+        custom_size: Any = "",
+    ) -> str:
+        selected = cls._normalize_lowprice_size(size)
+        resolved = (
+            cls._normalize_lowprice_size(custom_size)
+            if selected == "custom"
+            else selected
+        )
+        if not cls._valid_lowprice_size(resolved):
+            raise SeedanceAPIError(
+                "lowprice size must be a positive aspect ratio or WxH, "
+                "for example 16:9 or 2048x1024 | "
+                "lowprice size 必须是正数画幅比例或 WxH，例如 16:9 或 2048x1024"
+            )
+        return resolved
+
+    @classmethod
     def VALIDATE_INPUTS(
         cls,
         model=None,
@@ -3254,6 +3294,7 @@ class ZhenzhenImageG2:
         resolution=None,
         ratio=None,
         size=None,
+        custom_size=None,
         n=None,
         strict=False,
         **kwargs,
@@ -3279,8 +3320,19 @@ class ZhenzhenImageG2:
                 and resolution not in ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS
             ):
                 return f"unsupported lowprice resolution: {resolution}"
-            if size is not None and not cls._valid_lowprice_size(size):
-                return "lowprice size must be an aspect ratio or WxH | lowprice size 必须是画幅比例或 WxH"
+            should_validate_size = (
+                size is not None
+                and (
+                    str(size).strip() != "custom"
+                    or strict
+                    or str(custom_size or "").strip()
+                )
+            )
+            if should_validate_size:
+                try:
+                    cls._resolve_lowprice_size(size, custom_size)
+                except SeedanceAPIError as error:
+                    return str(error)
             if n is not None and not 1 <= int(n) <= 10:
                 return "lowprice n must be between 1 and 10 | lowprice n 必须在 1 到 10 之间"
         return True
@@ -3318,6 +3370,7 @@ class ZhenzhenImageG2:
         ratio: str,
         images: List[str],
         size: str = "1:1",
+        custom_size: str = "",
         n: int = 1,
     ) -> Dict[str, Any]:
         validation = self.VALIDATE_INPUTS(
@@ -3326,6 +3379,7 @@ class ZhenzhenImageG2:
             resolution=resolution,
             ratio=ratio,
             size=size,
+            custom_size=custom_size,
             n=n,
             strict=True,
         )
@@ -3357,7 +3411,7 @@ class ZhenzhenImageG2:
                 "model": model,
                 "prompt": prompt,
                 "n": int(n),
-                "size": self._normalize_lowprice_size(size),
+                "size": self._resolve_lowprice_size(size, custom_size),
                 "metadata": {"resolution": resolution},
             }
             if images:
@@ -3385,6 +3439,7 @@ class ZhenzhenImageG2:
         resolution: str,
         ratio: str,
         size: str = "1:1",
+        custom_size: str = "",
         n: int = 1,
         api_config=None,
         **kwargs,
@@ -3396,6 +3451,7 @@ class ZhenzhenImageG2:
             resolution=resolution,
             ratio=ratio,
             size=size,
+            custom_size=custom_size,
             n=n,
             strict=True,
         )
@@ -3439,6 +3495,7 @@ class ZhenzhenImageG2:
             ratio,
             image_urls,
             size=size,
+            custom_size=custom_size,
             n=n,
         )
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)

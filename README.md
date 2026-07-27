@@ -22,6 +22,12 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.3（2026-07-27）
+
+- 优化 `Zhenzhen Image G 图像生成/编辑` 的 Lowprice `size` 控件，改为常用比例下拉。
+- 新增 `custom` 模式，支持手动填写比例或 `WxH`，并仅在选择 `custom` 时显示输入框。
+- 兼容旧工作流中的自由尺寸，同时更新 Lowprice 与 G-2 的四份示例工作流。
+
 ## v0.5.2（2026-07-27）
 
 - 优化 `Midjourney 图像与视频（16 合 1）` 节点，下拉项在 action ID 后显示中文用途。
@@ -625,7 +631,7 @@ Zhenzhen Image G 参数：
 | `prompt` | 必填，最多 20000 字符 |
 | `resolution` | G-2 固定 `1k`；Lowprice 支持 `1k` / `2k` / `4k` |
 | `ratio` | 仅 G-2 使用；`adaptive` 时不提交 |
-| `size` | 仅 Lowprice 使用；顶层比例值或 WxH |
+| `size` / `custom_size` | 仅 Lowprice 使用；常用比例下拉，选择 `custom` 后可填写比例或 `WxH` |
 | `n` | 仅 Lowprice 使用；1 到 10 |
 | `image1` ... `image16` | G-2 图像编辑使用前 10 张且至少 1 张；Lowprice 最多 16 张且可不连接 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |

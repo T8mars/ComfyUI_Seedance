@@ -510,6 +510,26 @@ class ImageNodeTests(unittest.TestCase):
         self.assertEqual(payload["size"], "16:9")
         self.assertEqual(payload["n"], 3)
 
+    def test_zhenzhen_image_g_lowprice_custom_size_supports_ratio_and_wxh(self):
+        node = nodes.ZhenzhenImageG2()
+        for custom_size, expected in (
+            ("5:4", "5:4"),
+            ("2048X1024", "2048x1024"),
+        ):
+            with self.subTest(custom_size=custom_size):
+                payload = node._build_payload(
+                    nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                    "clean product photo",
+                    "2k",
+                    "adaptive",
+                    [],
+                    size="custom",
+                    custom_size=custom_size,
+                    n=1,
+                )
+                self.assertEqual(payload["size"], expected)
+                self.assertNotIn("custom_size", payload)
+
     def test_zhenzhen_image_g2_image_to_image_requires_reference(self):
         node = nodes.ZhenzhenImageG2()
         with self.assertRaises(client.SeedanceAPIError):
@@ -537,6 +557,12 @@ class ImageNodeTests(unittest.TestCase):
             inputs["required"]["resolution"][0],
             nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS,
         )
+        self.assertEqual(
+            inputs["required"]["size"][0],
+            nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_SIZES,
+        )
+        self.assertEqual(inputs["required"]["size"][1]["default"], "1:1")
+        self.assertIn("custom_size", inputs["required"])
         self.assertEqual(
             [name for name in inputs["optional"] if name.startswith("image")],
             [f"image{index}" for index in range(1, 17)],
@@ -614,6 +640,30 @@ class ImageNodeTests(unittest.TestCase):
                     ),
                     True,
                 )
+        self.assertIs(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                prompt="valid prompt",
+                resolution="2k",
+                size="custom",
+                custom_size="5:4",
+                n=1,
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                prompt="valid prompt",
+                resolution="2k",
+                size="custom",
+                custom_size="",
+                n=1,
+                strict=True,
+            ),
+            True,
+        )
         self.assertIsNot(
             nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
                 model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,

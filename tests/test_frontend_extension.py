@@ -181,7 +181,13 @@ class FrontendExtensionTests(unittest.TestCase):
             'isLowprice ? ["1k", "2k", "4k"] : ["1k"]',
             'setWidgetVisible(widgetByName(node, "ratio"), !isLowprice)',
             'setWidgetVisible(widgetByName(node, "size"), isLowprice)',
+            'widgetByName(node, "custom_size")',
+            'String(widgetByName(node, "size")?.value) === "custom"',
             'setWidgetVisible(widgetByName(node, "n"), isLowprice)',
+            "normalizeLowpriceSizeWidgets(node)",
+            "migrateLegacyG2WidgetValues(arguments[0])",
+            'wrapRefresh(this, refresh, "size")',
+            'values.splice(G2_CUSTOM_SIZE_WIDGET_INDEX, 0, "")',
             'model === "zhenzhen-image-g2-i2i" && index <= 10',
             '"zhenzhen-image-nb-flash": {',
             '"zhenzhen-image-nb-2": {',
@@ -221,9 +227,10 @@ class FrontendExtensionTests(unittest.TestCase):
                 if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
             )
             self.assertEqual(config_link[4], 16)
-            self.assertEqual(len(node["widgets_values"]), 6)
-            model, _, resolution, ratio, size, n = node["widgets_values"]
+            self.assertEqual(len(node["widgets_values"]), 7)
+            model, _, resolution, ratio, size, custom_size, n = node["widgets_values"]
             self.assertEqual(size, "1:1" if "图像编辑" in workflow_name else "16:9")
+            self.assertEqual(custom_size, "")
             self.assertEqual(n, 1)
             if model == "zhenzhen-image-g-v2-lowprice":
                 self.assertEqual(resolution, "2k")
