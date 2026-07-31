@@ -1473,6 +1473,204 @@ class NewModelNodeTests(unittest.TestCase):
                 {},
             )
 
+    def test_hailuo_h3_text_to_video_payload_matches_documented_fields(self):
+        node = nodes.HailuoH3Video()
+        payload = node.build_payload(
+            {
+                "model": "hailuo-h3-t2v",
+                "prompt": "a paper airplane gliding through a bright studio",
+                "seconds": "5",
+                "resolution": "2K",
+                "ratio": "adaptive",
+            },
+            {},
+        )
+
+        self.assertEqual(
+            payload,
+            {
+                "model": "hailuo-h3-t2v",
+                "prompt": "a paper airplane gliding through a bright studio",
+                "seconds": "5",
+                "metadata": {"resolution": "2K", "ratio": "adaptive"},
+            },
+        )
+
+    def test_hailuo_h3_image_to_video_payload_supports_last_frame(self):
+        node = nodes.HailuoH3Video()
+        payload = node.build_payload(
+            {
+                "model": "hailuo-h3-i2v",
+                "prompt": "smooth camera motion",
+                "seconds": "5",
+                "resolution": "2K",
+                "ratio": "9:16",
+            },
+            {
+                "images": [
+                    "https://cdn.test/first.png",
+                    "https://cdn.test/last.png",
+                ],
+            },
+        )
+
+        self.assertEqual(payload["images"], [
+            "https://cdn.test/first.png",
+            "https://cdn.test/last.png",
+        ])
+        self.assertEqual(payload["metadata"], {"resolution": "2K"})
+        self.assertEqual(payload["prompt"], "smooth camera motion")
+
+    def test_hailuo_h3_multi_payload_maps_each_media_type(self):
+        node = nodes.HailuoH3Video()
+        payload = node.build_payload(
+            {
+                "model": "hailuo-h3-multi",
+                "prompt": "Use @Image 1 in @Video 1 with the rhythm of @Audio 1",
+                "seconds": "5",
+                "resolution": "2K",
+                "ratio": "16:9",
+            },
+            {
+                "images": ["https://cdn.test/reference.png"],
+                "video_urls": ["https://cdn.test/reference.mp4"],
+                "audio_urls": ["https://cdn.test/reference.wav"],
+            },
+        )
+
+        self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
+        self.assertEqual(
+            payload["metadata"],
+            {
+                "resolution": "2K",
+                "ratio": "16:9",
+                "video_url": ["https://cdn.test/reference.mp4"],
+                "audio_url": ["https://cdn.test/reference.wav"],
+            },
+        )
+
+    def test_hailuo_h3_multi_uploads_image_video_and_audio(self):
+        node = nodes.HailuoH3Video()
+        progress = []
+        with (
+            patch.object(nodes, "image_to_png_bytes", return_value=b"image"),
+            patch.object(nodes, "video_to_bytes", return_value=(b"video", "mp4")),
+            patch.object(nodes, "audio_to_wav_bytes", return_value=b"audio"),
+            patch.object(
+                nodes,
+                "upload_media",
+                side_effect=[
+                    "https://cdn.test/reference.png",
+                    "https://cdn.test/reference.mp4",
+                    "https://cdn.test/reference.wav",
+                ],
+            ) as upload,
+        ):
+            media = node.collect_media(
+                {
+                    "model": "hailuo-h3-multi",
+                    "image1": object(),
+                    "video1": object(),
+                    "audio1": object(),
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        self.assertEqual(upload.call_count, 3)
+        self.assertEqual(
+            media,
+            {
+                "images": ["https://cdn.test/reference.png"],
+                "video_urls": ["https://cdn.test/reference.mp4"],
+                "audio_urls": ["https://cdn.test/reference.wav"],
+            },
+        )
+        self.assertEqual(progress, [1 / 3, 2 / 3, 1.0])
+
+    def test_hailuo_h3_input_and_validation_match_documented_limits(self):
+        inputs = nodes.HailuoH3Video.INPUT_TYPES()
+        self.assertEqual(inputs["required"]["model"][0], nodes.HAILUO_H3_MODELS)
+        self.assertEqual(inputs["required"]["seconds"][0], [
+            str(value) for value in range(5, 16)
+        ])
+        self.assertEqual(inputs["required"]["resolution"][0], ["2K"])
+        self.assertEqual(
+            [name for name in inputs["optional"] if name.startswith("image")],
+            [f"image{index}" for index in range(1, 10)],
+        )
+        self.assertEqual(
+            [name for name in inputs["optional"] if name.startswith("video")],
+            [f"video{index}" for index in range(1, 4)],
+        )
+        self.assertEqual(
+            [name for name in inputs["optional"] if name.startswith("audio")],
+            [f"audio{index}" for index in range(1, 4)],
+        )
+        self.assertIs(
+            nodes.HailuoH3Video.VALIDATE_INPUTS(
+                model="hailuo-h3-t2v",
+                prompt="valid prompt",
+                seconds="15",
+                resolution="2K",
+                ratio="21:9",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HailuoH3Video.VALIDATE_INPUTS(
+                model="hailuo-h3-t2v",
+                prompt="valid prompt",
+                seconds="4",
+                resolution="2K",
+                ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HailuoH3Video.VALIDATE_INPUTS(
+                model="hailuo-h3-t2v",
+                prompt="valid prompt",
+                seconds="5",
+                resolution="1080p",
+                ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HailuoH3Video.VALIDATE_INPUTS(
+                model="hailuo-h3-multi",
+                prompt="",
+                seconds="5",
+                resolution="2K",
+                ratio="adaptive",
+                strict=True,
+            ),
+            True,
+        )
+
+    def test_hailuo_h3_runtime_requires_model_specific_media(self):
+        node = nodes.HailuoH3Video()
+        with self.assertRaises(client.SeedanceAPIError):
+            node.collect_media(
+                {"model": "hailuo-h3-i2v"},
+                CONFIG,
+                lambda _progress: None,
+            )
+        with self.assertRaises(client.SeedanceAPIError):
+            node.collect_media(
+                {"model": "hailuo-h3-i2v", "image2": object()},
+                CONFIG,
+                lambda _progress: None,
+            )
+        with self.assertRaises(client.SeedanceAPIError):
+            node.collect_media(
+                {"model": "hailuo-h3-multi"},
+                CONFIG,
+                lambda _progress: None,
+            )
+
     def test_vidu_q3_text_to_video_payload(self):
         node = nodes.ViduQ3Video()
         payload = node.build_payload(

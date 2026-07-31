@@ -1,0 +1,160 @@
+{
+  "id": "hailuo-h3-i2v-workflow",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "title": "选择首帧.png",
+      "pos": [40, 40],
+      "size": [270, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "选择首帧.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "title": "选择尾帧.png",
+      "pos": [40, 390],
+      "size": [270, 314],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [2]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "选择尾帧.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Seedance_Config",
+      "pos": [40, 750],
+      "size": [300, 82],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "links": [3]}
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Hailuo_H3_Video",
+      "title": "Hailuo H3 图生视频（首尾帧）",
+      "pos": [430, 170],
+      "size": [470, 520],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "image1", "shape": 7, "type": "IMAGE", "link": 1},
+        {"name": "image2", "shape": 7, "type": "IMAGE", "link": 2},
+        {"name": "image3", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image4", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image5", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image6", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image7", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image8", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image9", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "video1", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "video2", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "video3", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "audio1", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "audio2", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "audio3", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "api_config", "shape": 7, "type": "SEEDANCE_CONFIG", "link": 3}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": [4]},
+        {"name": "video_url", "type": "STRING", "links": null},
+        {"name": "task_id", "type": "STRING", "links": null},
+        {"name": "response", "type": "STRING", "links": null}
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Hailuo_H3_Video"
+      },
+      "widgets_values": [
+        "hailuo-h3-i2v",
+        "主体保持一致，从首帧自然过渡到尾帧，镜头轻缓推进，动作连续流畅",
+        "5",
+        "2K",
+        "16:9",
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "type": "SaveVideo",
+      "pos": [980, 280],
+      "size": [300, 190],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "video", "type": "VIDEO", "link": 4}
+      ],
+      "outputs": [
+        {"name": "video", "type": "VIDEO", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/hailuo_h3_i2v",
+        "auto",
+        "auto"
+      ]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 4, 0, "IMAGE"],
+    [2, 2, 0, 4, 1, "IMAGE"],
+    [3, 3, 0, 4, 15, "SEEDANCE_CONFIG"],
+    [4, 4, 0, 5, 0, "VIDEO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20"
+  },
+  "version": 0.4
+}

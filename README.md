@@ -18,9 +18,16 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.4（2026-07-31）
+
+- 新增 `Hailuo H3 视频生成` 三模型合一节点，支持 `hailuo-h3-t2v`、`hailuo-h3-i2v` 与 `hailuo-h3-multi`。
+- H3 固定 2K，支持 5 到 15 秒；I2V 支持首尾帧，Multi 支持最多 9 图、3 视频和 3 音频。
+- 前端会按模型动态显示可用素材输入，并新增文生视频、首尾帧图生视频和多模态参考生视频三份工作流。
+- 三个模型均已完成 5 秒真实生成和结果下载；Multi 同时验证了图片、视频、音频输入。
 
 ## v0.5.3（2026-07-27）
 
@@ -153,6 +160,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 - 支持 Wan 2.7 Spicy 图生视频
 - 接入 Kling 文生视频、图生视频、O3 参考生视频和 O3 视频编辑
 - 支持 Hailuo 2.3 文生视频、图生视频和 fast 图生视频
+- 支持 Hailuo H3 文生视频、首尾帧图生视频和多模态参考生视频
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
@@ -164,7 +172,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 - 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、3 个 Hailuo H3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -193,6 +201,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Vidu Q3 / Zhenzhen Vi
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
+| `Hailuo H3 视频生成` | Hailuo H3 文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、固定 2K、按模型使用图片/视频/音频 |
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
@@ -342,6 +351,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Kling 视频生成`：在 Kling 文生、图生/首尾帧和 O3 参考生视频模型间切换
    - `Kling O3 视频编辑`：连接 `input_video` 或填写公网 MP4 `video_url`
    - `Hailuo 2.3 视频生成`：在 Hailuo 文生视频、图生视频和 fast 图生视频模型间切换
+   - `Hailuo H3 视频生成`：在 H3 文生、首尾帧图生和多模态参考生视频模型间切换
    - `Vidu Q3 视频生成`：在 Vidu 文生、图生、首尾帧和参考生视频模型间切换
    - `Vidu Q3 短剧成片`：填写短剧脚本内容、`script_name`，并连接至少 1 张参考资产图
    - `Zhenzhen Video G Omni Flash`：使用 `zhenzhen-video-g-omni-flash`
@@ -457,6 +467,9 @@ Midjourney 图片与视频：
 - `examples/海螺hailuo-2.3文生视频.json`
 - `examples/海螺hailuo-2.3图生视频.json`
 - `examples/海螺hailuo-2.3-fast图生视频.json`
+- `examples/海螺hailuo-h3文生视频.json`
+- `examples/海螺hailuo-h3图生视频首尾帧.json`
+- `examples/海螺hailuo-h3多模态参考生视频.json`
 - `examples/可灵kling-v3.0文生视频.json`
 - `examples/可灵kling-v3.0图生视频首尾帧.json`
 - `examples/可灵kling-o3参考生视频.json`
@@ -570,6 +583,16 @@ Hailuo 2.3 节点使用 `/v1/videos` 视频端点：
 | `hailuo-2.3-fast-i2v` / `hailuo-2.3-fast-pro-i2v` | fast 图生视频 | `first_image` 作为 `images[0]` |
 
 Hailuo 2.3 支持 6 或 10 秒，`1080p` 仅支持 6 秒；图生视频首帧图短边需大于 300px，宽高比需在 2:5 到 5:2 之间。文生视频会把 `ratio` 透传为 `metadata.ratio`；图生视频跟随输入图片比例。
+
+Hailuo H3 节点使用 `/v1/videos` 视频端点：
+
+| 模型 | 用途 | 素材 |
+| --- | --- | --- |
+| `hailuo-h3-t2v` | 文生视频 | `prompt` 必填，不使用参考素材 |
+| `hailuo-h3-i2v` | 图生视频 / 首尾帧 | `image1` 必填首帧，`image2` 可选尾帧 |
+| `hailuo-h3-multi` | 多模态参考生视频 | 最多 9 张图、3 个视频、3 段音频，至少连接一种素材 |
+
+Hailuo H3 分辨率固定为 `2K`，时长支持 5 到 15 秒。T2V 与 Multi 会提交 `metadata.ratio`；I2V 跟随输入帧，不提交比例。Multi 的三类本地素材会自动上传，并分别映射到图片、视频和音频参考字段。
 
 Vidu Q3 节点使用 `/v1/videos` 视频端点：
 
@@ -735,6 +758,22 @@ Hailuo 2.3 节点参数：
 | `resolution` | `768p` 或 `1080p`；`1080p` 仅支持 6 秒 |
 | `ratio` | 仅文生视频使用，非 `adaptive` 时透传为 `metadata.ratio` |
 | `first_image` | 图生视频 / fast 图生视频必填首帧图，作为 `images[0]` 提交 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+| `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
+
+Hailuo H3 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | `hailuo-h3-t2v`、`hailuo-h3-i2v` 或 `hailuo-h3-multi` |
+| `prompt` | T2V 与 Multi 必填；I2V 可选，最多 20480 字符 |
+| `seconds` | 5 到 15 秒 |
+| `resolution` | 固定为 `2K` |
+| `ratio` | T2V 与 Multi 使用，支持 `adaptive`；I2V 不提交 |
+| `image1` / `image2` | I2V 的必填首帧和可选尾帧；Multi 的参考图 1、2 |
+| `image3` ... `image9` | Multi 可选参考图 |
+| `video1` ... `video3` | Multi 可选参考视频 |
+| `audio1` ... `audio3` | Multi 可选参考音频 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 

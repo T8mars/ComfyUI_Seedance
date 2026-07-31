@@ -59,6 +59,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Kling_Video",
             "Kling_Edit_Video",
             "Hailuo_2_3_Video",
+            "Hailuo_H3_Video",
             "Vidu_Q3_Video",
             "Vidu_Q3_ShortPlay",
             "Zhenzhen_Upscaler_Video",
@@ -202,6 +203,71 @@ class FrontendExtensionTests(unittest.TestCase):
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)
+
+    def test_hailuo_h3_ui_enforces_model_specific_inputs(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "hailuo_h3_model_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const HAILUO_H3_NODE_NAME = "Hailuo_H3_Video"',
+            'const T2V_MODEL = "hailuo-h3-t2v"',
+            'const I2V_MODEL = "hailuo-h3-i2v"',
+            'const MULTI_MODEL = "hailuo-h3-multi"',
+            'setWidgetVisible(widgetByName(node, "ratio"), model !== I2V_MODEL)',
+            'return name === "image1" || name === "image2"',
+            '/^(image[1-9]|video[1-3]|audio[1-3])$/.test(name)',
+            "input.hidden = !inputAllowed(model, input.name) && !connected",
+            "originalOnConfigure?.apply(this, arguments)",
+            "originalOnConnectionsChange?.apply(this, arguments)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_hailuo_h3_workflows_cover_all_three_models(self):
+        workflow_names = {
+            "海螺hailuo-h3文生视频.json": "hailuo-h3-t2v",
+            "海螺hailuo-h3图生视频首尾帧.json": "hailuo-h3-i2v",
+            "海螺hailuo-h3多模态参考生视频.json": "hailuo-h3-multi",
+        }
+        expected_inputs = (
+            [f"image{index}" for index in range(1, 10)]
+            + [f"video{index}" for index in range(1, 4)]
+            + [f"audio{index}" for index in range(1, 4)]
+            + ["api_config"]
+        )
+
+        for workflow_name, model in workflow_names.items():
+            workflow = json.loads(
+                (PLUGIN_ROOT / "examples" / workflow_name).read_text(encoding="utf-8")
+            )
+            node = next(
+                item for item in workflow["nodes"]
+                if item["type"] == "Hailuo_H3_Video"
+            )
+            self.assertEqual(node["widgets_values"][:5], [
+                model,
+                node["widgets_values"][1],
+                "5",
+                "2K",
+                "16:9",
+            ])
+            self.assertEqual([item["name"] for item in node["inputs"]], expected_inputs)
+            incoming_media = {
+                link[5]
+                for link in workflow["links"]
+                if link[3] == node["id"] and link[5] in {"IMAGE", "VIDEO", "AUDIO"}
+            }
+            if model == "hailuo-h3-t2v":
+                self.assertEqual(incoming_media, set())
+            elif model == "hailuo-h3-i2v":
+                self.assertEqual(incoming_media, {"IMAGE"})
+                self.assertEqual(sum(
+                    1 for link in workflow["links"]
+                    if link[3] == node["id"] and link[5] == "IMAGE"
+                ), 2)
+            else:
+                self.assertEqual(incoming_media, {"IMAGE", "VIDEO", "AUDIO"})
 
     def test_zhenzhen_g2_and_lowprice_workflows_match_model_contracts(self):
         workflow_names = (

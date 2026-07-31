@@ -264,6 +264,20 @@ HAILUO23_MIN_IMAGE_SHORT_EDGE = 301
 HAILUO23_MIN_ASPECT_RATIO = 2 / 5
 HAILUO23_MAX_ASPECT_RATIO = 5 / 2
 
+HAILUO_H3_T2V_MODEL = "hailuo-h3-t2v"
+HAILUO_H3_I2V_MODEL = "hailuo-h3-i2v"
+HAILUO_H3_MULTI_MODEL = "hailuo-h3-multi"
+HAILUO_H3_MODELS = [
+    HAILUO_H3_T2V_MODEL,
+    HAILUO_H3_I2V_MODEL,
+    HAILUO_H3_MULTI_MODEL,
+]
+HAILUO_H3_SECONDS = [str(s) for s in range(5, 16)]
+HAILUO_H3_RESOLUTIONS = ["2K"]
+MAX_HAILUO_H3_IMAGES = 9
+MAX_HAILUO_H3_VIDEOS = 3
+MAX_HAILUO_H3_AUDIOS = 3
+
 VIDU_T2V_MODELS = [
     "vidu-q3-pro-t2v",
     "vidu-q3-turbo-t2v",
@@ -2316,6 +2330,274 @@ class Hailuo23Video(SeedanceVideoNodeBase):
         payload["images"] = images[:1]
         if prompt:
             payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# Hailuo H3 video
+# ---------------------------------------------------------------------------
+
+class HailuoH3Video(SeedanceVideoNodeBase):
+    """Hailuo H3 t2v/i2v/multi via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for i in range(1, MAX_HAILUO_H3_IMAGES + 1):
+            optional[f"image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"H3 image {i}. I2V uses image1 as the first frame and image2 as "
+                    f"the optional last frame; Multi accepts up to 9 images. | H3 图片 {i}；"
+                    "I2V 用 image1 作为首帧、image2 作为可选尾帧；Multi 最多支持 9 张图。"
+                ),
+            })
+        for i in range(1, MAX_HAILUO_H3_VIDEOS + 1):
+            optional[f"video{i}"] = ("VIDEO", {
+                "tooltip": (
+                    f"H3 Multi reference video {i}, up to 3 videos. | "
+                    f"H3 Multi 参考视频 {i}，最多 3 个。"
+                ),
+            })
+        for i in range(1, MAX_HAILUO_H3_AUDIOS + 1):
+            optional[f"audio{i}"] = ("AUDIO", {
+                "tooltip": (
+                    f"H3 Multi reference audio {i}, up to 3 audios. | "
+                    f"H3 Multi 参考音频 {i}，最多 3 个。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (HAILUO_H3_MODELS, {
+                    "default": HAILUO_H3_T2V_MODEL,
+                    "tooltip": (
+                        "Hailuo H3 task type: text-to-video, first/last-frame "
+                        "image-to-video, or multimodal reference video. | Hailuo H3 "
+                        "支持文生视频、首尾帧图生视频和多模态参考生视频。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for T2V and Multi; optional for I2V. Multi prompts can "
+                        "reference @Image 1, @Video 1, and @Audio 1. | T2V 与 Multi 必填，"
+                        "I2V 可选；Multi 可用 @Image 1、@Video 1、@Audio 1 指代素材。"
+                    ),
+                }),
+                "seconds": (HAILUO_H3_SECONDS, {
+                    "default": "5",
+                    "tooltip": "Hailuo H3 supports 5 to 15 seconds. | Hailuo H3 支持 5 到 15 秒。",
+                }),
+                "resolution": (HAILUO_H3_RESOLUTIONS, {
+                    "default": "2K",
+                    "tooltip": "Hailuo H3 output resolution is fixed to 2K. | Hailuo H3 输出分辨率固定为 2K。",
+                }),
+                "ratio": (RATIOS, {
+                    "default": "16:9",
+                    "tooltip": (
+                        "Used by H3 T2V and Multi, including adaptive; I2V follows the "
+                        "input frame. | H3 T2V 与 Multi 使用，支持 adaptive；I2V 跟随输入帧。"
+                    ),
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *HAILUO_H3_MODELS):
+            return f"unsupported Hailuo H3 model: {model}"
+        if seconds is not None and str(seconds) not in HAILUO_H3_SECONDS:
+            return "Hailuo H3 seconds must be 5 to 15 | Hailuo H3 时长必须为 5 到 15 秒"
+        if resolution is not None and resolution not in HAILUO_H3_RESOLUTIONS:
+            return "Hailuo H3 resolution must be 2K | Hailuo H3 分辨率必须为 2K"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if (
+            strict
+            and model in (HAILUO_H3_T2V_MODEL, HAILUO_H3_MULTI_MODEL)
+            and not prompt_text.strip()
+        ):
+            return "prompt is required for Hailuo H3 T2V and Multi | Hailuo H3 文生与多模态必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Hailuo_H3_video"
+
+    def _gather_slots(
+        self,
+        kwargs: Dict[str, Any],
+        base_name: str,
+        count: int,
+    ) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"{base_name}{i}"))
+            for i in range(1, count + 1)
+            if kwargs.get(f"{base_name}{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: {base_name} slots {connected} have gaps; "
+                f"they will be compacted to {base_name} order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model == HAILUO_H3_T2V_MODEL:
+            progress_cb(1.0)
+            return {}
+
+        if model == HAILUO_H3_I2V_MODEL and kwargs.get("image1") is None:
+            raise SeedanceAPIError(
+                "image1 is required for Hailuo H3 I2V | Hailuo H3 图生视频必须连接 image1 首帧"
+            )
+
+        image_limit = 2 if model == HAILUO_H3_I2V_MODEL else MAX_HAILUO_H3_IMAGES
+        image_slots = self._gather_slots(kwargs, "image", image_limit)
+        video_slots = (
+            self._gather_slots(kwargs, "video", MAX_HAILUO_H3_VIDEOS)
+            if model == HAILUO_H3_MULTI_MODEL
+            else []
+        )
+        audio_slots = (
+            self._gather_slots(kwargs, "audio", MAX_HAILUO_H3_AUDIOS)
+            if model == HAILUO_H3_MULTI_MODEL
+            else []
+        )
+
+        if model == HAILUO_H3_MULTI_MODEL and not (
+            image_slots or video_slots or audio_slots
+        ):
+            raise SeedanceAPIError(
+                "Hailuo H3 Multi requires at least one image, video, or audio | "
+                "Hailuo H3 Multi 至少需要 1 个图片、视频或音频素材"
+            )
+
+        video_mime = {
+            "mp4": "video/mp4",
+            "avi": "video/x-msvideo",
+            "mov": "video/quicktime",
+            "mkv": "video/x-matroska",
+        }
+        total = len(image_slots) + len(video_slots) + len(audio_slots)
+        done = 0
+        image_urls: List[str] = []
+        video_urls: List[str] = []
+        audio_urls: List[str] = []
+
+        for slot, image in image_slots:
+            image_urls.append(upload_media(
+                image_to_png_bytes(image),
+                f"hailuo_h3_image_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        for slot, video in video_slots:
+            video_bytes, ext = video_to_bytes(video)
+            video_urls.append(upload_media(
+                video_bytes,
+                f"hailuo_h3_video_{slot}.{ext}",
+                video_mime.get(ext, "video/mp4"),
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        for slot, audio in audio_slots:
+            audio_urls.append(upload_media(
+                audio_to_wav_bytes(audio),
+                f"hailuo_h3_audio_{slot}.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        return {
+            "images": image_urls,
+            "video_urls": video_urls,
+            "audio_urls": audio_urls,
+        }
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {"resolution": kwargs["resolution"]}
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+
+        if model in (HAILUO_H3_T2V_MODEL, HAILUO_H3_MULTI_MODEL):
+            metadata["ratio"] = str(kwargs.get("ratio") or "adaptive")
+            payload["prompt"] = prompt
+
+        images = media.get("images") or []
+        if model == HAILUO_H3_I2V_MODEL:
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for Hailuo H3 I2V | Hailuo H3 图生视频必须连接 image1 首帧"
+                )
+            payload["images"] = images[:2]
+            if prompt:
+                payload["prompt"] = prompt
+            return payload
+
+        if model == HAILUO_H3_MULTI_MODEL:
+            video_urls = media.get("video_urls") or []
+            audio_urls = media.get("audio_urls") or []
+            if not (images or video_urls or audio_urls):
+                raise SeedanceAPIError(
+                    "Hailuo H3 Multi requires at least one image, video, or audio | "
+                    "Hailuo H3 Multi 至少需要 1 个图片、视频或音频素材"
+                )
+            if images:
+                payload["images"] = images[:MAX_HAILUO_H3_IMAGES]
+            if video_urls:
+                metadata["video_url"] = video_urls[:MAX_HAILUO_H3_VIDEOS]
+            if audio_urls:
+                metadata["audio_url"] = audio_urls[:MAX_HAILUO_H3_AUDIOS]
         return payload
 
 
@@ -6304,6 +6586,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_Video": KlingVideo,
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
+    "Hailuo_H3_Video": HailuoH3Video,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
@@ -6330,6 +6613,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Video": "Kling 视频生成",
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
+    "Hailuo_H3_Video": "Hailuo H3 视频生成",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
