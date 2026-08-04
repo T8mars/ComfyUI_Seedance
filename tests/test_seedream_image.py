@@ -46,6 +46,19 @@ class FakeResponse:
             raise RuntimeError(f"HTTP {self.status_code}")
 
 
+class StreamingResponse(FakeResponse):
+    def __init__(self, chunks, **kwargs):
+        super().__init__(**kwargs)
+        self.chunks = list(chunks)
+        self.closed = False
+
+    def iter_content(self, chunk_size):
+        yield from self.chunks
+
+    def close(self):
+        self.closed = True
+
+
 class FakeSession:
     def __init__(self, post_response=None, get_responses=None):
         self.post_response = post_response
@@ -198,6 +211,32 @@ class ImageClientTests(unittest.TestCase):
         self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
         self.assertEqual(tensor.dtype, torch.float32)
         self.assertAlmostEqual(float(tensor[0, 0, 0, 0]), 1.0)
+
+    def test_download_image_retries_after_total_stream_timeout(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (3, 2), (255, 128, 0)).save(buffer, format="PNG")
+        timed_out = StreamingResponse([b"partial"])
+        succeeded = StreamingResponse([buffer.getvalue()])
+        session = FakeSession(get_responses=[timed_out, succeeded])
+
+        with (
+            patch.object(client, "_session", return_value=session),
+            patch.object(client, "cooperative_sleep", return_value=None),
+            patch.object(client.time, "monotonic", side_effect=[0, 46, 46, 47]),
+        ):
+            tensor = client.download_image(
+                "https://cdn.test/result.png",
+                timeout=45,
+                max_retries=2,
+            )
+
+        self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
+        self.assertEqual(len(session.get_calls), 2)
+        self.assertTrue(timed_out.closed)
+        self.assertTrue(succeeded.closed)
+        for _url, kwargs in session.get_calls:
+            self.assertTrue(kwargs["stream"])
+            self.assertEqual(kwargs["timeout"], (15.0, 15.0))
 
 
 class AudioClientTests(unittest.TestCase):
@@ -628,6 +667,42 @@ class ImageNodeTests(unittest.TestCase):
                     ),
                     True,
                 )
+        for invalid_prompt in (
+            "四个字符",
+            "x" * (nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MAX_LENGTH + 1),
+        ):
+            with self.subTest(invalid_prompt_length=len(invalid_prompt)):
+                self.assertIs(
+                    nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                        model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                        prompt=invalid_prompt,
+                        resolution="1k",
+                        size="1:1",
+                        n=1,
+                    ),
+                    True,
+                )
+                self.assertIsNot(
+                    nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                        model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                        prompt=invalid_prompt,
+                        resolution="1k",
+                        size="1:1",
+                        n=1,
+                        strict=True,
+                    ),
+                    True,
+                )
+        self.assertIs(
+            nodes.ZhenzhenImageG2.VALIDATE_INPUTS(
+                model=nodes.ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL,
+                prompt="五个字符了",
+                resolution="1k",
+                size="1:1",
+                n=1,
+            ),
+            True,
+        )
         for invalid_size in ("", "square", "0:1", "1024x0"):
             with self.subTest(invalid_size=invalid_size):
                 self.assertIsNot(

@@ -1,7 +1,13 @@
 import { app } from "../../../scripts/app.js";
+import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
+import {
+    resizeSeedanceNode,
+    setSeedanceWidgetVisible as setWidgetVisible,
+} from "./dynamic_widget_ui.js";
 
 const MIDJOURNEY_NODE_NAME = "Midjourney_Multi_Action";
-const CONVERTED_WIDGET_PREFIX = "converted-widget";
+const MIDJOURNEY_CONCURRENT_IMAGE_NODE_NAME = "SeedanceConcurrent_Midjourney_Image_Submit";
+const MIDJOURNEY_CONCURRENT_VIDEO_NODE_NAME = "SeedanceConcurrent_Midjourney_Video_Submit";
 const ALWAYS_VISIBLE = new Set(["operation", "skip_error"]);
 const OPERATION_LABELS = {
     "midjourney-imagine": "midjourney-imagine｜文生图 / 参考图生成",
@@ -23,6 +29,13 @@ const OPERATION_LABELS = {
 };
 const OPERATION_BY_LABEL = Object.fromEntries(
     Object.entries(OPERATION_LABELS).map(([operation, label]) => [label, operation]),
+);
+const CONCURRENT_IMAGE_OPERATIONS = Object.keys(OPERATION_LABELS).filter(
+    (operation) => ![
+        "midjourney-describe",
+        "midjourney-inpaint",
+        "midjourney-video",
+    ].includes(operation),
 );
 const SIZE_OPTIONS = [
     "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9", "custom",
@@ -112,13 +125,6 @@ const MANAGED_FIELDS = new Set(
     Object.values(ACTION_FIELDS).flat().concat([...ALWAYS_VISIBLE]),
 );
 
-function isConvertedWidget(widget) {
-    return (
-        String(widget?.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)
-        || Object.prototype.hasOwnProperty.call(widget ?? {}, "origType")
-    );
-}
-
 function widgetByName(node, name) {
     return node.widgets?.find((widget) => widget.name === name);
 }
@@ -137,9 +143,11 @@ function normalizeOperationWidget(node) {
         return;
     }
     const rawValue = String(widget.value ?? "");
-    const operation = OPERATION_BY_LABEL[rawValue] ?? rawValue;
-    widget.value = OPERATION_LABELS[operation] ?? OPERATION_LABELS["midjourney-imagine"];
-    setComboValues(widget, Object.values(OPERATION_LABELS));
+    const allowed = node.seedanceMidjourneyAllowedOperations ?? Object.keys(OPERATION_LABELS);
+    const requested = OPERATION_BY_LABEL[rawValue] ?? rawValue;
+    const operation = allowed.includes(requested) ? requested : allowed[0];
+    widget.value = OPERATION_LABELS[operation];
+    setComboValues(widget, allowed.map((name) => OPERATION_LABELS[name]));
 }
 
 function normalizeSizeWidget(node) {
@@ -192,26 +200,6 @@ function migrateLegacyWidgetValues(config) {
     values.splice(CUSTOM_SIZE_WIDGET_INDEX, 0, "");
 }
 
-function setWidgetVisible(widget, visible) {
-    if (!widget || !MANAGED_FIELDS.has(widget.name) || isConvertedWidget(widget)) {
-        return;
-    }
-    if (!widget.seedanceMidjourneyOriginal) {
-        widget.seedanceMidjourneyOriginal = {
-            type: widget.type,
-            computeSize: widget.computeSize,
-        };
-    }
-    const original = widget.seedanceMidjourneyOriginal;
-    if (visible) {
-        widget.type = original.type;
-        widget.computeSize = original.computeSize;
-    } else {
-        widget.type = "hidden";
-        widget.computeSize = () => [0, -4];
-    }
-}
-
 function activeFields(node) {
     const operationWidget = widgetByName(node, "operation");
     const operationValue = String(
@@ -239,7 +227,9 @@ function activeFields(node) {
 function refreshMidjourneyNode(node) {
     const fields = activeFields(node);
     for (const widget of node.widgets ?? []) {
-        setWidgetVisible(widget, fields.has(widget.name));
+        if (MANAGED_FIELDS.has(widget.name)) {
+            setWidgetVisible(widget, fields.has(widget.name));
+        }
     }
 
     for (const input of node.inputs ?? []) {
@@ -250,16 +240,7 @@ function refreshMidjourneyNode(node) {
         input.hidden = !fields.has(input.name) && !connected;
     }
 
-    requestAnimationFrame(() => {
-        const computed = node.computeSize?.();
-        if (computed) {
-            node.setSize?.([
-                Math.max(node.size?.[0] ?? 340, computed[0], 340),
-                Math.max(computed[1], 120),
-            ]);
-        }
-        node.setDirtyCanvas?.(true, true);
-    });
+    resizeSeedanceNode(node, 340);
 }
 
 function wrapRefreshWidget(node, name) {
@@ -279,13 +260,21 @@ function wrapRefreshWidget(node, name) {
 app.registerExtension({
     name: "ComfyUI_Seedance.MidjourneyActionUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== MIDJOURNEY_NODE_NAME) {
+        if (originalSeedanceNodeName(nodeData.name) !== MIDJOURNEY_NODE_NAME) {
             return;
         }
+        const allowedOperations = (
+            nodeData.name === MIDJOURNEY_CONCURRENT_IMAGE_NODE_NAME
+                ? CONCURRENT_IMAGE_OPERATIONS
+                : nodeData.name === MIDJOURNEY_CONCURRENT_VIDEO_NODE_NAME
+                    ? ["midjourney-video"]
+                    : null
+        );
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const result = originalOnNodeCreated?.apply(this, arguments);
+            this.seedanceMidjourneyAllowedOperations = allowedOperations;
             normalizeFriendlyWidgets(this);
             wrapRefreshWidget(this, "operation");
             wrapRefreshWidget(this, "modal_mode");
@@ -296,6 +285,7 @@ app.registerExtension({
 
         const originalOnConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
+            this.seedanceMidjourneyAllowedOperations = allowedOperations;
             migrateLegacyWidgetValues(arguments[0]);
             const result = originalOnConfigure?.apply(this, arguments);
             normalizeFriendlyWidgets(this);

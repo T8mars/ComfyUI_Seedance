@@ -61,6 +61,33 @@ def _get_setting(env_data: Dict[str, str], key: str, default) -> str:
     return os.environ.get(key) or env_data.get(key) or str(default)
 
 
+def validate_api_key(value: Any) -> str:
+    """Validate a Seedance API key before it reaches an HTTP header."""
+    api_key = str(value or "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "Seedance API key is empty. Enter the key in the api_key field. | "
+            "Seedance API Key 为空，请把密钥填写在 api_key 输入框中。"
+        )
+    if not api_key.isascii():
+        raise RuntimeError(
+            "Invalid Seedance API key: only ASCII characters are allowed. "
+            "The api_key field may contain prompt text. | "
+            "Seedance API Key 无效：只能包含 ASCII 字符；请检查是否把中文提示词误填进了 api_key 输入框。"
+        )
+    if not api_key.startswith("sk-") or len(api_key) <= 3:
+        raise RuntimeError(
+            "Invalid Seedance API key: it must start with 'sk-'. | "
+            "Seedance API Key 无效：正确密钥必须以 'sk-' 开头。"
+        )
+    if any(character.isspace() for character in api_key):
+        raise RuntimeError(
+            "Invalid Seedance API key: whitespace is not allowed. | "
+            "Seedance API Key 无效：密钥中不能包含空格或换行。"
+        )
+    return api_key
+
+
 def get_config(api_config: Any = None) -> Dict[str, Any]:
     """Resolve the effective config for one node execution.
 
@@ -97,6 +124,8 @@ def get_config(api_config: Any = None) -> Dict[str, Any]:
             "缺少 Seedance API key。请连接 'Seedance API Config' 节点，或设置 "
             "SEEDANCE_API_KEY 环境变量 / config/.env。"
         )
+
+    api_key = validate_api_key(api_key)
 
     base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
 

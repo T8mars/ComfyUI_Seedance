@@ -45,6 +45,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from .runtime import check_cancelled, cooperative_sleep
+
 
 class SeedanceAPIError(RuntimeError):
     """Business (non-retryable) API error."""
@@ -239,7 +241,7 @@ def upload_media(
         if attempt > 0:
             wait = min(2 ** attempt, 15)
             _log(logger_prefix, f"Upload retry {attempt + 1}/{_UPLOAD_MAX_ATTEMPTS} in {wait}s...")
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -265,7 +267,7 @@ def upload_media(
                 f"Upload rate limited: {_extract_error_message(data, response.text[:200])}"
             )
             _log(logger_prefix, f"Upload 429 rate limited, waiting {_UPLOAD_RATE_LIMIT_WAIT}s...")
-            time.sleep(_UPLOAD_RATE_LIMIT_WAIT)
+            cooperative_sleep(_UPLOAD_RATE_LIMIT_WAIT)
             continue
 
         if response.status_code >= 500:
@@ -317,7 +319,7 @@ def submit_task(
         if attempt > 0:
             wait = min(2 ** attempt + 1, 15)
             _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -413,7 +415,7 @@ def poll_task(
                 f"稍后可用 task_id={task_id} 查询结果。"
             )
 
-        time.sleep(poll_interval)
+        cooperative_sleep(poll_interval)
 
         try:
             response = _session().get(
@@ -426,7 +428,7 @@ def poll_task(
             _log(logger_prefix, f"Poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): {type(e).__name__}")
             if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
                 raise RuntimeError(f"Polling failed after repeated network errors [task_id: {task_id}]")
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         if response.status_code != 200:
@@ -440,7 +442,7 @@ def poll_task(
                 raise RuntimeError(
                     f"Polling failed: HTTP {response.status_code} repeatedly [task_id: {task_id}] {body}"
                 )
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         try:
@@ -505,7 +507,10 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
 # Image generation
 # ---------------------------------------------------------------------------
 
-_IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "IN_PROGRESS"}
+_IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS"}
+_IMAGE_DOWNLOAD_TIMEOUT = 45
+_IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 15
+_IMAGE_DOWNLOAD_READ_TIMEOUT = 15
 
 
 def submit_image_task(
@@ -522,7 +527,7 @@ def submit_image_task(
         if attempt > 0:
             wait = min(2 ** attempt + 1, 15)
             _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -588,7 +593,7 @@ def poll_image_task(
                 f"图片任务超过 {max_poll_time}s，已停止轮询"
             )
 
-        time.sleep(poll_interval)
+        cooperative_sleep(poll_interval)
 
         try:
             response = _session().get(
@@ -601,7 +606,7 @@ def poll_image_task(
             _log(logger_prefix, f"Image poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): {type(e).__name__}")
             if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
                 raise RuntimeError(f"Image polling failed after repeated network errors [task_id: {task_id}]")
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         if response.status_code != 200:
@@ -611,7 +616,7 @@ def poll_image_task(
                 raise RuntimeError(
                     f"Image polling failed: HTTP {response.status_code} repeatedly [task_id: {task_id}]"
                 )
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         try:
@@ -676,9 +681,45 @@ def extract_image_url(final_response: Dict[str, Any]) -> str:
     )
 
 
+def _download_image_bytes(url: str, timeout: int) -> bytes:
+    total_timeout = max(1.0, float(timeout))
+    deadline = time.monotonic() + total_timeout
+    request_timeout = (
+        min(float(_IMAGE_DOWNLOAD_CONNECT_TIMEOUT), total_timeout),
+        min(float(_IMAGE_DOWNLOAD_READ_TIMEOUT), total_timeout),
+    )
+    response = None
+    try:
+        response = _session().get(
+            url,
+            stream=True,
+            timeout=request_timeout,
+        )
+        response.raise_for_status()
+        if not hasattr(response, "iter_content"):
+            return bytes(response.content)
+
+        content = bytearray()
+        for chunk in response.iter_content(chunk_size=1 << 16):
+            check_cancelled()
+            if time.monotonic() > deadline:
+                raise requests.exceptions.Timeout(
+                    f"Image result download exceeded {total_timeout:g}s"
+                )
+            if chunk:
+                content.extend(chunk)
+        if not content:
+            raise RuntimeError("Image result download returned an empty body")
+        return bytes(content)
+    finally:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
+
+
 def download_image(
     url: str,
-    timeout: int = 300,
+    timeout: int = _IMAGE_DOWNLOAD_TIMEOUT,
     max_retries: int = 3,
     logger_prefix: str = "Seedream_Image",
 ) -> Any:
@@ -694,10 +735,9 @@ def download_image(
     for attempt in range(max_retries):
         try:
             if attempt > 0:
-                time.sleep(2 ** attempt)
-            response = _session().get(url, timeout=timeout)
-            response.raise_for_status()
-            with Image.open(BytesIO(response.content)) as image:
+                cooperative_sleep(2 ** attempt)
+            content = _download_image_bytes(url, timeout)
+            with Image.open(BytesIO(content)) as image:
                 rgb = image.convert("RGB")
                 array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
             tensor = torch.from_numpy(array).unsqueeze(0)
@@ -712,7 +752,7 @@ def download_image(
 
 def download_image_with_path(
     url: str,
-    timeout: int = 300,
+    timeout: int = _IMAGE_DOWNLOAD_TIMEOUT,
     max_retries: int = 3,
     logger_prefix: str = "Midjourney_Multi_Action",
 ) -> Tuple[Any, str]:
@@ -734,10 +774,9 @@ def download_image_with_path(
     for attempt in range(max_retries):
         try:
             if attempt > 0:
-                time.sleep(2 ** attempt)
-            response = _session().get(url, timeout=timeout)
-            response.raise_for_status()
-            with Image.open(BytesIO(response.content)) as image:
+                cooperative_sleep(2 ** attempt)
+            content = _download_image_bytes(url, timeout)
+            with Image.open(BytesIO(content)) as image:
                 rgb = image.convert("RGB")
                 array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
                 path = os.path.join(
@@ -784,7 +823,7 @@ def submit_audio_task(
         if attempt > 0:
             wait = min(2 ** attempt + 1, 15)
             _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -850,7 +889,7 @@ def poll_audio_task(
                 f"音频任务超过 {max_poll_time}s，已停止轮询"
             )
 
-        time.sleep(poll_interval)
+        cooperative_sleep(poll_interval)
 
         try:
             response = _session().get(
@@ -863,7 +902,7 @@ def poll_audio_task(
             _log(logger_prefix, f"Audio poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): {type(e).__name__}")
             if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
                 raise RuntimeError(f"Audio polling failed after repeated network errors [task_id: {task_id}]")
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         if response.status_code != 200:
@@ -873,7 +912,7 @@ def poll_audio_task(
                 raise RuntimeError(
                     f"Audio polling failed: HTTP {response.status_code} repeatedly [task_id: {task_id}]"
                 )
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         try:
@@ -983,7 +1022,7 @@ def transcribe_audio(
         if attempt > 0:
             wait = min(2 ** attempt + 1, 15)
             _log(logger_prefix, f"Transcription retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -1225,7 +1264,7 @@ def download_audio(
     for attempt in range(max_retries):
         try:
             if attempt > 0:
-                time.sleep(2 ** attempt)
+                cooperative_sleep(2 ** attempt)
             response = _session().get(url, stream=True, timeout=timeout)
             response.raise_for_status()
             content_type = (getattr(response, "headers", {}) or {}).get("Content-Type", "")
@@ -1316,7 +1355,7 @@ def submit_music_action(
                 logger_prefix,
                 f"Music submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
             )
-            time.sleep(wait)
+            cooperative_sleep(wait)
 
         try:
             response = _session().post(
@@ -1403,7 +1442,7 @@ def poll_music_task(
                 f"音乐任务超过 {max_poll_time}s，已停止查询"
             )
 
-        time.sleep(poll_interval)
+        cooperative_sleep(poll_interval)
         try:
             response = _session().get(
                 url,
@@ -1908,7 +1947,7 @@ def poll_midjourney_task(
                 raise SeedanceAPIError(
                     "Midjourney task was not found on any documented query route"
                 )
-            time.sleep(min(max(1, consecutive_failures) * 2, 10))
+            cooperative_sleep(min(max(1, consecutive_failures) * 2, 10))
             continue
 
         if response.status_code == 429 or response.status_code >= 500:
@@ -1923,7 +1962,7 @@ def poll_midjourney_task(
                     f"Midjourney polling failed: "
                     f"HTTP {response.status_code} repeatedly"
                 )
-            time.sleep(min(consecutive_failures * 2, 10))
+            cooperative_sleep(min(consecutive_failures * 2, 10))
             continue
 
         if response.status_code != 200:
@@ -2147,7 +2186,7 @@ def download_file(
     for attempt in range(max_retries):
         try:
             if attempt > 0:
-                time.sleep(2 ** attempt)
+                cooperative_sleep(2 ** attempt)
             response = _session().get(url, stream=True, timeout=timeout)
             response.raise_for_status()
             content_type = (getattr(response, "headers", {}) or {}).get(
@@ -2209,7 +2248,7 @@ def download_video_with_path(
     for attempt in range(max_retries):
         try:
             if attempt > 0:
-                time.sleep(2 ** attempt)
+                cooperative_sleep(2 ** attempt)
             response = _session().get(url, stream=True, timeout=timeout)
             response.raise_for_status()
             with open(video_path, "wb") as f:

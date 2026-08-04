@@ -968,6 +968,7 @@ class MidjourneyClientTests(unittest.TestCase):
         Image.new("RGB", (3, 2), (10, 20, 30)).save(buffer, format="PNG")
         response = MagicMock()
         response.content = buffer.getvalue()
+        response.iter_content.return_value = [buffer.getvalue()]
         response.headers = {"Content-Type": "image/png"}
         response.raise_for_status.return_value = None
         session = MagicMock()
@@ -983,6 +984,7 @@ class MidjourneyClientTests(unittest.TestCase):
             self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
             self.assertTrue(Path(path).is_file())
             self.assertEqual(session.get.call_count, 1)
+            self.assertTrue(session.get.call_args.kwargs["stream"])
 
 
 class MidjourneyExecutionTests(unittest.TestCase):

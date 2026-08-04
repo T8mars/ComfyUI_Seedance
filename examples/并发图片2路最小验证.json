@@ -1,0 +1,636 @@
+{
+  "id": "seedance-concurrent-image-2",
+  "revision": 0,
+  "last_node_id": 6,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1,
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "SeedanceConcurrent_Zhenzhen_Image_GK_V15_Submit",
+      "pos": [
+        390,
+        40
+      ],
+      "size": [
+        420,
+        300
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Zhenzhen_Image_GK_V15_Submit"
+      },
+      "widgets_values": [
+        "zhenzhen-image-gk-v15",
+        "并发图片任务 1，明亮摄影棚中的彩色玻璃摆件，清晰细节",
+        "1:1",
+        1
+      ],
+      "title": "并发图片提交 01"
+    },
+    {
+      "id": 3,
+      "type": "SeedanceConcurrent_Zhenzhen_Image_GK_V15_Submit",
+      "pos": [
+        860,
+        40
+      ],
+      "size": [
+        420,
+        300
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Zhenzhen_Image_GK_V15_Submit"
+      },
+      "widgets_values": [
+        "zhenzhen-image-gk-v15",
+        "并发图片任务 2，明亮摄影棚中的彩色玻璃摆件，清晰细节",
+        "1:1",
+        1
+      ],
+      "title": "并发图片提交 02"
+    },
+    {
+      "id": 4,
+      "type": "SeedanceConcurrent_Image_Await",
+      "pos": [
+        2860,
+        100
+      ],
+      "size": [
+        420,
+        1100
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "future_1",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": 2
+        },
+        {
+          "name": "future_2",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": 4
+        },
+        {
+          "name": "future_3",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_4",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_5",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_6",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_7",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_8",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_9",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_10",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_11",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_12",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_13",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_14",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_15",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_16",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_17",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_18",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_19",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_20",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_21",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_22",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_23",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_24",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_25",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_26",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_27",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_28",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_29",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        },
+        {
+          "name": "future_30",
+          "shape": 7,
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "image_3",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_5",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_6",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_7",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_8",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_9",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_10",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_11",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_12",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_13",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_14",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_15",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_16",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_17",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_18",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_19",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_20",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_21",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_22",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_23",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_24",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_25",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_26",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_27",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_28",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_29",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "image_30",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "status_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Image_Await"
+      },
+      "widgets_values": [
+        "raise"
+      ],
+      "title": "并发接收图片（30 路）"
+    },
+    {
+      "id": 5,
+      "type": "SaveImage",
+      "pos": [
+        3380,
+        100
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "concurrent/image_01"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "SaveImage",
+      "pos": [
+        3380,
+        430
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "concurrent/image_02"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      1,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      3,
+      1,
+      0,
+      3,
+      1,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      2,
+      0,
+      4,
+      0,
+      "SEEDANCE_IMAGE_FUTURE"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      1,
+      "SEEDANCE_IMAGE_FUTURE"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      4,
+      1,
+      6,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20"
+  },
+  "version": 0.4
+}

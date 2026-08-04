@@ -20,7 +20,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from .core.config import get_config, DEFAULT_BASE_URL
+from .core.config import get_config, validate_api_key, DEFAULT_BASE_URL
 from .core.client import (
     SeedanceAPIError,
     download_audio,
@@ -56,12 +56,32 @@ from .core.media import (
     make_error_video,
     video_to_bytes,
 )
+from .core.runtime import current_progress_callback, progress_is_suppressed
 
 try:
     import comfy.utils
     COMFYUI_AVAILABLE = True
 except ImportError:
     COMFYUI_AVAILABLE = False
+
+
+class _ConcurrentProgressBar:
+    def __init__(self, total: int, callback):
+        self.total = max(1, int(total))
+        self.callback = callback
+
+    def update_absolute(self, value, total=None, preview=None):
+        effective_total = max(1, int(total or self.total))
+        self.callback(float(value), float(effective_total))
+
+
+def _make_progress_bar(total: int):
+    progress_callback = current_progress_callback()
+    if progress_callback is not None:
+        return _ConcurrentProgressBar(total, progress_callback)
+    if not COMFYUI_AVAILABLE or progress_is_suppressed():
+        return None
+    return comfy.utils.ProgressBar(total)
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +152,8 @@ ZHENZHEN_IMAGE_G_V2_LOWPRICE_SIZES = [
     "custom",
 ]
 ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH = 20000
+ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MIN_LENGTH = 5
+ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MAX_LENGTH = 5000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
 MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES = 16
 ZHENZHEN_IMAGE_GK_V15_MODEL = "zhenzhen-image-gk-v15"
@@ -1094,7 +1116,10 @@ class SeedanceConfig:
     FUNCTION = "build"
 
     def build(self, base_url: str, api_key: str):
-        return ([{"base_url": base_url.strip(), "api_key": api_key.strip()}],)
+        return ([{
+            "base_url": base_url.strip(),
+            "api_key": validate_api_key(api_key),
+        }],)
 
 
 # ---------------------------------------------------------------------------
@@ -1175,7 +1200,7 @@ class SeedanceVideoNodeBase:
 
     def _execute_inner(self, **kwargs):
         config = get_config(kwargs.get("api_config"))
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         # Stage 1: upload reference media
@@ -3397,7 +3422,7 @@ class SeedreamV5ProImage:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         references = [
@@ -3488,7 +3513,11 @@ class ZhenzhenImageG2:
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "",
-                    "tooltip": "Prompt, up to 20000 characters. | 提示词，最多 20000 字符。",
+                    "tooltip": (
+                        "Lowprice prompt: 5 to 5000 characters; G-2 prompt: up to "
+                        "20000 characters. | Lowprice 提示词 5 到 5000 字符；"
+                        "G-2 提示词最多 20000 字符。"
+                    ),
                 }),
                 "resolution": (ZHENZHEN_IMAGE_G_V2_LOWPRICE_RESOLUTIONS, {
                     "default": "1k",
@@ -3586,7 +3615,19 @@ class ZhenzhenImageG2:
         prompt_text = str(prompt or "").strip()
         if strict and not prompt_text:
             return "prompt is required for Zhenzhen Image G | Zhenzhen Image G 必须填写提示词"
-        if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH:
+        if model == ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL and prompt_text and strict:
+            prompt_length = len(prompt_text)
+            if prompt_length < ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MIN_LENGTH:
+                return (
+                    "lowprice prompt must contain 5 to 5000 characters "
+                    f"({prompt_length}) | lowprice 提示词必须包含 5 到 5000 个字符"
+                )
+            if prompt_length > ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MAX_LENGTH:
+                return (
+                    "lowprice prompt must contain 5 to 5000 characters "
+                    f"({prompt_length}) | lowprice 提示词必须包含 5 到 5000 个字符"
+                )
+        elif prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH:
             return (
                 f"prompt exceeds {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} characters "
                 f"({len(prompt_text)}) | 提示词不能超过 {ZHENZHEN_IMAGE_G2_PROMPT_MAX_LENGTH} 字符"
@@ -3741,7 +3782,7 @@ class ZhenzhenImageG2:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         image_urls: List[str] = []
@@ -3950,7 +3991,7 @@ class ZhenzhenImageGKV15:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         image_urls: List[str] = []
@@ -4196,7 +4237,7 @@ class ZhenzhenImageNB:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         references = self._connected_images(kwargs)
@@ -4513,7 +4554,7 @@ class DoubaoSeedAudio:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         image_urls, audio_urls = self._upload_references(
@@ -4678,7 +4719,7 @@ class WhisperTranscription:
             raise SeedanceAPIError(validation)
 
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         wav_bytes = audio_to_wav_bytes(audio)
@@ -5259,7 +5300,7 @@ class SunoMusic:
 
         spec = SUNO_ACTION_SPECS[operation]
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         audio_urls = self._collect_audio_inputs(
@@ -6339,7 +6380,7 @@ class MidjourneyMultiAction:
 
         spec = MIDJOURNEY_ACTION_SPECS[operation]
         config = get_config(api_config)
-        pbar = comfy.utils.ProgressBar(100) if COMFYUI_AVAILABLE else None
+        pbar = _make_progress_bar(100)
         self._update_progress(pbar, 0)
 
         materials = self._collect_materials(

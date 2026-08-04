@@ -22,6 +22,21 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.5（2026-08-04）
+
+- 新增可选并发工作流，图片与视频分别使用独立线程池，单个接收节点固定支持 30 路图片或 10 路视频。
+- 为 4 个图片节点、15 个视频节点增加并发提交版本；Midjourney 图片与视频使用各自的专用提交节点，避免混合输出误分类。
+- 并发接收节点保持槽位顺序，默认在任一任务失败时明确报错，也可选择仅替换失败槽并输出脱敏状态摘要。
+- 原有节点、参数和工作流保持不变；新增 2 路最小验证与 30/10 路完整示例共 4 份。
+- 已完成 30 张图片与 10 段 4 秒视频的同批真实验证，全部生成、下载并转换为有效 ComfyUI 媒体输出。
+- 配置节点会在请求前检查 API Key，避免把提示词误填到 `api_key` 时出现难以理解的请求头编码错误。
+- 修复所有动态参数节点在缩放后隐藏控件仍被绘制、与可见控件重叠的问题，覆盖 Zhenzhen Image G/NB/V3.1、Hailuo H3、Suno、Midjourney 及其并发提交版本。
+- 动态控件改为统一使用 ComfyUI 兼容的隐藏与恢复机制，并完成真实画布模型切换、节点缩放和前端日志检查。
+- Lowprice 提示词按上游真实限制在提交前校验 5 到 5000 字符；并发提交节点会在创建 Future 前单独报告提示词错误，不会把一条错误展开成全部输入无效，也不会延迟到接收阶段。
+- 已按用户同结构工作流真实复测两路 Lowprice 图像编辑：共用一张参考图并发提交，两路均成功完成并由同一接收节点输出有效图片。
+- 并发接收节点会汇总每个子任务的上传、轮询与下载进度，不再只在整个 Future 完成后跳动。
+- 图片结果改为流式读取；单次连接使用较短的连接/读取超时和 45 秒总时限，遇到损坏分块或慢连接会尽快关闭并重试，避免 API 已完成后长时间停在接收节点。
+
 ## v0.5.4（2026-07-31）
 
 - 新增 `Hailuo H3 视频生成` 三模型合一节点，支持 `hailuo-h3-t2v`、`hailuo-h3-i2v` 与 `hailuo-h3-multi`。
@@ -169,6 +184,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
 - 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
+- 支持图片 30 路、视频 10 路独立并发提交与按槽位接收，原节点仍可单独运行
 - 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
@@ -209,6 +225,9 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
 | `Suno 音乐生成与处理（31 合 1）` | 音乐生成、素材导入、续写、翻唱、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
 | `Midjourney 图像与视频（16 合 1）` | 图片生成、融合、描述、编辑、二次操作、局部重绘和图生视频 | `operation` 和当前操作动态显示的输入 |
+| `并发提交｜...` | 使用对应原节点的完整参数异步提交图片或视频任务 | 与对应原节点相同 |
+| `并发接收图片（30 路）` | 接收最多 30 个图片 Future，并按输入槽位输出图片 | `future_1` ... `future_30`、`failure_mode` |
+| `并发接收视频（10 路）` | 接收最多 10 个视频 Future，并按输入槽位输出视频 | `future_1` ... `future_10`、`failure_mode` |
 
 视频生成节点输出：
 
@@ -362,6 +381,23 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 4. 运行工作流。
 5. 将 `video` 输出连接到 `SaveVideo` 或其他视频节点。
 
+图片或视频并发生成：
+
+1. 添加多个名称以 `并发提交｜` 开头的生成节点；它们保留对应原节点的参数和素材输入。
+2. 图片提交节点连接 `并发接收图片（30 路）`，视频提交节点连接 `并发接收视频（10 路）`。
+3. 将各提交节点的 `future` 按需要连接到接收节点的 `future_1`、`future_2` 等插槽。
+4. 接收节点会并行等待并按插槽顺序输出。`failure_mode=raise` 会在失败时停止并指出槽位；`placeholder` 会保留其他成功槽，并在 `status_json` 中给出脱敏状态。
+5. 不需要并发时继续使用原节点即可；旧工作流无需迁移。
+
+并发接收节点按媒体类型通用，并不限制模型。示例中的 GK v1.5 只是演示用节点，可以替换或混合连接下列提交节点：
+
+| 接收节点 | 可连接的并发提交节点 |
+| --- | --- |
+| `并发接收图片（30 路）` | Seedream / Dola Seedream、Zhenzhen Image G、GK v1.5、Nano Banana、Midjourney 图片 |
+| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、Upscaler、Midjourney 视频 |
+
+不同原节点的输入参数和素材类型不同，所以每个原节点都有对应的 `并发提交｜...` 版本；它们输出统一的图片 Future 或视频 Future。同类型 Future 可以混接到同一个接收节点，例如 `Seedream future -> future_1`、`Image G future -> future_2`、`Nano Banana future -> future_3`。
+
 图片生成或编辑：
 
 1. 添加 `Seedream / Dola Seedream 图像生成/编辑`。
@@ -474,6 +510,10 @@ Midjourney 图片与视频：
 - `examples/可灵kling-v3.0图生视频首尾帧.json`
 - `examples/可灵kling-o3参考生视频.json`
 - `examples/可灵kling-o3视频编辑.json`
+- `examples/并发图片2路最小验证.json`
+- `examples/并发视频2路最小验证.json`
+- `examples/并发图片30路示例.json`
+- `examples/并发视频10路示例.json`
 
 可以直接把 JSON 文件拖进 ComfyUI 加载。
 
@@ -909,6 +949,8 @@ Midjourney 节点参数：
 | `SEEDANCE_CA_BUNDLE` | 空 | 可选，自定义 CA 证书包路径，用于证书链排障 |
 | `SEEDANCE_FFMPEG` | 自动查找 | 可选，指定 FFmpeg 可执行文件；未设置时检查 PATH 和整合包内置路径 |
 | `SEEDANCE_SSL_VERIFY` | `1` | 设为 `0` 可关闭 SSL 校验，仅建议临时排障使用 |
+| `SEEDANCE_IMAGE_CONCURRENCY` | `30` | 图片并发工作线程数，可设置 1 到 30；不会改变接收节点的 30 个插槽 |
+| `SEEDANCE_VIDEO_CONCURRENCY` | `10` | 视频并发工作线程数，可设置 1 到 10；不会改变接收节点的 10 个插槽 |
 
 ## 稳定性策略
 
@@ -918,7 +960,7 @@ Midjourney 节点参数：
 - 上传素材遇到 API 限流时，会等待后继续重试。
 - 下载结果视频失败时会自动重试。
 - 图片任务使用独立状态规则轮询：`SUCCESS` 成功、`FAILURE` 失败，并自动下载临时结果直链。
-- 下载图片失败时会自动重试，成功后返回标准 ComfyUI `IMAGE` 张量。
+- 下载图片使用流式读取、短读超时和单次 45 秒总时限；损坏分块或慢连接会自动关闭并重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - 音频任务使用 `/v1/audio/generations` 独立状态规则轮询，成功后自动下载并返回 ComfyUI `AUDIO`。
 - Whisper 转写使用同步 `/v1/audio/transcriptions` multipart 请求，不进行任务轮询。
 - Suno 任务查询兼容运行阶段的 `data[]` 和完成阶段的 `data` 对象响应。
@@ -929,6 +971,8 @@ Midjourney 节点参数：
 - Midjourney 图像和视频结果支持多产物下载；单个产物失败时保留 URL 与空路径，全部下载失败时才中止。
 - Midjourney 结果只从 `data` / `result` / `task` / `output` 任务信封提取，不会把回显请求或自定义 metadata 中的素材 URL 误认成生成结果。
 - 每个执行线程使用独立 HTTP Session，同一线程内复用连接，多任务并发时不会共享可变 Session 状态。
+- 图片与视频使用独立的延迟线程池；并发子任务不直接争用 ComfyUI 进度条，接收节点统一汇总各任务的上传、轮询和下载进度。
+- 并发接收器按 Future 完成通知收集结果，再恢复输入槽位顺序；用户中断时会通知本地轮询停止并取消尚未开始的任务。
 - `raw`、`draft`、`hd`、`stop` 与 Niji 的版本组合按官方约束在提交前校验。
 - Video 与两种 Remix 不发送文档未登记的 metadata；`CANCEL` 会作为失败终态立即结束查询；Midjourney 的 `skip_error` 同时提供图片和视频占位。
 - Seed Audio 已实测可在没有 `torchaudio` 时通过 SciPy 回退解码 24 kHz 双声道 WAV。
