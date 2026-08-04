@@ -91,12 +91,12 @@ class FrontendExtensionTests(unittest.TestCase):
             'const SUNO_NODE_NAME = "Suno_Music"',
             "const ACTION_FIELDS = {",
             "if (nodeData.name !== SUNO_NODE_NAME)",
+            'from "./dynamic_widget_ui.js"',
             "setWidgetVisible(widget, fields.has(widget.name))",
-            "String(widget.type ?? \"\").startsWith(CONVERTED_WIDGET_PREFIX)",
-            'Object.prototype.hasOwnProperty.call(widget, "origType")',
-            "if (isConvertedInput)",
+            "if (MANAGED_FIELDS.has(widget.name))",
             "const connected = input.link != null",
             "input.hidden = !fields.has(input.name) && !connected",
+            "resizeSeedanceNode(node, 320)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
             "refreshSunoNode(this)",
@@ -105,10 +105,6 @@ class FrontendExtensionTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)
 
-        self.assertLess(
-            source.index("if (isConvertedInput)"),
-            source.index("if (!widget.seedanceSunoOriginal)"),
-        )
         operation_keys = set(
             re.findall(r'^\s{4}"(suno-[a-z0-9-]+)": \[', source, re.MULTILINE)
         )
@@ -124,12 +120,13 @@ class FrontendExtensionTests(unittest.TestCase):
         required_fragments = (
             'const MIDJOURNEY_NODE_NAME = "Midjourney_Multi_Action"',
             "const ACTION_FIELDS = {",
-            "if (nodeData.name !== MIDJOURNEY_NODE_NAME)",
+            "originalSeedanceNodeName(nodeData.name) !== MIDJOURNEY_NODE_NAME",
+            'from "./dynamic_widget_ui.js"',
             "setWidgetVisible(widget, fields.has(widget.name))",
-            "String(widget?.type ?? \"\").startsWith(CONVERTED_WIDGET_PREFIX)",
-            'Object.prototype.hasOwnProperty.call(widget ?? {}, "origType")',
+            "if (MANAGED_FIELDS.has(widget.name))",
             "const connected = input.link != null",
             "input.hidden = !fields.has(input.name) && !connected",
+            "resizeSeedanceNode(node, 340)",
             'wrapRefreshWidget(this, "operation")',
             'wrapRefreshWidget(this, "modal_mode")',
             'wrapRefreshWidget(this, "size")',
@@ -175,9 +172,7 @@ class FrontendExtensionTests(unittest.TestCase):
             'const NB_NODE_NAME = "Zhenzhen_Image_NB"',
             'const V31_NODE_NAME = "Zhenzhen_Video_V31"',
             'const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"',
-            'const CONVERTED_WIDGET_PREFIX = "converted-widget"',
-            'String(widget.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)',
-            'Object.prototype.hasOwnProperty.call(widget, "origType")',
+            'from "./dynamic_widget_ui.js"',
             "function refreshG2Node(node)",
             'isLowprice ? ["1k", "2k", "4k"] : ["1k"]',
             'setWidgetVisible(widgetByName(node, "ratio"), !isLowprice)',
@@ -197,12 +192,41 @@ class FrontendExtensionTests(unittest.TestCase):
             'model !== "zhenzhen-video-v31-lite"',
             'model === "zhenzhen-video-v31-quality" && input.name === "image3"',
             "input.hidden = !allowed && input.link == null",
+            "resizeSeedanceNode(node, 340)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
         )
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)
+
+    def test_concurrent_wrappers_share_dynamic_frontend_rules(self):
+        helper = (
+            PLUGIN_ROOT / "web" / "js" / "concurrent_node_ui.js"
+        ).read_text(encoding="utf-8")
+        hailuo = (
+            PLUGIN_ROOT / "web" / "js" / "hailuo_h3_model_ui.js"
+        ).read_text(encoding="utf-8")
+        zhenzhen = (
+            PLUGIN_ROOT / "web" / "js" / "zhenzhen_model_ui.js"
+        ).read_text(encoding="utf-8")
+        midjourney = (
+            PLUGIN_ROOT / "web" / "js" / "midjourney_action_ui.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('const WRAPPER_PREFIX = "SeedanceConcurrent_"', helper)
+        self.assertIn('const WRAPPER_SUFFIX = "_Submit"', helper)
+        self.assertIn("SeedanceConcurrent_Midjourney_Image_Submit", helper)
+        self.assertIn("SeedanceConcurrent_Midjourney_Video_Submit", helper)
+        self.assertIn("CONCURRENT_IMAGE_OPERATIONS", midjourney)
+        self.assertIn('? ["midjourney-video"]', midjourney.replace("\n", " "))
+        self.assertIn("seedanceMidjourneyAllowedOperations", midjourney)
+        for source in (hailuo, zhenzhen, midjourney):
+            self.assertIn(
+                'from "./concurrent_node_ui.js"',
+                source,
+            )
+            self.assertIn("originalSeedanceNodeName(nodeData.name)", source)
 
     def test_hailuo_h3_ui_enforces_model_specific_inputs(self):
         source = (
@@ -213,16 +237,49 @@ class FrontendExtensionTests(unittest.TestCase):
             'const T2V_MODEL = "hailuo-h3-t2v"',
             'const I2V_MODEL = "hailuo-h3-i2v"',
             'const MULTI_MODEL = "hailuo-h3-multi"',
+            'from "./dynamic_widget_ui.js"',
             'setWidgetVisible(widgetByName(node, "ratio"), model !== I2V_MODEL)',
             'return name === "image1" || name === "image2"',
             '/^(image[1-9]|video[1-3]|audio[1-3])$/.test(name)',
             "input.hidden = !inputAllowed(model, input.name) && !connected",
+            "resizeSeedanceNode(node, 420)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
         )
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, source)
+
+    def test_dynamic_widget_helper_uses_frontend_compatible_hidden_type(self):
+        helper = (
+            PLUGIN_ROOT / "web" / "js" / "dynamic_widget_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const CONVERTED_WIDGET_PREFIX = "converted-widget"',
+            '`${CONVERTED_WIDGET_PREFIX}:seedance-hidden`',
+            'type !== DYNAMIC_HIDDEN_WIDGET_TYPE',
+            'hasOwn(widget, "origType")',
+            "widget.type = nextType",
+            "widget.computeSize = nextComputeSize",
+            "cancelAnimationFrame(node.seedanceDynamicResizeFrame)",
+            "resizeSeedanceNode(node, minimumWidth = 320)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, helper)
+
+        dynamic_sources = [
+            (PLUGIN_ROOT / "web" / "js" / name).read_text(encoding="utf-8")
+            for name in (
+                "zhenzhen_model_ui.js",
+                "hailuo_h3_model_ui.js",
+                "suno_action_ui.js",
+                "midjourney_action_ui.js",
+            )
+        ]
+        for source in dynamic_sources:
+            self.assertIn('from "./dynamic_widget_ui.js"', source)
+            self.assertNotIn('widget.type = "hidden"', source)
 
     def test_hailuo_h3_workflows_cover_all_three_models(self):
         workflow_names = {

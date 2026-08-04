@@ -1,10 +1,14 @@
 import { app } from "../../../scripts/app.js";
+import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
+import {
+    resizeSeedanceNode,
+    setSeedanceWidgetVisible as setWidgetVisible,
+} from "./dynamic_widget_ui.js";
 
 const G2_NODE_NAME = "Zhenzhen_Image_G2";
 const NB_NODE_NAME = "Zhenzhen_Image_NB";
 const V31_NODE_NAME = "Zhenzhen_Video_V31";
 const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice";
-const CONVERTED_WIDGET_PREFIX = "converted-widget";
 
 const STANDARD_SIZES = [
     "1:1", "2:3", "3:2", "3:4", "4:3",
@@ -71,45 +75,6 @@ function updateInteger(widget, maximum) {
     }
 }
 
-function setWidgetVisible(widget, visible) {
-    if (!widget) {
-        return;
-    }
-    const isConvertedInput = (
-        String(widget.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)
-        || Object.prototype.hasOwnProperty.call(widget, "origType")
-    );
-    if (isConvertedInput) {
-        return;
-    }
-    if (!widget.seedanceZhenzhenOriginal) {
-        widget.seedanceZhenzhenOriginal = {
-            type: widget.type,
-            computeSize: widget.computeSize,
-        };
-    }
-    if (visible) {
-        widget.type = widget.seedanceZhenzhenOriginal.type;
-        widget.computeSize = widget.seedanceZhenzhenOriginal.computeSize;
-    } else {
-        widget.type = "hidden";
-        widget.computeSize = () => [0, -4];
-    }
-}
-
-function resizeNode(node, minimumWidth = 320) {
-    requestAnimationFrame(() => {
-        const computed = node.computeSize?.();
-        if (computed) {
-            node.setSize?.([
-                Math.max(node.size?.[0] ?? minimumWidth, computed[0], minimumWidth),
-                Math.max(computed[1], 120),
-            ]);
-        }
-        node.setDirtyCanvas?.(true, true);
-    });
-}
-
 function normalizeLowpriceSizeWidgets(node) {
     const sizeWidget = widgetByName(node, "size");
     const customWidget = widgetByName(node, "custom_size");
@@ -173,7 +138,7 @@ function refreshG2Node(node) {
         );
         input.hidden = !allowed && input.link == null;
     }
-    resizeNode(node, 340);
+    resizeSeedanceNode(node, 340);
 }
 
 function refreshNBNode(node) {
@@ -218,7 +183,8 @@ function wrapRefresh(node, refresh, widgetName = "model") {
 app.registerExtension({
     name: "ComfyUI_Seedance.ZhenzhenModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (![G2_NODE_NAME, NB_NODE_NAME, V31_NODE_NAME].includes(nodeData.name)) {
+        const originalNodeName = originalSeedanceNodeName(nodeData.name);
+        if (![G2_NODE_NAME, NB_NODE_NAME, V31_NODE_NAME].includes(originalNodeName)) {
             return;
         }
         const refreshers = {
@@ -226,13 +192,13 @@ app.registerExtension({
             [NB_NODE_NAME]: refreshNBNode,
             [V31_NODE_NAME]: refreshV31Node,
         };
-        const refresh = refreshers[nodeData.name];
+        const refresh = refreshers[originalNodeName];
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const result = originalOnNodeCreated?.apply(this, arguments);
             wrapRefresh(this, refresh);
-            if (nodeData.name === G2_NODE_NAME) {
+            if (originalNodeName === G2_NODE_NAME) {
                 wrapRefresh(this, refresh, "size");
             }
             refresh(this);
@@ -241,7 +207,7 @@ app.registerExtension({
 
         const originalOnConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
-            if (nodeData.name === G2_NODE_NAME) {
+            if (originalNodeName === G2_NODE_NAME) {
                 migrateLegacyG2WidgetValues(arguments[0]);
             }
             const result = originalOnConfigure?.apply(this, arguments);

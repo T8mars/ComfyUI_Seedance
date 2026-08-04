@@ -1,0 +1,938 @@
+{
+  "id": "seedance-concurrent-video-10",
+  "revision": 0,
+  "last_node_id": 14,
+  "last_link_id": 22,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1,
+            3,
+            5,
+            7,
+            9,
+            11,
+            13,
+            15,
+            17,
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        390,
+        40
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 1，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 01"
+    },
+    {
+      "id": 3,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        860,
+        40
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 2，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 02"
+    },
+    {
+      "id": 4,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        390,
+        540
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 3，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 03"
+    },
+    {
+      "id": 5,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        860,
+        540
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 4，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 04"
+    },
+    {
+      "id": 6,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        390,
+        1040
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 5，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 05"
+    },
+    {
+      "id": 7,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        860,
+        1040
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 6，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 06"
+    },
+    {
+      "id": 8,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        390,
+        1540
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 7，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 07"
+    },
+    {
+      "id": 9,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        860,
+        1540
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 8，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 08"
+    },
+    {
+      "id": 10,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        390,
+        2040
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 9，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 09"
+    },
+    {
+      "id": 11,
+      "type": "SeedanceConcurrent_Seedance_TextToVideo_Submit",
+      "pos": [
+        860,
+        2040
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Seedance_TextToVideo_Submit"
+      },
+      "widgets_values": [
+        "seedance-2.0-mini-t2v",
+        "并发视频任务 10，清晨湖面上的纸船缓慢前进，稳定镜头，自然光",
+        "4",
+        "480p",
+        "16:9",
+        false,
+        -1,
+        "fixed",
+        false
+      ],
+      "title": "并发视频提交 10"
+    },
+    {
+      "id": 12,
+      "type": "SeedanceConcurrent_Video_Await",
+      "pos": [
+        1450,
+        100
+      ],
+      "size": [
+        420,
+        520
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "future_1",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 2
+        },
+        {
+          "name": "future_2",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 4
+        },
+        {
+          "name": "future_3",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 6
+        },
+        {
+          "name": "future_4",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 8
+        },
+        {
+          "name": "future_5",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 10
+        },
+        {
+          "name": "future_6",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 12
+        },
+        {
+          "name": "future_7",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 14
+        },
+        {
+          "name": "future_8",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 16
+        },
+        {
+          "name": "future_9",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 18
+        },
+        {
+          "name": "future_10",
+          "shape": 7,
+          "type": "SEEDANCE_VIDEO_FUTURE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_1",
+          "type": "VIDEO",
+          "links": [
+            21
+          ]
+        },
+        {
+          "name": "video_2",
+          "type": "VIDEO",
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "video_3",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_4",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_5",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_6",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_7",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_8",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_9",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "video_10",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "status_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "SeedanceConcurrent_Video_Await"
+      },
+      "widgets_values": [
+        "raise"
+      ],
+      "title": "并发接收视频（10 路）"
+    },
+    {
+      "id": 13,
+      "type": "SaveVideo",
+      "pos": [
+        1970,
+        100
+      ],
+      "size": [
+        300,
+        190
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/concurrent_01",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "SaveVideo",
+      "pos": [
+        1970,
+        430
+      ],
+      "size": [
+        300,
+        190
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 22
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/concurrent_02",
+        "auto",
+        "auto"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      3,
+      1,
+      0,
+      3,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      5,
+      1,
+      0,
+      4,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      7,
+      1,
+      0,
+      5,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      9,
+      1,
+      0,
+      6,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      11,
+      1,
+      0,
+      7,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      13,
+      1,
+      0,
+      8,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      15,
+      1,
+      0,
+      9,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      17,
+      1,
+      0,
+      10,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      19,
+      1,
+      0,
+      11,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      2,
+      0,
+      12,
+      0,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      4,
+      3,
+      0,
+      12,
+      1,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      6,
+      4,
+      0,
+      12,
+      2,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      8,
+      5,
+      0,
+      12,
+      3,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      10,
+      6,
+      0,
+      12,
+      4,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      12,
+      7,
+      0,
+      12,
+      5,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      14,
+      8,
+      0,
+      12,
+      6,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      16,
+      9,
+      0,
+      12,
+      7,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      18,
+      10,
+      0,
+      12,
+      8,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      20,
+      11,
+      0,
+      12,
+      9,
+      "SEEDANCE_VIDEO_FUTURE"
+    ],
+    [
+      21,
+      12,
+      0,
+      13,
+      0,
+      "VIDEO"
+    ],
+    [
+      22,
+      12,
+      1,
+      14,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20"
+  },
+  "version": 0.4
+}

@@ -1,7 +1,10 @@
 import { app } from "../../../scripts/app.js";
+import {
+    resizeSeedanceNode,
+    setSeedanceWidgetVisible as setWidgetVisible,
+} from "./dynamic_widget_ui.js";
 
 const SUNO_NODE_NAME = "Suno_Music";
-const CONVERTED_WIDGET_PREFIX = "converted-widget";
 const ALWAYS_VISIBLE = new Set(["operation", "skip_error"]);
 const AUDIO_FIELDS = [
     "audio1",
@@ -52,34 +55,6 @@ const MANAGED_FIELDS = new Set(
     Object.values(ACTION_FIELDS).flat().concat([...ALWAYS_VISIBLE]),
 );
 
-function setWidgetVisible(widget, visible) {
-    if (!widget || !MANAGED_FIELDS.has(widget.name)) {
-        return;
-    }
-    const isConvertedInput = (
-        String(widget.type ?? "").startsWith(CONVERTED_WIDGET_PREFIX)
-        || Object.prototype.hasOwnProperty.call(widget, "origType")
-    );
-    if (isConvertedInput) {
-        return;
-    }
-
-    if (!widget.seedanceSunoOriginal) {
-        widget.seedanceSunoOriginal = {
-            type: widget.type,
-            computeSize: widget.computeSize,
-        };
-    }
-    const original = widget.seedanceSunoOriginal;
-    if (visible) {
-        widget.type = original.type;
-        widget.computeSize = original.computeSize;
-    } else {
-        widget.type = "hidden";
-        widget.computeSize = () => [0, -4];
-    }
-}
-
 function refreshSunoNode(node) {
     const operationWidget = node.widgets?.find((widget) => widget.name === "operation");
     const operation = String(operationWidget?.value ?? "suno-generation");
@@ -89,7 +64,9 @@ function refreshSunoNode(node) {
     }
 
     for (const widget of node.widgets ?? []) {
-        setWidgetVisible(widget, fields.has(widget.name));
+        if (MANAGED_FIELDS.has(widget.name)) {
+            setWidgetVisible(widget, fields.has(widget.name));
+        }
     }
 
     for (const input of node.inputs ?? []) {
@@ -100,16 +77,7 @@ function refreshSunoNode(node) {
         input.hidden = !fields.has(input.name) && !connected;
     }
 
-    requestAnimationFrame(() => {
-        const computed = node.computeSize?.();
-        if (computed) {
-            node.setSize?.([
-                Math.max(node.size?.[0] ?? 320, computed[0], 320),
-                Math.max(computed[1], 120),
-            ]);
-        }
-        node.setDirtyCanvas?.(true, true);
-    });
+    resizeSeedanceNode(node, 320);
 }
 
 app.registerExtension({
