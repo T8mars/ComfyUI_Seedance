@@ -18,9 +18,20 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.6（2026-08-06）
+
+- 新增 `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` 节点，覆盖国内与海外的标准版、Pro 版 T2I/I2I 模型；I2I 支持 1 到 3 张参考图。
+- Qwen 尺寸严格分为自动、`metadata.ratio + metadata.resolution` 和顶层自定义 `size` 三种模式，支持 `n=1..6`、负面提示词、提示词扩写和可选 seed。
+- 新增 `MiniMax H3 OW 视频生成（3 合 1）` 节点，覆盖 T2V、I2V、R2V；支持 5/10/15 秒、480p/720p 与文档规定的 8 种画幅。
+- 两个节点均提供配套并发提交版本，可分别连接现有 30 路图片或 10 路视频并发接收节点；前端会按模型和尺寸模式动态显示适用控件。
+- 动态素材插槽兼容当前 ComfyUI 画布实现：不适用且未连接的插槽移出绘制区域，已有连线和工作流插槽索引保持不变。
+- 新增 11 份逐模型示例工作流，文生路径无需素材，图像编辑、图生视频和参考生视频工作流均预接本地参考图。
+- 已完成 8 个 Qwen 模型与 3 个 MiniMax 模型的真实生成、轮询、下载和解码验证；3 个视频均为 480p、约 5 秒的有效 MP4。
+- 完整离线回归共 222 项测试通过，覆盖参数分流、素材限制、并发注册、动态前端和工作流安全。
 
 ## v0.5.5（2026-08-04）
 
@@ -188,7 +199,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 - 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、3 个 Hailuo H3 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、3 个 Hailuo H3 视频模型、3 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -206,6 +217,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
+| `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
 | `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
@@ -218,6 +230,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Vidu Q3 /
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
 | `Hailuo H3 视频生成` | Hailuo H3 文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、固定 2K、按模型使用图片/视频/音频 |
+| `MiniMax H3 OW 视频生成（3 合 1）` | MiniMax H3 OW 文生、图生和参考图生视频 | `model`、`prompt`、5/10/15 秒、480p/720p、可选参考图 |
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
@@ -540,6 +553,17 @@ Midjourney 图片与视频：
 | `seedream-v5-pro (domestic)` | `seedream-v5-pro-t2i` | `seedream-v5-pro-i2i` |
 | `dola-seedream-5.0-pro (overseas)` | `dola-seedream-5.0-pro-t2i` | `dola-seedream-5.0-pro-i2i` |
 
+Qwen Image 3.0 节点使用独立的 `/v1/image/generations` 图片端点：
+
+| 线路与版本 | 文生图 | 图像编辑 |
+| --- | --- | --- |
+| 国内标准版 | `qwen-image-3.0-t2i` | `qwen-image-3.0-i2i` |
+| 国内 Pro | `qwen-image-3.0-pro-t2i` | `qwen-image-3.0-pro-i2i` |
+| 海外标准版 | `qwen-image-3.0-global-t2i` | `qwen-image-3.0-global-i2i` |
+| 海外 Pro | `qwen-image-3.0-global-pro-t2i` | `qwen-image-3.0-global-pro-i2i` |
+
+图像编辑模型必须连接 1 到 3 张参考图。`auto` 尺寸模式不发送尺寸；`ratio` 模式发送画幅与 `1k`/`2k`；`custom_size` 模式发送 `W*H` 自定义尺寸。
+
 Zhenzhen Image G 节点使用独立的 `/v1/image/generations` 图片端点：
 
 | 模型 | 用途 | 限制 |
@@ -634,6 +658,16 @@ Hailuo H3 节点使用 `/v1/videos` 视频端点：
 
 Hailuo H3 分辨率固定为 `2K`，时长支持 5 到 15 秒。T2V 与 Multi 会提交 `metadata.ratio`；I2V 跟随输入帧，不提交比例。Multi 的三类本地素材会自动上传，并分别映射到图片、视频和音频参考字段。
 
+MiniMax H3 OW 节点使用 `/v1/videos` 视频端点：
+
+| 模型 | 用途 | 素材 |
+| --- | --- | --- |
+| `minimax-h3-ow-t2v` | 文生视频 | `prompt` 必填，不使用图片 |
+| `minimax-h3-ow-i2v` | 图生视频 | `image1` 必填，`prompt` 可选 |
+| `minimax-h3-ow-r2v` | 参考图生视频 | `image1` 与 `prompt` 必填 |
+
+三个模型均支持 5、10、15 秒，分辨率为 `480p` 或 `720p`；画幅支持 `1:1`、`2:3`、`3:2`、`3:4`、`4:3`、`9:16`、`16:9`、`21:9`。
+
 Vidu Q3 节点使用 `/v1/videos` 视频端点：
 
 | 模型 | 用途 | 素材 |
@@ -685,6 +719,19 @@ Doubao Seed Audio 节点使用独立的 `/v1/audio/generations` 异步端点，�
 | `model_family` | 国内 `seedream-v5-pro` 或海外 `dola-seedream-5.0-pro` |
 | `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
+Qwen Image 3.0 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | 8 个国内 / 海外标准版与 Pro T2I/I2I 模型 |
+| `prompt` | 必填，5 到 2000 字符 |
+| `negative_prompt` / `prompt_extend` | 可选负面提示词与提示词扩写开关 |
+| `sizing_mode` | `auto`、`ratio` 或 `custom_size`；三种请求结构互斥 |
+| `resolution` / `ratio` | 仅 `ratio` 模式发送；分辨率为 `1k` 或 `2k` |
+| `custom_size` | 仅 `custom_size` 模式发送，例如 `1024*1024` |
+| `n` / `seed` | 图片数量 1 到 6；`seed=-1` 时不发送 seed |
+| `image1` ... `image3` | 仅 I2I 使用，至少 1 张、最多 3 张 |
 
 Zhenzhen Image G 参数：
 

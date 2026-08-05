@@ -33,6 +33,7 @@ VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 PURE_IMAGE_NODE_KEYS = (
     "Seedream_V5_Pro_Image",
     "Zhenzhen_Image_G2",
+    "Qwen_Image_3_0",
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_NB",
 )
@@ -50,6 +51,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Kling_Edit_Video",
     "Hailuo_2_3_Video",
     "Hailuo_H3_Video",
+    "Minimax_H3_OW_Video",
     "Vidu_Q3_Video",
     "Vidu_Q3_ShortPlay",
     "Zhenzhen_Upscaler_Video",

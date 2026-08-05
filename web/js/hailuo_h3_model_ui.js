@@ -2,6 +2,7 @@ import { app } from "../../../scripts/app.js";
 import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
 import {
     resizeSeedanceNode,
+    setSeedanceInputVisible as setInputVisible,
     setSeedanceWidgetVisible as setWidgetVisible,
 } from "./dynamic_widget_ui.js";
 
@@ -32,8 +33,7 @@ function refreshHailuoH3Node(node) {
     setWidgetVisible(widgetByName(node, "ratio"), model !== I2V_MODEL);
 
     for (const input of node.inputs ?? []) {
-        const connected = input.link != null;
-        input.hidden = !inputAllowed(model, input.name) && !connected;
+        setInputVisible(node, input, inputAllowed(model, input.name));
     }
 
     resizeSeedanceNode(node, 420);

@@ -49,6 +49,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_MultimodalVideo",
             "Seedream_V5_Pro_Image",
             "Zhenzhen_Image_G2",
+            "Qwen_Image_3_0",
             "Zhenzhen_Image_GK_V15",
             "Zhenzhen_Image_NB",
             "Zhenzhen_Video_G_Omni_Flash",
@@ -60,6 +61,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Kling_Edit_Video",
             "Hailuo_2_3_Video",
             "Hailuo_H3_Video",
+            "Minimax_H3_OW_Video",
             "Vidu_Q3_Video",
             "Vidu_Q3_ShortPlay",
             "Zhenzhen_Upscaler_Video",
@@ -77,7 +79,7 @@ class FrontendExtensionTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
                 if node_type.startswith(
-                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Vidu_", "Zhenzhen_", "Doubao_", "Whisper_", "Suno_", "Midjourney_")
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Minimax_", "Vidu_", "Zhenzhen_", "Qwen_", "Doubao_", "Whisper_", "Suno_", "Midjourney_")
                 ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)
@@ -94,8 +96,8 @@ class FrontendExtensionTests(unittest.TestCase):
             'from "./dynamic_widget_ui.js"',
             "setWidgetVisible(widget, fields.has(widget.name))",
             "if (MANAGED_FIELDS.has(widget.name))",
-            "const connected = input.link != null",
-            "input.hidden = !fields.has(input.name) && !connected",
+            "setSeedanceInputVisible as setInputVisible",
+            "setInputVisible(node, input, fields.has(input.name))",
             "resizeSeedanceNode(node, 320)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
@@ -124,8 +126,8 @@ class FrontendExtensionTests(unittest.TestCase):
             'from "./dynamic_widget_ui.js"',
             "setWidgetVisible(widget, fields.has(widget.name))",
             "if (MANAGED_FIELDS.has(widget.name))",
-            "const connected = input.link != null",
-            "input.hidden = !fields.has(input.name) && !connected",
+            "setSeedanceInputVisible as setInputVisible",
+            "setInputVisible(node, input, fields.has(input.name))",
             "resizeSeedanceNode(node, 340)",
             'wrapRefreshWidget(this, "operation")',
             'wrapRefreshWidget(this, "modal_mode")',
@@ -191,7 +193,8 @@ class FrontendExtensionTests(unittest.TestCase):
             '"zhenzhen-image-nb-pro": {',
             'model !== "zhenzhen-video-v31-lite"',
             'model === "zhenzhen-video-v31-quality" && input.name === "image3"',
-            "input.hidden = !allowed && input.link == null",
+            "setSeedanceInputVisible as setInputVisible",
+            "setInputVisible(node, input, allowed)",
             "resizeSeedanceNode(node, 340)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
@@ -213,6 +216,9 @@ class FrontendExtensionTests(unittest.TestCase):
         midjourney = (
             PLUGIN_ROOT / "web" / "js" / "midjourney_action_ui.js"
         ).read_text(encoding="utf-8")
+        qwen_minimax = (
+            PLUGIN_ROOT / "web" / "js" / "qwen_minimax_model_ui.js"
+        ).read_text(encoding="utf-8")
 
         self.assertIn('const WRAPPER_PREFIX = "SeedanceConcurrent_"', helper)
         self.assertIn('const WRAPPER_SUFFIX = "_Submit"', helper)
@@ -221,12 +227,37 @@ class FrontendExtensionTests(unittest.TestCase):
         self.assertIn("CONCURRENT_IMAGE_OPERATIONS", midjourney)
         self.assertIn('? ["midjourney-video"]', midjourney.replace("\n", " "))
         self.assertIn("seedanceMidjourneyAllowedOperations", midjourney)
-        for source in (hailuo, zhenzhen, midjourney):
+        for source in (hailuo, zhenzhen, midjourney, qwen_minimax):
             self.assertIn(
                 'from "./concurrent_node_ui.js"',
                 source,
             )
             self.assertIn("originalSeedanceNodeName(nodeData.name)", source)
+
+    def test_qwen_minimax_ui_enforces_model_specific_controls(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "qwen_minimax_model_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const QWEN_NODE_NAME = "Qwen_Image_3_0"',
+            'const MINIMAX_NODE_NAME = "Minimax_H3_OW_Video"',
+            'from "./dynamic_widget_ui.js"',
+            'String(model).endsWith("-i2i")',
+            'sizingMode === "ratio"',
+            'sizingMode === "custom_size"',
+            'isQwenI2I(model) && /^image[1-3]$/.test(input.name)',
+            'model.endsWith("-i2v") || model.endsWith("-r2v")',
+            "setSeedanceInputVisible as setInputVisible",
+            "setInputVisible(node, input, allowed)",
+            'wrapRefreshWidget(this, "model"',
+            'wrapRefreshWidget(this, "sizing_mode"',
+            "resizeSeedanceNode(node, 380)",
+            "originalOnConfigure?.apply(this, arguments)",
+            "originalOnConnectionsChange?.apply(this, arguments)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
 
     def test_hailuo_h3_ui_enforces_model_specific_inputs(self):
         source = (
@@ -241,7 +272,8 @@ class FrontendExtensionTests(unittest.TestCase):
             'setWidgetVisible(widgetByName(node, "ratio"), model !== I2V_MODEL)',
             'return name === "image1" || name === "image2"',
             '/^(image[1-9]|video[1-3]|audio[1-3])$/.test(name)',
-            "input.hidden = !inputAllowed(model, input.name) && !connected",
+            "setSeedanceInputVisible as setInputVisible",
+            "setInputVisible(node, input, inputAllowed(model, input.name))",
             "resizeSeedanceNode(node, 420)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
@@ -261,6 +293,11 @@ class FrontendExtensionTests(unittest.TestCase):
             'hasOwn(widget, "origType")',
             "widget.type = nextType",
             "widget.computeSize = nextComputeSize",
+            "const HIDDEN_INPUT_OFFSET = -100000",
+            "setSeedanceInputVisible(node, input, visible)",
+            "const shouldShow = Boolean(visible || input.link != null)",
+            "node.getConnectionPos = function (isInput, slotNumber, out)",
+            "originalGetConnectionPos.apply(this, arguments)",
             "cancelAnimationFrame(node.seedanceDynamicResizeFrame)",
             "resizeSeedanceNode(node, minimumWidth = 320)",
         )
@@ -275,11 +312,13 @@ class FrontendExtensionTests(unittest.TestCase):
                 "hailuo_h3_model_ui.js",
                 "suno_action_ui.js",
                 "midjourney_action_ui.js",
+                "qwen_minimax_model_ui.js",
             )
         ]
         for source in dynamic_sources:
             self.assertIn('from "./dynamic_widget_ui.js"', source)
             self.assertNotIn('widget.type = "hidden"', source)
+            self.assertNotIn("input.hidden = !", source)
 
     def test_hailuo_h3_workflows_cover_all_three_models(self):
         workflow_names = {

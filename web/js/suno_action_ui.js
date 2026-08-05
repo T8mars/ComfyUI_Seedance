@@ -1,6 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import {
     resizeSeedanceNode,
+    setSeedanceInputVisible as setInputVisible,
     setSeedanceWidgetVisible as setWidgetVisible,
 } from "./dynamic_widget_ui.js";
 
@@ -73,8 +74,7 @@ function refreshSunoNode(node) {
         if (!MANAGED_FIELDS.has(input.name)) {
             continue;
         }
-        const connected = input.link != null;
-        input.hidden = !fields.has(input.name) && !connected;
+        setInputVisible(node, input, fields.has(input.name));
     }
 
     resizeSeedanceNode(node, 320);

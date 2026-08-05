@@ -1,13 +1,13 @@
 """
-ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, Vidu,
-Zhenzhen Upscaler, Seedream, Dola Seedream, Zhenzhen Image G/NB, Zhenzhen
-Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
+ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
+Zhenzhen Upscaler, Seedream, Dola Seedream, Qwen, Zhenzhen Image G/NB,
+Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
-HappyHorse, Wan, Kling, Hailuo, Vidu, and Zhenzhen Upscaler use dedicated video
+HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
-selector, Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
+selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
 Whisper transcription uses a synchronous audio node.
 
@@ -156,6 +156,44 @@ ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MIN_LENGTH = 5
 ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MAX_LENGTH = 5000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
 MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES = 16
+QWEN_IMAGE_30_T2I_MODEL = "qwen-image-3.0-t2i"
+QWEN_IMAGE_30_I2I_MODEL = "qwen-image-3.0-i2i"
+QWEN_IMAGE_30_PRO_T2I_MODEL = "qwen-image-3.0-pro-t2i"
+QWEN_IMAGE_30_PRO_I2I_MODEL = "qwen-image-3.0-pro-i2i"
+QWEN_IMAGE_30_GLOBAL_T2I_MODEL = "qwen-image-3.0-global-t2i"
+QWEN_IMAGE_30_GLOBAL_I2I_MODEL = "qwen-image-3.0-global-i2i"
+QWEN_IMAGE_30_GLOBAL_PRO_T2I_MODEL = "qwen-image-3.0-global-pro-t2i"
+QWEN_IMAGE_30_GLOBAL_PRO_I2I_MODEL = "qwen-image-3.0-global-pro-i2i"
+QWEN_IMAGE_30_T2I_MODELS = [
+    QWEN_IMAGE_30_T2I_MODEL,
+    QWEN_IMAGE_30_PRO_T2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_T2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_PRO_T2I_MODEL,
+]
+QWEN_IMAGE_30_I2I_MODELS = [
+    QWEN_IMAGE_30_I2I_MODEL,
+    QWEN_IMAGE_30_PRO_I2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_I2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_PRO_I2I_MODEL,
+]
+QWEN_IMAGE_30_MODELS = [
+    QWEN_IMAGE_30_T2I_MODEL,
+    QWEN_IMAGE_30_I2I_MODEL,
+    QWEN_IMAGE_30_PRO_T2I_MODEL,
+    QWEN_IMAGE_30_PRO_I2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_T2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_I2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_PRO_T2I_MODEL,
+    QWEN_IMAGE_30_GLOBAL_PRO_I2I_MODEL,
+]
+QWEN_IMAGE_30_SIZING_MODES = ["auto", "ratio", "custom_size"]
+QWEN_IMAGE_30_RESOLUTIONS = ["1k", "2k"]
+QWEN_IMAGE_30_RATIOS = [
+    "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9",
+]
+QWEN_IMAGE_30_PROMPT_MIN_LENGTH = 5
+QWEN_IMAGE_30_PROMPT_MAX_LENGTH = 2000
+MAX_QWEN_IMAGE_30_IMAGES = 3
 ZHENZHEN_IMAGE_GK_V15_MODEL = "zhenzhen-image-gk-v15"
 ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL = "zhenzhen-image-gk-v15-edit"
 ZHENZHEN_IMAGE_GK_V15_MODELS = [
@@ -299,6 +337,20 @@ HAILUO_H3_RESOLUTIONS = ["2K"]
 MAX_HAILUO_H3_IMAGES = 9
 MAX_HAILUO_H3_VIDEOS = 3
 MAX_HAILUO_H3_AUDIOS = 3
+
+MINIMAX_H3_OW_T2V_MODEL = "minimax-h3-ow-t2v"
+MINIMAX_H3_OW_R2V_MODEL = "minimax-h3-ow-r2v"
+MINIMAX_H3_OW_I2V_MODEL = "minimax-h3-ow-i2v"
+MINIMAX_H3_OW_MODELS = [
+    MINIMAX_H3_OW_T2V_MODEL,
+    MINIMAX_H3_OW_R2V_MODEL,
+    MINIMAX_H3_OW_I2V_MODEL,
+]
+MINIMAX_H3_OW_SECONDS = ["5", "10", "15"]
+MINIMAX_H3_OW_RESOLUTIONS = ["480p", "720p"]
+MINIMAX_H3_OW_RATIOS = [
+    "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9",
+]
 
 VIDU_T2V_MODELS = [
     "vidu-q3-pro-t2v",
@@ -2627,6 +2679,158 @@ class HailuoH3Video(SeedanceVideoNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# MiniMax H3 OW video
+# ---------------------------------------------------------------------------
+
+class MinimaxH3OWVideo(SeedanceVideoNodeBase):
+    """MiniMax H3 OW t2v/i2v/r2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (MINIMAX_H3_OW_MODELS, {
+                    "default": MINIMAX_H3_OW_T2V_MODEL,
+                    "tooltip": (
+                        "MiniMax H3 OW task type: text-to-video, image-to-video, "
+                        "or reference-image-to-video. | MiniMax H3 OW 支持文生视频、"
+                        "图生视频和参考图生视频。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for T2V and R2V; optional for I2V. | "
+                        "T2V 与 R2V 必填，I2V 可选。"
+                    ),
+                }),
+                "seconds": (MINIMAX_H3_OW_SECONDS, {
+                    "default": "5",
+                    "tooltip": "MiniMax H3 OW supports 5, 10, or 15 seconds. | 支持 5、10 或 15 秒。",
+                }),
+                "resolution": (MINIMAX_H3_OW_RESOLUTIONS, {
+                    "default": "480p",
+                    "tooltip": "MiniMax H3 OW supports 480p or 720p. | 支持 480p 或 720p。",
+                }),
+                "ratio": (MINIMAX_H3_OW_RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Documented MiniMax H3 OW output aspect ratio. | 文档支持的输出画幅。",
+                }),
+            },
+            "optional": {
+                "image1": ("IMAGE", {
+                    "tooltip": (
+                        "Required for I2V and R2V; ignored by T2V. | "
+                        "I2V 与 R2V 必须连接，T2V 不使用。"
+                    ),
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        image1=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *MINIMAX_H3_OW_MODELS):
+            return f"unsupported MiniMax H3 OW model: {model}"
+        if seconds is not None and str(seconds) not in MINIMAX_H3_OW_SECONDS:
+            return "MiniMax H3 OW seconds must be 5, 10, or 15 | 时长必须为 5、10 或 15 秒"
+        if resolution is not None and resolution not in MINIMAX_H3_OW_RESOLUTIONS:
+            return "MiniMax H3 OW resolution must be 480p or 720p | 分辨率必须为 480p 或 720p"
+        if ratio is not None and ratio not in MINIMAX_H3_OW_RATIOS:
+            return f"unsupported MiniMax H3 OW ratio: {ratio}"
+        prompt_text = str(prompt or "").strip()
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if (
+            strict
+            and model in (MINIMAX_H3_OW_T2V_MODEL, MINIMAX_H3_OW_R2V_MODEL)
+            and not prompt_text
+        ):
+            return "prompt is required for MiniMax H3 OW T2V and R2V | 文生与参考生视频必须填写提示词"
+        if strict and model in (MINIMAX_H3_OW_I2V_MODEL, MINIMAX_H3_OW_R2V_MODEL) and image1 is None:
+            return "image1 is required for MiniMax H3 OW I2V and R2V | 图生与参考生视频必须连接 image1"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Minimax_H3_OW_video"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model == MINIMAX_H3_OW_T2V_MODEL:
+            progress_cb(1.0)
+            return {}
+
+        image = kwargs.get("image1")
+        if image is None:
+            raise SeedanceAPIError(
+                "image1 is required for MiniMax H3 OW I2V and R2V | "
+                "MiniMax H3 OW 图生与参考生视频必须连接 image1"
+            )
+        image_url = upload_media(
+            image_to_png_bytes(image),
+            "minimax_h3_ow_reference.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"images": [image_url]}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            image1=kwargs.get("image1"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": {
+                "resolution": kwargs["resolution"],
+                "ratio": kwargs["ratio"],
+            },
+        }
+        if prompt:
+            payload["prompt"] = prompt
+        if model != MINIMAX_H3_OW_T2V_MODEL:
+            images = media.get("images") or []
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for MiniMax H3 OW I2V and R2V | "
+                    "MiniMax H3 OW 图生与参考生视频必须连接 image1"
+                )
+            payload["images"] = images[:1]
+        return payload
+
+
+# ---------------------------------------------------------------------------
 # Vidu Q3 video
 # ---------------------------------------------------------------------------
 
@@ -3835,6 +4039,299 @@ class ZhenzhenImageG2:
         )
         self._update_progress(pbar, 95)
 
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Qwen Image 3.0 image generation and editing
+# ---------------------------------------------------------------------------
+
+class QwenImage30:
+    """Qwen Image 3.0/3.0 Pro domestic and global generation/editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{i}": ("IMAGE", {
+                "tooltip": (
+                    f"Qwen I2I reference image {i} of {MAX_QWEN_IMAGE_30_IMAGES}; "
+                    "ignored by T2I. | Qwen 图像编辑参考图；文生图不使用。"
+                ),
+            })
+            for i in range(1, MAX_QWEN_IMAGE_30_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        return {
+            "required": {
+                "model": (QWEN_IMAGE_30_MODELS, {
+                    "default": QWEN_IMAGE_30_T2I_MODEL,
+                    "tooltip": (
+                        "Qwen Image 3.0 or Pro, domestic or global, for T2I/I2I. | "
+                        "Qwen Image 3.0 / Pro 国内或海外文生图、图像编辑。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Prompt, 5 to 2000 characters. | 提示词，5 到 2000 字符。",
+                }),
+                "negative_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Optional negative prompt. | 可选负面提示词。",
+                }),
+                "prompt_extend": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Enable upstream prompt expansion. | 启用上游提示词扩写。",
+                }),
+                "sizing_mode": (QWEN_IMAGE_30_SIZING_MODES, {
+                    "default": "auto",
+                    "tooltip": (
+                        "auto omits size; ratio sends metadata.ratio and resolution; "
+                        "custom_size sends top-level size. | 自动模式省略尺寸；比例模式发送"
+                        "画幅和分辨率；自定义模式发送顶层 size。"
+                    ),
+                }),
+                "resolution": (QWEN_IMAGE_30_RESOLUTIONS, {
+                    "default": "1k",
+                    "tooltip": "Used only in ratio mode: 1k or 2k. | 仅比例模式使用：1k 或 2k。",
+                }),
+                "ratio": (QWEN_IMAGE_30_RATIOS, {
+                    "default": "1:1",
+                    "tooltip": "Used only in ratio mode. | 仅比例模式使用。",
+                }),
+                "custom_size": ("STRING", {
+                    "default": "1024*1024",
+                    "tooltip": (
+                        "Used only in custom_size mode, for example 1024*1024. | "
+                        "仅自定义模式使用，例如 1024*1024。"
+                    ),
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 6,
+                    "step": 1,
+                    "tooltip": "Number of images requested, 1 to 6. | 请求图片数量，1 到 6。",
+                }),
+                "seed": ("INT", {
+                    "default": -1,
+                    "min": -1,
+                    "max": 2147483647,
+                    "step": 1,
+                    "control_after_generate": True,
+                    "tooltip": "-1 omits metadata.seed; non-negative values are forwarded. | -1 不发送 seed。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @staticmethod
+    def _normalize_custom_size(value: Any) -> str:
+        return str(value or "").strip().replace("X", "*").replace("x", "*")
+
+    @classmethod
+    def _valid_custom_size(cls, value: Any) -> bool:
+        parts = [part.strip() for part in cls._normalize_custom_size(value).split("*")]
+        return len(parts) == 2 and all(part.isdigit() and int(part) > 0 for part in parts)
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        sizing_mode=None,
+        resolution=None,
+        ratio=None,
+        custom_size=None,
+        n=None,
+        seed=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *QWEN_IMAGE_30_MODELS):
+            return f"unsupported Qwen Image 3.0 model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Qwen Image 3.0 | Qwen Image 3.0 必须填写提示词"
+        if prompt_text and not (
+            QWEN_IMAGE_30_PROMPT_MIN_LENGTH
+            <= len(prompt_text)
+            <= QWEN_IMAGE_30_PROMPT_MAX_LENGTH
+        ):
+            return "Qwen Image 3.0 prompt must contain 5 to 2000 characters | 提示词必须包含 5 到 2000 个字符"
+        if sizing_mode is not None and sizing_mode not in QWEN_IMAGE_30_SIZING_MODES:
+            return f"unsupported Qwen Image 3.0 sizing_mode: {sizing_mode}"
+        if resolution is not None and resolution not in QWEN_IMAGE_30_RESOLUTIONS:
+            return "Qwen Image 3.0 resolution must be 1k or 2k | 分辨率必须为 1k 或 2k"
+        if ratio is not None and ratio not in QWEN_IMAGE_30_RATIOS:
+            return f"unsupported Qwen Image 3.0 ratio: {ratio}"
+        if strict and sizing_mode == "custom_size" and not cls._valid_custom_size(custom_size):
+            return "Qwen Image 3.0 custom_size must use positive WxH, for example 1024*1024 | 自定义尺寸必须为正数 WxH"
+        if n is not None and not 1 <= int(n) <= 6:
+            return "Qwen Image 3.0 n must be between 1 and 6 | n 必须在 1 到 6 之间"
+        if seed is not None and int(seed) < -1:
+            return "Qwen Image 3.0 seed must be -1 or non-negative | seed 必须为 -1 或非负数"
+        connected = sum(
+            kwargs.get(f"image{i}") is not None
+            for i in range(1, MAX_QWEN_IMAGE_30_IMAGES + 1)
+        )
+        if strict and model in QWEN_IMAGE_30_I2I_MODELS and connected == 0:
+            return "Qwen Image 3.0 I2I requires 1 to 3 images | Qwen 图像编辑需要 1 到 3 张参考图"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Qwen_image_3_0"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        return [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_QWEN_IMAGE_30_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        negative_prompt: str,
+        prompt_extend: bool,
+        sizing_mode: str,
+        resolution: str,
+        ratio: str,
+        custom_size: str,
+        n: int,
+        seed: int,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "n": int(n),
+            "prompt_extend": bool(prompt_extend),
+        }
+        negative_text = str(negative_prompt or "").strip()
+        if negative_text:
+            payload["negative_prompt"] = negative_text
+
+        metadata: Dict[str, Any] = {}
+        if int(seed) >= 0:
+            metadata["seed"] = int(seed)
+        if sizing_mode == "ratio":
+            metadata["ratio"] = ratio
+            metadata["resolution"] = resolution
+        elif sizing_mode == "custom_size":
+            payload["size"] = self._normalize_custom_size(custom_size)
+        if metadata:
+            payload["metadata"] = metadata
+
+        if model in QWEN_IMAGE_30_I2I_MODELS:
+            if not 1 <= len(images) <= MAX_QWEN_IMAGE_30_IMAGES:
+                raise SeedanceAPIError(
+                    "Qwen Image 3.0 I2I requires 1 to 3 images | "
+                    "Qwen 图像编辑需要 1 到 3 张参考图"
+                )
+            payload["images"] = images
+        return payload
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        negative_prompt: str,
+        prompt_extend: bool,
+        sizing_mode: str,
+        resolution: str,
+        ratio: str,
+        custom_size: str,
+        n: int,
+        seed: int,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            sizing_mode=sizing_mode,
+            resolution=resolution,
+            ratio=ratio,
+            custom_size=custom_size,
+            n=n,
+            seed=seed,
+            strict=True,
+            **kwargs,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        image_urls: List[str] = []
+        if model in QWEN_IMAGE_30_I2I_MODELS:
+            references = self._connected_images(kwargs)
+            for done, (slot, tensor) in enumerate(references, start=1):
+                image_urls.append(upload_media(
+                    image_to_png_bytes(tensor),
+                    f"qwen_image_3_reference_{slot}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                ))
+                self._update_progress(pbar, done / len(references) * 15)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(
+            model,
+            prompt_text,
+            negative_prompt,
+            prompt_extend,
+            sizing_mode,
+            resolution,
+            ratio,
+            custom_size,
+            n,
+            seed,
+            image_urls,
+        )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 75)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
         image_url = extract_image_url(final_response)
         image = download_image(image_url, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 100)
@@ -6617,6 +7114,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
+    "Qwen_Image_3_0": QwenImage30,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
@@ -6628,6 +7126,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
     "Hailuo_H3_Video": HailuoH3Video,
+    "Minimax_H3_OW_Video": MinimaxH3OWVideo,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
@@ -6644,6 +7143,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
+    "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
@@ -6655,6 +7155,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
+    "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",

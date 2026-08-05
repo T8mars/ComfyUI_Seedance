@@ -2,6 +2,7 @@ import { app } from "../../../scripts/app.js";
 import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
 import {
     resizeSeedanceNode,
+    setSeedanceInputVisible as setInputVisible,
     setSeedanceWidgetVisible as setWidgetVisible,
 } from "./dynamic_widget_ui.js";
 
@@ -136,7 +137,7 @@ function refreshG2Node(node) {
             isLowprice
             || (model === "zhenzhen-image-g2-i2i" && index <= 10)
         );
-        input.hidden = !allowed && input.link == null;
+        setInputVisible(node, input, allowed);
     }
     resizeSeedanceNode(node, 340);
 }
@@ -160,7 +161,7 @@ function refreshV31Node(node) {
             model !== "zhenzhen-video-v31-lite"
             && !(model === "zhenzhen-video-v31-quality" && input.name === "image3")
         );
-        input.hidden = !allowed && input.link == null;
+        setInputVisible(node, input, allowed);
     }
     node.setDirtyCanvas?.(true, true);
 }
