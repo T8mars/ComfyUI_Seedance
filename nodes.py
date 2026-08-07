@@ -124,6 +124,9 @@ SEEDANCE25_MODELS = [
 ]
 SEEDANCE25_SECONDS = ["-1"] + [str(value) for value in range(4, 31)]
 SEEDANCE25_RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k"]
+MAX_SEEDANCE25_MULTI_IMAGES = 30
+MAX_SEEDANCE25_MULTI_VIDEOS = 10
+MAX_SEEDANCE25_MULTI_AUDIOS = 10
 
 RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k", "native1080p", "native4k"]
 STANDARD_ONLY_RESOLUTIONS = {"native1080p", "native4k"}
@@ -1430,27 +1433,31 @@ class Seedance25Video(SeedanceVideoNodeBase):
     @classmethod
     def INPUT_TYPES(cls):
         optional: Dict[str, tuple] = {}
-        for index in range(1, MAX_MULTI_IMAGES + 1):
+        for index in range(1, MAX_SEEDANCE25_MULTI_IMAGES + 1):
             optional[f"image{index}"] = ("IMAGE", {
                 "tooltip": (
                     f"Image {index}. I2V uses image1 as the first frame and image2 "
-                    "as the optional last frame; Multi accepts up to 9 images. | "
+                    "as the optional last frame; Multi accepts up to 30 images. | "
                     f"图片 {index}；I2V 使用 image1 首帧和可选 image2 尾帧，"
-                    "Multi 最多支持 9 张图片。"
+                    "Multi 最多支持 30 张图片。"
                 ),
             })
-        for index in range(1, MAX_MULTI_VIDEOS + 1):
+        for index in range(1, MAX_SEEDANCE25_MULTI_VIDEOS + 1):
             optional[f"video{index}"] = ("VIDEO", {
                 "tooltip": (
-                    f"Multi reference video {index}, up to 3 videos. | "
-                    f"Multi 参考视频 {index}，最多 3 个。"
+                    f"Multi reference video {index}, up to 10 videos. Each clip must "
+                    "be 2-30 seconds and combined reference media must not exceed 30 "
+                    f"seconds. | Multi 参考视频 {index}，最多 10 个；单段需为 2-30 秒，"
+                    "参考音视频总时长不能超过 30 秒。"
                 ),
             })
-        for index in range(1, MAX_MULTI_AUDIOS + 1):
+        for index in range(1, MAX_SEEDANCE25_MULTI_AUDIOS + 1):
             optional[f"audio{index}"] = ("AUDIO", {
                 "tooltip": (
-                    f"Multi reference audio {index}, up to 3 audios. | "
-                    f"Multi 参考音频 {index}，最多 3 段。"
+                    f"Multi reference audio {index}, up to 10 audios. Each clip must "
+                    "be 2-30 seconds and combined reference media must not exceed 30 "
+                    f"seconds. | Multi 参考音频 {index}，最多 10 段；单段需为 2-30 秒，"
+                    "参考音视频总时长不能超过 30 秒。"
                 ),
             })
         optional.update(_optional_widgets())
@@ -1556,15 +1563,18 @@ class Seedance25Video(SeedanceVideoNodeBase):
             progress_cb(1.0)
             return {}
 
-        image_limit = 2 if model in SEEDANCE25_I2V_MODELS else MAX_MULTI_IMAGES
+        image_limit = (
+            2 if model in SEEDANCE25_I2V_MODELS
+            else MAX_SEEDANCE25_MULTI_IMAGES
+        )
         image_slots = self._gather_slots(kwargs, "image", image_limit)
         video_slots = (
-            self._gather_slots(kwargs, "video", MAX_MULTI_VIDEOS)
+            self._gather_slots(kwargs, "video", MAX_SEEDANCE25_MULTI_VIDEOS)
             if model in SEEDANCE25_MULTI_MODELS
             else []
         )
         audio_slots = (
-            self._gather_slots(kwargs, "audio", MAX_MULTI_AUDIOS)
+            self._gather_slots(kwargs, "audio", MAX_SEEDANCE25_MULTI_AUDIOS)
             if model in SEEDANCE25_MULTI_MODELS
             else []
         )

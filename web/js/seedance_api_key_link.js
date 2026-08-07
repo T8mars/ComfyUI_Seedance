@@ -10,6 +10,8 @@ const API_KEY_BUTTON_LABEL = "获取平价版APIKEY";
 const API_KEY_SIGNUP_URL = "https://api.seedance.nz/sign-up?aff=5f4w";
 const EXCLUDED_NODE_NAMES = new Set(["Seedance_Config"]);
 const SEEDANCE25_NODE_NAME = "Seedance_2_5_Video";
+const SEEDANCE25_MEDIA_LIMITS = { image: 30, video: 10, audio: 10 };
+const SEEDANCE25_MEDIA_INPUT = /^(image|video|audio)([1-9]\d*)$/;
 
 function widgetByName(node, name) {
     return node.widgets?.find((widget) => widget.name === name);
@@ -25,7 +27,34 @@ function seedance25Mode(model) {
     return "t2v";
 }
 
-function seedance25InputAllowed(mode, name) {
+function seedance25MediaInput(name) {
+    const match = SEEDANCE25_MEDIA_INPUT.exec(String(name));
+    if (!match) {
+        return null;
+    }
+    return { family: match[1], index: Number(match[2]) };
+}
+
+function seedance25NextVisibleSlots(node) {
+    const highestConnected = { image: 0, video: 0, audio: 0 };
+    for (const input of node.inputs ?? []) {
+        const media = seedance25MediaInput(input.name);
+        if (media && input.link != null) {
+            highestConnected[media.family] = Math.max(
+                highestConnected[media.family],
+                media.index,
+            );
+        }
+    }
+    return Object.fromEntries(
+        Object.entries(SEEDANCE25_MEDIA_LIMITS).map(([family, limit]) => [
+            family,
+            Math.min(highestConnected[family] + 1, limit),
+        ]),
+    );
+}
+
+function seedance25InputAllowed(mode, name, nextVisible) {
     if (name === "api_config") {
         return true;
     }
@@ -33,7 +62,12 @@ function seedance25InputAllowed(mode, name) {
         return name === "image1" || name === "image2";
     }
     if (mode === "multi") {
-        return /^(image[1-9]|video[1-3]|audio[1-3])$/.test(name);
+        const media = seedance25MediaInput(name);
+        return Boolean(
+            media
+            && media.index <= SEEDANCE25_MEDIA_LIMITS[media.family]
+            && media.index <= nextVisible[media.family]
+        );
     }
     return false;
 }
@@ -41,19 +75,20 @@ function seedance25InputAllowed(mode, name) {
 function refreshSeedance25Node(node) {
     const model = String(widgetByName(node, "model")?.value ?? "");
     const mode = seedance25Mode(model);
+    const nextVisible = seedance25NextVisibleSlots(node);
     for (const input of node.inputs ?? []) {
-        if (!/^(image[1-9]|video[1-3]|audio[1-3]|api_config)$/.test(input.name)) {
+        if (!seedance25MediaInput(input.name) && input.name !== "api_config") {
             continue;
         }
         setSeedanceInputVisible(
             node,
             input,
-            seedance25InputAllowed(mode, input.name),
+            seedance25InputAllowed(mode, input.name, nextVisible),
         );
     }
     const visibleInputs = (node.inputs ?? []).filter(
         (input) => (
-            /^(image[1-9]|video[1-3]|audio[1-3]|api_config)$/.test(input.name)
+            (seedance25MediaInput(input.name) || input.name === "api_config")
             && (!input.hidden || input.link != null)
         ),
     );

@@ -2,10 +2,15 @@ const CONVERTED_WIDGET_PREFIX = "converted-widget";
 const DYNAMIC_HIDDEN_WIDGET_TYPE = `${CONVERTED_WIDGET_PREFIX}:seedance-hidden`;
 const ORIGINAL_WIDGET_STATE = Symbol("seedanceDynamicWidgetOriginal");
 const ORIGINAL_INPUT_POSITION = Symbol("seedanceDynamicInputOriginalPosition");
+const ORIGINAL_INPUT_WIDGET = Symbol("seedanceDynamicInputOriginalWidget");
+const ORIGINAL_CONCRETE_INPUT_STATE = Symbol("seedanceDynamicConcreteInputOriginal");
 const INPUT_POSITION_STATE = Symbol("seedanceDynamicInputPosition");
 const INPUT_LAYOUT_STATE = Symbol("seedanceDynamicInputLayout");
+const CONCRETE_INPUT_VISIBILITY_STATE = Symbol("seedanceDynamicConcreteInputVisibility");
+const INPUT_SERIALIZATION_STATE = Symbol("seedanceDynamicInputSerialization");
 const HIDDEN_WIDGET_SIZE = () => [0, -4];
 const HIDDEN_INPUT_OFFSET = -100000;
+const HIDDEN_INPUT_WIDGET_NAME = "__seedance_hidden_input__";
 
 function hasOwn(object, property) {
     return Object.prototype.hasOwnProperty.call(object ?? {}, property);
@@ -113,12 +118,137 @@ function installSeedanceInputLayout(node) {
     node[INPUT_LAYOUT_STATE] = true;
 }
 
+function syncSeedanceConcreteInputVisibility(node) {
+    const inputs = node?.inputs ?? [];
+    const concreteInputs = node?._concreteInputs;
+    if (!Array.isArray(concreteInputs)) {
+        return;
+    }
+    concreteInputs.forEach((concreteInput, index) => {
+        const input = inputs[index];
+        if (!concreteInput || !input) {
+            return;
+        }
+        if (!concreteInput[ORIGINAL_CONCRETE_INPUT_STATE]) {
+            const currentWidget = concreteInput.widget;
+            const isHiddenPlaceholder = (
+                currentWidget?.name === HIDDEN_INPUT_WIDGET_NAME
+            );
+            const savedRawWidget = input[ORIGINAL_INPUT_WIDGET];
+            const originalWidget = savedRawWidget?.hadWidget
+                ? savedRawWidget.widget
+                : currentWidget;
+            concreteInput[ORIGINAL_CONCRETE_INPUT_STATE] = {
+                hadWidget: (
+                    Boolean(savedRawWidget?.hadWidget)
+                    || (hasOwn(concreteInput, "widget") && !isHiddenPlaceholder)
+                ),
+                widget: isHiddenPlaceholder && !savedRawWidget?.hadWidget
+                    ? undefined
+                    : originalWidget,
+                alwaysVisible: concreteInput.alwaysVisible,
+            };
+        }
+        const original = concreteInput[ORIGINAL_CONCRETE_INPUT_STATE];
+        if (input.hidden && input.link == null) {
+            // Current ComfyUI draws non-widget concrete slots even when their
+            // raw input is hidden. Mark only the concrete view as a widget slot
+            // so the frontend omits it without changing workflow serialization.
+            concreteInput.widget = { name: HIDDEN_INPUT_WIDGET_NAME };
+            concreteInput.alwaysVisible = false;
+            concreteInput.pos = [HIDDEN_INPUT_OFFSET, HIDDEN_INPUT_OFFSET];
+        } else {
+            if (original.hadWidget) {
+                concreteInput.widget = original.widget;
+            } else {
+                delete concreteInput.widget;
+            }
+            concreteInput.alwaysVisible = original.alwaysVisible;
+            concreteInput.pos = input.pos;
+        }
+    });
+}
+
+function installSeedanceConcreteInputVisibility(node) {
+    if (!node || node[CONCRETE_INPUT_VISIBILITY_STATE]) {
+        return;
+    }
+    const originalSetConcreteSlots = node._setConcreteSlots;
+    if (typeof originalSetConcreteSlots === "function") {
+        node._setConcreteSlots = function () {
+            const result = originalSetConcreteSlots.apply(this, arguments);
+            syncSeedanceConcreteInputVisibility(this);
+            return result;
+        };
+    }
+    const originalDrawSlots = node.drawSlots;
+    if (typeof originalDrawSlots === "function") {
+        node.drawSlots = function () {
+            syncSeedanceConcreteInputVisibility(this);
+            return originalDrawSlots.apply(this, arguments);
+        };
+    }
+    node[CONCRETE_INPUT_VISIBILITY_STATE] = true;
+    syncSeedanceConcreteInputVisibility(node);
+}
+
+function installSeedanceInputSerialization(node) {
+    if (!node || node[INPUT_SERIALIZATION_STATE]) {
+        return;
+    }
+    const originalOnSerialize = node.onSerialize;
+    node.onSerialize = function (serialized) {
+        const result = originalOnSerialize?.apply(this, arguments);
+        for (const [index, input] of (this.inputs ?? []).entries()) {
+            const savedPosition = input?.[ORIGINAL_INPUT_POSITION];
+            const savedWidget = input?.[ORIGINAL_INPUT_WIDGET];
+            const serializedInput = serialized?.inputs?.[index];
+            if (!serializedInput || (!savedPosition && !savedWidget)) {
+                continue;
+            }
+            if (savedWidget?.hadWidget) {
+                serializedInput.widget = {
+                    name: savedWidget.widget?.name,
+                };
+            } else if (savedWidget) {
+                delete serializedInput.widget;
+            }
+            if (savedPosition?.hadPosition) {
+                serializedInput.pos = [...savedPosition.position];
+            } else if (savedPosition) {
+                delete serializedInput.pos;
+            }
+        }
+        return result;
+    };
+    node[INPUT_SERIALIZATION_STATE] = true;
+}
+
+function setSeedanceRawInputHidden(input, hidden) {
+    if (!input[ORIGINAL_INPUT_WIDGET]) {
+        input[ORIGINAL_INPUT_WIDGET] = {
+            hadWidget: "widget" in input && Boolean(input.widget),
+            widget: input.widget,
+        };
+    }
+    const original = input[ORIGINAL_INPUT_WIDGET];
+    if (hidden) {
+        input.widget = { name: HIDDEN_INPUT_WIDGET_NAME };
+    } else if (original.hadWidget) {
+        input.widget = original.widget;
+    } else {
+        delete input.widget;
+    }
+}
+
 export function setSeedanceInputVisible(node, input, visible) {
     if (!node || !input) {
         return false;
     }
     installSeedanceInputPositioning(node);
     installSeedanceInputLayout(node);
+    installSeedanceConcreteInputVisibility(node);
+    installSeedanceInputSerialization(node);
     const shouldShow = Boolean(visible || input.link != null);
     const nextHidden = !shouldShow;
     const changed = Boolean(input.hidden) !== nextHidden;
@@ -129,6 +259,7 @@ export function setSeedanceInputVisible(node, input, visible) {
         };
     }
     input.hidden = nextHidden;
+    setSeedanceRawInputHidden(input, nextHidden);
     if (nextHidden) {
         input.pos = [HIDDEN_INPUT_OFFSET, HIDDEN_INPUT_OFFSET];
     } else {
@@ -139,6 +270,7 @@ export function setSeedanceInputVisible(node, input, visible) {
             delete input.pos;
         }
     }
+    syncSeedanceConcreteInputVisibility(node);
     return changed;
 }
 

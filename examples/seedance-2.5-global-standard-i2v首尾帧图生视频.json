@@ -26,10 +26,28 @@
         {"name": "image3", "type": "IMAGE", "link": null}, {"name": "image4", "type": "IMAGE", "link": null},
         {"name": "image5", "type": "IMAGE", "link": null}, {"name": "image6", "type": "IMAGE", "link": null},
         {"name": "image7", "type": "IMAGE", "link": null}, {"name": "image8", "type": "IMAGE", "link": null},
-        {"name": "image9", "type": "IMAGE", "link": null}, {"name": "video1", "type": "VIDEO", "link": null},
-        {"name": "video2", "type": "VIDEO", "link": null}, {"name": "video3", "type": "VIDEO", "link": null},
+        {"name": "image9", "type": "IMAGE", "link": null}, {"name": "image10", "type": "IMAGE", "link": null},
+        {"name": "image11", "type": "IMAGE", "link": null}, {"name": "image12", "type": "IMAGE", "link": null},
+        {"name": "image13", "type": "IMAGE", "link": null}, {"name": "image14", "type": "IMAGE", "link": null},
+        {"name": "image15", "type": "IMAGE", "link": null}, {"name": "image16", "type": "IMAGE", "link": null},
+        {"name": "image17", "type": "IMAGE", "link": null}, {"name": "image18", "type": "IMAGE", "link": null},
+        {"name": "image19", "type": "IMAGE", "link": null}, {"name": "image20", "type": "IMAGE", "link": null},
+        {"name": "image21", "type": "IMAGE", "link": null}, {"name": "image22", "type": "IMAGE", "link": null},
+        {"name": "image23", "type": "IMAGE", "link": null}, {"name": "image24", "type": "IMAGE", "link": null},
+        {"name": "image25", "type": "IMAGE", "link": null}, {"name": "image26", "type": "IMAGE", "link": null},
+        {"name": "image27", "type": "IMAGE", "link": null}, {"name": "image28", "type": "IMAGE", "link": null},
+        {"name": "image29", "type": "IMAGE", "link": null}, {"name": "image30", "type": "IMAGE", "link": null},
+        {"name": "video1", "type": "VIDEO", "link": null}, {"name": "video2", "type": "VIDEO", "link": null},
+        {"name": "video3", "type": "VIDEO", "link": null}, {"name": "video4", "type": "VIDEO", "link": null},
+        {"name": "video5", "type": "VIDEO", "link": null}, {"name": "video6", "type": "VIDEO", "link": null},
+        {"name": "video7", "type": "VIDEO", "link": null}, {"name": "video8", "type": "VIDEO", "link": null},
+        {"name": "video9", "type": "VIDEO", "link": null}, {"name": "video10", "type": "VIDEO", "link": null},
         {"name": "audio1", "type": "AUDIO", "link": null}, {"name": "audio2", "type": "AUDIO", "link": null},
-        {"name": "audio3", "type": "AUDIO", "link": null}, {"name": "api_config", "type": "SEEDANCE_CONFIG", "link": 3}
+        {"name": "audio3", "type": "AUDIO", "link": null}, {"name": "audio4", "type": "AUDIO", "link": null},
+        {"name": "audio5", "type": "AUDIO", "link": null}, {"name": "audio6", "type": "AUDIO", "link": null},
+        {"name": "audio7", "type": "AUDIO", "link": null}, {"name": "audio8", "type": "AUDIO", "link": null},
+        {"name": "audio9", "type": "AUDIO", "link": null}, {"name": "audio10", "type": "AUDIO", "link": null},
+        {"name": "api_config", "type": "SEEDANCE_CONFIG", "link": 3}
       ],
       "outputs": [
         {"name": "video", "type": "VIDEO", "links": [4]}, {"name": "video_url", "type": "STRING", "links": null},
@@ -44,6 +62,6 @@
       "properties": {"Node name for S&R": "SaveVideo"}, "widgets_values": ["video/seedance25_global_standard_i2v", "auto", "auto"]
     }
   ],
-  "links": [[1, 1, 0, 4, 0, "IMAGE"], [2, 2, 0, 4, 1, "IMAGE"], [3, 3, 0, 4, 15, "SEEDANCE_CONFIG"], [4, 4, 0, 5, 0, "VIDEO"]],
+  "links": [[1, 1, 0, 4, 0, "IMAGE"], [2, 2, 0, 4, 1, "IMAGE"], [3, 3, 0, 4, 50, "SEEDANCE_CONFIG"], [4, 4, 0, 5, 0, "VIDEO"]],
   "groups": [], "config": {}, "extra": {}, "version": 0.4
 }

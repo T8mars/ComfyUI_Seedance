@@ -40,15 +40,15 @@ class Seedance25ContractTests(unittest.TestCase):
         optional_names = list(inputs["optional"])
         self.assertEqual(
             [name for name in optional_names if name.startswith("image")],
-            [f"image{index}" for index in range(1, 10)],
+            [f"image{index}" for index in range(1, 31)],
         )
         self.assertEqual(
             [name for name in optional_names if name.startswith("video")],
-            [f"video{index}" for index in range(1, 4)],
+            [f"video{index}" for index in range(1, 11)],
         )
         self.assertEqual(
             [name for name in optional_names if name.startswith("audio")],
-            [f"audio{index}" for index in range(1, 4)],
+            [f"audio{index}" for index in range(1, 11)],
         )
 
     def test_validation_enforces_model_specific_contract(self):
@@ -221,6 +221,48 @@ class Seedance25ContractTests(unittest.TestCase):
         ])
         self.assertEqual(progress, [1 / 3, 2 / 3, 1.0])
 
+    def test_collect_media_supports_documented_fifty_reference_slots(self):
+        image_urls = [f"https://cdn.test/image-{index}.png" for index in range(1, 31)]
+        video_urls = [f"https://cdn.test/video-{index}.mp4" for index in range(1, 11)]
+        audio_urls = [f"https://cdn.test/audio-{index}.wav" for index in range(1, 11)]
+        kwargs = {
+            "model": nodes.SEEDANCE25_MULTI_MODELS[0],
+            **{f"image{index}": IMAGE for index in range(1, 31)},
+            **{f"video{index}": f"video-{index}.mp4" for index in range(1, 11)},
+            **{
+                f"audio{index}": {
+                    "waveform": torch.zeros((1, 1, 16)),
+                    "sample_rate": 8,
+                }
+                for index in range(1, 11)
+            },
+        }
+        progress = []
+
+        with (
+            patch.object(nodes, "image_to_png_bytes", return_value=b"image"),
+            patch.object(nodes, "video_to_bytes", return_value=(b"video", "mp4")),
+            patch.object(nodes, "audio_to_wav_bytes", return_value=b"audio"),
+            patch.object(
+                nodes,
+                "upload_media",
+                side_effect=[*image_urls, *video_urls, *audio_urls],
+            ) as upload,
+        ):
+            media = nodes.Seedance25Video().collect_media(
+                kwargs,
+                CONFIG,
+                progress.append,
+            )
+
+        self.assertEqual(upload.call_count, 50)
+        self.assertEqual(len(media["content"]), 50)
+        self.assertEqual(
+            [item["type"] for item in media["content"]],
+            ["image_url"] * 30 + ["video_url"] * 10 + ["audio_url"] * 10,
+        )
+        self.assertEqual(progress[-1], 1.0)
+
     def test_runtime_requires_i2v_and_multi_materials(self):
         node = nodes.Seedance25Video()
         with self.assertRaises(SeedanceAPIError):
@@ -268,6 +310,18 @@ class Seedance25RegistrationAndWorkflowTests(unittest.TestCase):
                 serialized = json.dumps(workflow, ensure_ascii=False)
                 self.assertNotRegex(serialized, r"sk-[A-Za-z0-9]{12,}")
                 self.assertNotRegex(serialized, r"task[_-][A-Za-z0-9_-]{6,}")
+                self.assertEqual(
+                    [item["name"] for item in node["inputs"]],
+                    [f"image{index}" for index in range(1, 31)]
+                    + [f"video{index}" for index in range(1, 11)]
+                    + [f"audio{index}" for index in range(1, 11)]
+                    + ["api_config"],
+                )
+                config_link = next(
+                    link for link in workflow["links"]
+                    if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
+                )
+                self.assertEqual(config_link[4], 50)
                 incoming_types = [
                     link[5] for link in workflow.get("links", [])
                     if link[3] == node["id"]
