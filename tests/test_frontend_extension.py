@@ -47,6 +47,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_TextToVideo",
             "Seedance_ImageToVideo",
             "Seedance_MultimodalVideo",
+            "Seedance_2_5_Video",
             "Seedream_V5_Pro_Image",
             "Zhenzhen_Image_G2",
             "Qwen_Image_3_0",
@@ -71,6 +72,30 @@ class FrontendExtensionTests(unittest.TestCase):
             "Midjourney_Multi_Action",
         }
         self.assertTrue(expected.issubset(node_names))
+
+    def test_seedance_25_model_ui_uses_shared_dynamic_helpers(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "seedance_api_key_link.js"
+        ).read_text(encoding="utf-8")
+
+        required_fragments = (
+            'const SEEDANCE25_NODE_NAME = "Seedance_2_5_Video"',
+            'from "./dynamic_widget_ui.js"',
+            'originalSeedanceNodeName(nodeData.name)',
+            'model.endsWith("-i2v")',
+            'model.endsWith("-multi")',
+            'name === "image1" || name === "image2"',
+            '/^(image[1-9]|video[1-3]|audio[1-3])$/.test(name)',
+            'setSeedanceInputVisible(',
+            'seedance25InputAllowed(mode, input.name)',
+            'input.pos = [10, slotStart + (index + 0.7) * 20]',
+            'resizeSeedanceNode(node, 440, visibleInputs.length)',
+            'scheduleSeedance25Refresh(this)',
+            'originalOnConnectionsChange',
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
 
     def test_existing_example_workflows_keep_registered_node_types(self):
         mappings = ComfyUI_Seedance.NODE_CLASS_MAPPINGS
@@ -296,10 +321,15 @@ class FrontendExtensionTests(unittest.TestCase):
             "const HIDDEN_INPUT_OFFSET = -100000",
             "setSeedanceInputVisible(node, input, visible)",
             "const shouldShow = Boolean(visible || input.link != null)",
+            "input.pos = [HIDDEN_INPUT_OFFSET, HIDDEN_INPUT_OFFSET]",
             "node.getConnectionPos = function (isInput, slotNumber, out)",
+            "const visibleInputs = inputs.filter(",
+            "originalGetConnectionPos.call(",
             "originalGetConnectionPos.apply(this, arguments)",
+            "node.computeSize = function ()",
+            "originalComputeSize.apply(this, arguments)",
             "cancelAnimationFrame(node.seedanceDynamicResizeFrame)",
-            "resizeSeedanceNode(node, minimumWidth = 320)",
+            "resizeSeedanceNode(node, minimumWidth = 320, inputRows = null)",
         )
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):

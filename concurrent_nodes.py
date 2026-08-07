@@ -42,6 +42,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Seedance_TextToVideo",
     "Seedance_ImageToVideo",
     "Seedance_MultimodalVideo",
+    "Seedance_2_5_Video",
     "Zhenzhen_Video_G_Omni_Flash",
     "Zhenzhen_Video_GK_V15",
     "Zhenzhen_Video_V31",

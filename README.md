@@ -18,9 +18,20 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.7（2026-08-07）
+
+- 新增 `Seedance 2.5 Standard 视频生成（6 合 1）` 节点，合并国内与海外的 T2V、I2V 和 Multi 六个模型。
+- 支持 4 到 30 秒以及模型智能时长，分辨率覆盖 `480p`、`720p`、`1080p`、`2k`、`4k`。
+- I2V 支持必填首帧与可选尾帧；Multi 支持最多 9 张图片、3 个视频和 3 段音频，并按 `metadata.content` 混合提交。
+- 前端按模型动态显示素材输入，原节点与配套并发提交节点均可连接现有 10 路视频并发接收节点。
+- 新增六份逐模型示例工作流；两份 Multi 示例均预接图片、视频和音频，API Key 保持空白。
+- 视频结果改为带连接/读取时限的流式下载，使用 `.part` 临时文件完整写入后再原子落盘；慢连接会自动清理并重试，不再留下 0 字节最终文件。
+- 六个模型均已使用 4 秒、480p 完成真实生成与结果下载；两个 Multi 路径同时传入图片、视频和音频，国内/海外 I2V 均由 `ffprobe` 验证为 H.264、854×480、97 帧、约 4.04 秒。
+- 完整离线回归共 236 项测试通过，121 份示例工作流 JSON 全部通过解析与安全检查。
 
 ## v0.5.6（2026-08-06）
 
@@ -182,6 +193,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H
 ## 功能特点
 
 - 支持文生视频、图生视频、多模态视频
+- 支持 Seedance 2.5 Standard 国内/海外文生、首尾帧图生和多模态参考生视频
 - 支持 HappyHorse 1.1 文生视频、图生视频和参考图生视频
 - 支持 Wan 2.7 Spicy 图生视频
 - 接入 Kling 文生视频、图生视频、O3 参考生视频和 O3 视频编辑
@@ -199,6 +211,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H
 - 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
+- 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
 - 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、3 个 Hailuo H3 视频模型、3 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
@@ -216,6 +229,7 @@ Seedance 2.0 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H
 | `Seedance 文生视频 (Text to Video)` | 纯文本生成视频 | `model`、`prompt`、时长、分辨率、比例 |
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
+| `Seedance 2.5 Standard 视频生成（6 合 1）` | 国内/海外 T2V、I2V、Multi 六模型统一调用 | 4 到 30 秒或智能时长、首尾帧、最多 9 图 3 视频 3 音频 |
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
 | `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
@@ -378,6 +392,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Seedance 文生视频 (Text to Video)`：只用文本生成视频
    - `Seedance 图生视频 (Image to Video)`：用首帧图、可选尾帧图生成视频
    - `Seedance 多模态视频 (Multimodal Video)`：混合图片、视频、音频参考
+   - `Seedance 2.5 Standard 视频生成（6 合 1）`：在国内/海外文生、图生与多模态六个模型间切换
    - `HappyHorse 1.1 视频生成`：在 `happyhorse-1.1-t2v`、`happyhorse-1.1-i2v` 和 `happyhorse-1.1-r2v` 间切换
    - `Wan 2.7 Spicy 图生视频`：连接首帧图，使用 `wan-2.7-spicy-i2v`
    - `Kling 视频生成`：在 Kling 文生、图生/首尾帧和 O3 参考生视频模型间切换
@@ -481,6 +496,7 @@ Midjourney 图片与视频：
 - `examples/seedance_text_to_video.json`
 - `examples/seedance_image_to_video.json`
 - `examples/seedance_multimodal_video.json`
+- `examples/seedance-2.5-*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
 - `examples/seedream-v5-pro-图像编辑和文生图.json`
 - `examples/seedream-v5-pro宽审核文生图.json`
 - `examples/seedream-v5-pro宽审核图像编辑.json`
@@ -545,6 +561,16 @@ Midjourney 图片与视频：
 - `t2v`：文生视频
 - `i2v`：图生视频
 - `multi`：多模态视频
+
+Seedance 2.5 使用独立的六合一节点，仅包含 Standard 国内/海外线路：
+
+| 任务 | 国内线路 | 海外线路 |
+| --- | --- | --- |
+| 文生视频 | `seedance-2.5-standard-t2v` | `seedance-2.5-global-standard-t2v` |
+| 图生视频 | `seedance-2.5-standard-i2v` | `seedance-2.5-global-standard-i2v` |
+| 多模态视频 | `seedance-2.5-standard-multi` | `seedance-2.5-global-standard-multi` |
+
+该节点支持 4 到 30 秒；选择 `-1` 时按接口要求提交 `metadata.duration=-1`。I2V 使用 1 到 2 张首尾帧图片；Multi 将图片、视频、音频统一写入 `metadata.content`。
 
 图片节点使用独立的 `/v1/image/generations` 端点。`model_family` 决定模型族，不连接参考图时提交 t2i，连接参考图时提交 i2i：
 
@@ -846,6 +872,24 @@ Hailuo 2.3 节点参数：
 | `ratio` | 仅文生视频使用，非 `adaptive` 时透传为 `metadata.ratio` |
 | `first_image` | 图生视频 / fast 图生视频必填首帧图，作为 `images[0]` 提交 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+| `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
+
+Seedance 2.5 Standard 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | 六个 Seedance 2.5 Standard 国内/海外 T2V、I2V、Multi 模型 |
+| `prompt` | T2V 与 Multi 必填；I2V 可选，最多 20480 字符 |
+| `seconds` | 4 到 30 秒；`-1` 由模型智能选择时长 |
+| `resolution` | `480p`、`720p`、`1080p`、`2k`、`4k` |
+| `ratio` | `adaptive`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`、`21:9` |
+| `image1` / `image2` | I2V 的必填首帧和可选尾帧；Multi 的参考图片 1、2 |
+| `image3` ... `image9` | Multi 可选参考图片 |
+| `video1` ... `video3` | Multi 可选参考视频 |
+| `audio1` ... `audio3` | Multi 可选参考音频 |
+| `generate_audio` | 是否生成配音或音效 |
+| `seed` | `-1` 为随机；非负整数作为固定 seed 提交 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API Key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 
 Hailuo H3 节点参数：

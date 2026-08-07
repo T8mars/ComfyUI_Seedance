@@ -2221,10 +2221,55 @@ def download_file(
 # Result download
 # ---------------------------------------------------------------------------
 
+_VIDEO_DOWNLOAD_TIMEOUT = 180
+_VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 15
+_VIDEO_DOWNLOAD_READ_TIMEOUT = 45
+
+
+def _download_video_to_path(url: str, path: str, timeout: int) -> None:
+    total_timeout = max(1.0, float(timeout))
+    deadline = time.monotonic() + total_timeout
+    request_timeout = (
+        min(float(_VIDEO_DOWNLOAD_CONNECT_TIMEOUT), total_timeout),
+        min(float(_VIDEO_DOWNLOAD_READ_TIMEOUT), total_timeout),
+    )
+    part_path = f"{path}.part"
+    response = None
+    try:
+        response = _session().get(url, stream=True, timeout=request_timeout)
+        response.raise_for_status()
+        wrote_data = False
+        with open(part_path, "wb") as file_handle:
+            if hasattr(response, "iter_content"):
+                chunks = response.iter_content(chunk_size=1 << 16)
+            else:
+                chunks = (bytes(response.content),)
+            for chunk in chunks:
+                check_cancelled()
+                if time.monotonic() > deadline:
+                    raise requests.exceptions.Timeout(
+                        f"Video result download exceeded {total_timeout:g}s"
+                    )
+                if chunk:
+                    file_handle.write(chunk)
+                    wrote_data = True
+        if not wrote_data:
+            raise RuntimeError("Video result download returned an empty body")
+        os.replace(part_path, path)
+    finally:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
+        if os.path.exists(part_path):
+            try:
+                os.remove(part_path)
+            except OSError:
+                pass
+
 def download_video_with_path(
     url: str,
-    timeout: int = 300,
-    max_retries: int = 3,
+    timeout: int = _VIDEO_DOWNLOAD_TIMEOUT,
+    max_retries: int = 5,
     logger_prefix: str = "Seedance_Video",
 ) -> Tuple[Any, str]:
     """Download an MP4 and return ``(VIDEO object, local path)``.
@@ -2249,11 +2294,7 @@ def download_video_with_path(
         try:
             if attempt > 0:
                 cooperative_sleep(2 ** attempt)
-            response = _session().get(url, stream=True, timeout=timeout)
-            response.raise_for_status()
-            with open(video_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=1 << 16):
-                    f.write(chunk)
+            _download_video_to_path(url, video_path, timeout)
             size_mb = os.path.getsize(video_path) / (1024 * 1024)
             _log(logger_prefix, f"  Downloaded {size_mb:.1f} MB -> {video_path}")
             if VideoFromFile is not None:
@@ -2269,8 +2310,8 @@ def download_video_with_path(
 
 def download_video(
     url: str,
-    timeout: int = 300,
-    max_retries: int = 3,
+    timeout: int = _VIDEO_DOWNLOAD_TIMEOUT,
+    max_retries: int = 5,
     logger_prefix: str = "Seedance_Video",
 ) -> Any:
     """Download the result MP4 into the ComfyUI output directory."""

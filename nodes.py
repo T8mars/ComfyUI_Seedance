@@ -4,7 +4,8 @@ Zhenzhen Upscaler, Seedream, Dola Seedream, Qwen, Zhenzhen Image G/NB,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
-Seedance video nodes expose the 18 Seedance 2.0 model variants by task type.
+Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
+dedicated six-model Seedance 2.5 Standard node.
 HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
@@ -100,6 +101,29 @@ def _models_for(task_type: str) -> List[str]:
 T2V_MODELS = _models_for("t2v")
 I2V_MODELS = _models_for("i2v")
 MULTI_MODELS = _models_for("multi")
+
+SEEDANCE25_T2V_MODELS = [
+    "seedance-2.5-standard-t2v",
+    "seedance-2.5-global-standard-t2v",
+]
+SEEDANCE25_I2V_MODELS = [
+    "seedance-2.5-standard-i2v",
+    "seedance-2.5-global-standard-i2v",
+]
+SEEDANCE25_MULTI_MODELS = [
+    "seedance-2.5-standard-multi",
+    "seedance-2.5-global-standard-multi",
+]
+SEEDANCE25_MODELS = [
+    SEEDANCE25_T2V_MODELS[0],
+    SEEDANCE25_I2V_MODELS[0],
+    SEEDANCE25_MULTI_MODELS[0],
+    SEEDANCE25_T2V_MODELS[1],
+    SEEDANCE25_I2V_MODELS[1],
+    SEEDANCE25_MULTI_MODELS[1],
+]
+SEEDANCE25_SECONDS = ["-1"] + [str(value) for value in range(4, 31)]
+SEEDANCE25_RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k"]
 
 RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k", "native1080p", "native4k"]
 STANDARD_ONLY_RESOLUTIONS = {"native1080p", "native4k"}
@@ -1393,6 +1417,279 @@ class SeedanceImageToVideo(SeedanceVideoNodeBase):
         prompt = str(kwargs.get("prompt") or "").strip()
         if prompt:
             payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# Seedance 2.5 Standard video
+# ---------------------------------------------------------------------------
+
+class Seedance25Video(SeedanceVideoNodeBase):
+    """Seedance 2.5 Standard t2v/i2v/multi across domestic and global routes."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for index in range(1, MAX_MULTI_IMAGES + 1):
+            optional[f"image{index}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Image {index}. I2V uses image1 as the first frame and image2 "
+                    "as the optional last frame; Multi accepts up to 9 images. | "
+                    f"图片 {index}；I2V 使用 image1 首帧和可选 image2 尾帧，"
+                    "Multi 最多支持 9 张图片。"
+                ),
+            })
+        for index in range(1, MAX_MULTI_VIDEOS + 1):
+            optional[f"video{index}"] = ("VIDEO", {
+                "tooltip": (
+                    f"Multi reference video {index}, up to 3 videos. | "
+                    f"Multi 参考视频 {index}，最多 3 个。"
+                ),
+            })
+        for index in range(1, MAX_MULTI_AUDIOS + 1):
+            optional[f"audio{index}"] = ("AUDIO", {
+                "tooltip": (
+                    f"Multi reference audio {index}, up to 3 audios. | "
+                    f"Multi 参考音频 {index}，最多 3 段。"
+                ),
+            })
+        optional.update(_optional_widgets())
+
+        return {
+            "required": {
+                "model": (SEEDANCE25_MODELS, {
+                    "default": SEEDANCE25_T2V_MODELS[0],
+                    "tooltip": (
+                        "Seedance 2.5 Standard domestic/global model and task type. | "
+                        "Seedance 2.5 Standard 国内/海外线路及文生、图生或多模态模式。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for T2V and Multi; optional for I2V. Multi can use "
+                        "@Image 1, @Video 1, and @Audio 1. | T2V 与 Multi 必填，"
+                        "I2V 可选；Multi 可用 @Image 1、@Video 1、@Audio 1 指代素材。"
+                    ),
+                }),
+                "seconds": (SEEDANCE25_SECONDS, {
+                    "default": "4",
+                    "tooltip": (
+                        "4 to 30 seconds; -1 lets the model choose the duration. | "
+                        "支持 4 到 30 秒；-1 表示由模型智能选择时长。"
+                    ),
+                }),
+                "resolution": (SEEDANCE25_RESOLUTIONS, {
+                    "default": "480p",
+                    "tooltip": (
+                        "Seedance 2.5 Standard output resolution; native presets are "
+                        "not supported. | Seedance 2.5 Standard 输出分辨率，不支持 native 档。"
+                    ),
+                }),
+                "ratio": (RATIOS, {
+                    "default": "adaptive",
+                    "tooltip": "Output aspect ratio. | 输出画面比例。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *SEEDANCE25_MODELS):
+            return f"unsupported Seedance 2.5 model: {model}"
+        if seconds is not None and str(seconds) not in SEEDANCE25_SECONDS:
+            return "Seedance 2.5 seconds must be -1 or 4 to 30 | Seedance 2.5 时长必须为 -1 或 4 到 30 秒"
+        if resolution is not None and resolution not in SEEDANCE25_RESOLUTIONS:
+            return f"unsupported Seedance 2.5 resolution: {resolution}"
+        if ratio is not None and ratio not in RATIOS:
+            return f"unsupported ratio: {ratio}"
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if (
+            strict
+            and model in (*SEEDANCE25_T2V_MODELS, *SEEDANCE25_MULTI_MODELS)
+            and not prompt_text.strip()
+        ):
+            return "prompt is required for Seedance 2.5 T2V and Multi | Seedance 2.5 文生与多模态必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Seedance_2_5_video"
+
+    def _gather_slots(
+        self,
+        kwargs: Dict[str, Any],
+        base_name: str,
+        count: int,
+    ) -> List[Tuple[int, Any]]:
+        slots = [
+            (index, kwargs.get(f"{base_name}{index}"))
+            for index in range(1, count + 1)
+            if kwargs.get(f"{base_name}{index}") is not None
+        ]
+        connected = [index for index, _value in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: {base_name} slots {connected} have gaps; "
+                f"they will be compacted to {base_name} order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model not in SEEDANCE25_MODELS:
+            raise SeedanceAPIError(f"unsupported Seedance 2.5 model: {model}")
+        if model in SEEDANCE25_T2V_MODELS:
+            progress_cb(1.0)
+            return {}
+
+        image_limit = 2 if model in SEEDANCE25_I2V_MODELS else MAX_MULTI_IMAGES
+        image_slots = self._gather_slots(kwargs, "image", image_limit)
+        video_slots = (
+            self._gather_slots(kwargs, "video", MAX_MULTI_VIDEOS)
+            if model in SEEDANCE25_MULTI_MODELS
+            else []
+        )
+        audio_slots = (
+            self._gather_slots(kwargs, "audio", MAX_MULTI_AUDIOS)
+            if model in SEEDANCE25_MULTI_MODELS
+            else []
+        )
+
+        if model in SEEDANCE25_I2V_MODELS and kwargs.get("image1") is None:
+            raise SeedanceAPIError(
+                "image1 is required for Seedance 2.5 I2V | "
+                "Seedance 2.5 图生视频必须连接 image1 首帧"
+            )
+        if model in SEEDANCE25_MULTI_MODELS and not (
+            image_slots or video_slots or audio_slots
+        ):
+            raise SeedanceAPIError(
+                "Seedance 2.5 Multi requires at least one image, video, or audio | "
+                "Seedance 2.5 Multi 至少需要 1 个图片、视频或音频素材"
+            )
+
+        video_mime = {
+            "mp4": "video/mp4",
+            "avi": "video/x-msvideo",
+            "mov": "video/quicktime",
+            "mkv": "video/x-matroska",
+        }
+        total = len(image_slots) + len(video_slots) + len(audio_slots)
+        completed = 0
+        image_urls: List[str] = []
+        content: List[Dict[str, Any]] = []
+
+        for slot, image in image_slots:
+            url = upload_media(
+                image_to_png_bytes(image),
+                f"seedance25_image_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            image_urls.append(url)
+            if model in SEEDANCE25_MULTI_MODELS:
+                content.append({"type": "image_url", "image_url": {"url": url}})
+            completed += 1
+            progress_cb(completed / total)
+
+        for slot, video in video_slots:
+            video_bytes, extension = video_to_bytes(video)
+            url = upload_media(
+                video_bytes,
+                f"seedance25_video_{slot}.{extension}",
+                video_mime.get(extension, "video/mp4"),
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            content.append({"type": "video_url", "video_url": {"url": url}})
+            completed += 1
+            progress_cb(completed / total)
+
+        for slot, audio in audio_slots:
+            url = upload_media(
+                audio_to_wav_bytes(audio),
+                f"seedance25_audio_{slot}.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            content.append({"type": "audio_url", "audio_url": {"url": url}})
+            completed += 1
+            progress_cb(completed / total)
+
+        if model in SEEDANCE25_I2V_MODELS:
+            return {"images": image_urls}
+        return {"content": content}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {
+            "resolution": kwargs["resolution"],
+            "ratio": str(kwargs.get("ratio") or "adaptive"),
+            "generate_audio": bool(kwargs.get("generate_audio", True)),
+        }
+        seed = kwargs.get("seed", -1)
+        if seed is not None and int(seed) >= 0:
+            metadata["seed"] = int(seed)
+
+        payload: Dict[str, Any] = {"model": model, "metadata": metadata}
+        seconds = str(kwargs["seconds"])
+        if seconds == "-1":
+            metadata["duration"] = -1
+        else:
+            payload["seconds"] = seconds
+
+        if model in SEEDANCE25_T2V_MODELS:
+            payload["prompt"] = prompt
+            return payload
+
+        if model in SEEDANCE25_I2V_MODELS:
+            images = media.get("images") or []
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for Seedance 2.5 I2V | "
+                    "Seedance 2.5 图生视频必须连接 image1 首帧"
+                )
+            payload["images"] = images[:2]
+            if prompt:
+                payload["prompt"] = prompt
+            return payload
+
+        content = media.get("content") or []
+        if not content:
+            raise SeedanceAPIError(
+                "Seedance 2.5 Multi requires at least one image, video, or audio | "
+                "Seedance 2.5 Multi 至少需要 1 个图片、视频或音频素材"
+            )
+        payload["prompt"] = prompt
+        metadata["content"] = content
         return payload
 
 
@@ -7112,6 +7409,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_TextToVideo": SeedanceTextToVideo,
     "Seedance_ImageToVideo": SeedanceImageToVideo,
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
+    "Seedance_2_5_Video": Seedance25Video,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
     "Qwen_Image_3_0": QwenImage30,
@@ -7141,6 +7439,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
+    "Seedance_2_5_Video": "Seedance 2.5 Standard 视频生成（6 合 1）",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
