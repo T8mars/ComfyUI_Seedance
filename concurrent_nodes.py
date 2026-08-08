@@ -196,6 +196,7 @@ class ConcurrentTaskHandle:
     primary_output_index: int
     return_names: Tuple[str, ...]
     cancel_event: threading.Event
+    skip_error: bool = False
     progress_state: ConcurrentProgressState = field(
         default_factory=ConcurrentProgressState
     )
@@ -248,6 +249,30 @@ def _submit_original(
         primary_output_index=primary_output_index,
         return_names=tuple(getattr(target_class, "RETURN_NAMES", ())),
         cancel_event=cancel_event,
+        skip_error=bool(kwargs.get("skip_error", False)),
+        progress_state=progress_state,
+    )
+
+
+def _failed_original(
+    target_class,
+    original_node_key: str,
+    kind: str,
+    primary_output_index: int,
+    error: BaseException,
+) -> ConcurrentTaskHandle:
+    future = concurrent.futures.Future()
+    future.set_exception(error)
+    progress_state = ConcurrentProgressState()
+    progress_state.complete()
+    return ConcurrentTaskHandle(
+        future=future,
+        kind=kind,
+        original_node_key=original_node_key,
+        primary_output_index=primary_output_index,
+        return_names=tuple(getattr(target_class, "RETURN_NAMES", ())),
+        cancel_event=threading.Event(),
+        skip_error=True,
         progress_state=progress_state,
     )
 
@@ -311,7 +336,18 @@ def _make_submit_class(
         return True
 
     def submit(self, **kwargs):
-        _preflight_original_inputs(target_class, kwargs)
+        try:
+            _preflight_original_inputs(target_class, kwargs)
+        except Exception as error:
+            if not bool(kwargs.get("skip_error", False)):
+                raise
+            return (_failed_original(
+                target_class,
+                original_node_key,
+                kind,
+                primary_output_index,
+                error,
+            ),)
         handle = _submit_original(
             target_class,
             original_node_key,
@@ -544,12 +580,15 @@ class _ConcurrentAwaitBase:
                     except BaseException as exc:
                         statuses[slot]["state"] = "failed"
                         statuses[slot]["error"] = _redacted_error(exc)
-                        if failure_mode == "raise":
+                        skip_failed_slot = bool(handle.skip_error)
+                        if failure_mode == "raise" and not skip_failed_slot:
                             _cancel_handles(item[1] for item in pending.values())
                             raise RuntimeError(
                                 f"Concurrent {self.KIND} slot {slot} failed: "
                                 f"{_redacted_error(exc)}"
                             ) from exc
+                        if skip_failed_slot:
+                            statuses[slot]["skipped"] = True
                         if failure_placeholder is None:
                             failure_placeholder = self._placeholder(
                                 f"Concurrent {self.KIND} task failed."

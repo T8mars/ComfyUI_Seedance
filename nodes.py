@@ -4163,7 +4163,33 @@ class SeedanceMultimodalVideo(SeedanceVideoNodeBase):
 # Seedream image generation and editing
 # ---------------------------------------------------------------------------
 
-class SeedreamV5ProImage:
+class SeedanceImageNodeBase:
+    """Shared skip_error handling for IMAGE generation nodes."""
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        image = make_error_image(error_msg)
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", response_str]},
+            "result": (image, "", "", response_str),
+        }
+
+    def execute(self, **kwargs):
+        skip_error = bool(kwargs.pop("skip_error", False))
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as error:
+            if skip_error:
+                error_msg = f"{self._log_prefix}: {type(error).__name__}: {error}"
+                print(
+                    f"[{self._log_prefix}] skip_error=True, "
+                    f"returning placeholder: {type(error).__name__}"
+                )
+                return self._make_error_result(error_msg)
+            raise
+
+
+class SeedreamV5ProImage(SeedanceImageNodeBase):
     """Text-to-image without references, image editing with 1-10 references."""
 
     CATEGORY = "Seedance"
@@ -4182,6 +4208,10 @@ class SeedreamV5ProImage:
         }
         optional["api_config"] = ("SEEDANCE_CONFIG", {
             "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
         })
 
         return {
@@ -4297,7 +4327,7 @@ class SeedreamV5ProImage:
             payload["images"] = images
         return payload
 
-    def execute(
+    def _execute_inner(
         self,
         prompt: str,
         resolution: str,
@@ -4375,7 +4405,7 @@ class SeedreamV5ProImage:
 # Zhenzhen Image G-2 image generation and editing
 # ---------------------------------------------------------------------------
 
-class ZhenzhenImageG2:
+class ZhenzhenImageG2(SeedanceImageNodeBase):
     """Zhenzhen Image G text-to-image and image-to-image."""
 
     CATEGORY = "Seedance"
@@ -4398,6 +4428,10 @@ class ZhenzhenImageG2:
         }
         optional["api_config"] = ("SEEDANCE_CONFIG", {
             "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
         })
 
         return {
@@ -4655,7 +4689,7 @@ class ZhenzhenImageG2:
             payload["images"] = images
         return payload
 
-    def execute(
+    def _execute_inner(
         self,
         model: str,
         prompt: str,
@@ -4750,7 +4784,7 @@ class ZhenzhenImageG2:
 # Qwen Image 3.0 image generation and editing
 # ---------------------------------------------------------------------------
 
-class QwenImage30:
+class QwenImage30(SeedanceImageNodeBase):
     """Qwen Image 3.0/3.0 Pro domestic and global generation/editing."""
 
     CATEGORY = "Seedance"
@@ -4772,6 +4806,10 @@ class QwenImage30:
         }
         optional["api_config"] = ("SEEDANCE_CONFIG", {
             "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
         })
         return {
             "required": {
@@ -4954,7 +4992,7 @@ class QwenImage30:
             payload["images"] = images
         return payload
 
-    def execute(
+    def _execute_inner(
         self,
         model: str,
         prompt: str,
@@ -5043,7 +5081,7 @@ class QwenImage30:
 # Zhenzhen Image GK v1.5 image generation and editing
 # ---------------------------------------------------------------------------
 
-class ZhenzhenImageGKV15:
+class ZhenzhenImageGKV15(SeedanceImageNodeBase):
     """Zhenzhen Image GK v1.5 text-to-image and image editing."""
 
     CATEGORY = "Seedance"
@@ -5087,6 +5125,10 @@ class ZhenzhenImageGKV15:
                 }),
                 "api_config": ("SEEDANCE_CONFIG", {
                     "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
                 }),
             },
         }
@@ -5162,7 +5204,7 @@ class ZhenzhenImageGKV15:
             payload["images"] = images[:1]
         return payload
 
-    def execute(
+    def _execute_inner(
         self,
         model: str,
         prompt: str,
@@ -5229,7 +5271,7 @@ class ZhenzhenImageGKV15:
 # Zhenzhen Image Nano Banana generation and editing
 # ---------------------------------------------------------------------------
 
-class ZhenzhenImageNB:
+class ZhenzhenImageNB(SeedanceImageNodeBase):
     """Zhenzhen Nano Banana text-to-image and image editing."""
 
     CATEGORY = "Seedance"
@@ -5252,6 +5294,10 @@ class ZhenzhenImageNB:
         }
         optional["api_config"] = ("SEEDANCE_CONFIG", {
             "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
         })
 
         return {
@@ -5407,7 +5453,7 @@ class ZhenzhenImageNB:
             payload["images"] = images[:MAX_ZHENZHEN_IMAGE_NB_IMAGES]
         return payload
 
-    def execute(
+    def _execute_inner(
         self,
         model: str,
         prompt: str,

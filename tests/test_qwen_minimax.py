@@ -34,7 +34,7 @@ class QwenImage30Tests(unittest.TestCase):
         self.assertEqual(inputs["required"]["model"][0], nodes.QWEN_IMAGE_30_MODELS)
         self.assertEqual(
             list(inputs["optional"]),
-            ["image1", "image2", "image3", "api_config"],
+            ["image1", "image2", "image3", "api_config", "skip_error"],
         )
 
     def test_strict_validation_requires_prompt_and_i2i_reference(self):
