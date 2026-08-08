@@ -18,9 +18,17 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream 图层拆分、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.11（2026-08-09）
+
+- 新增独立的 `Seedream v5 Pro 图层拆分` 节点，接入 `seedream-v5-pro-layer-decomposition`；单图输入，提示词可选，支持 `auto` / `1k` / `1.5k` / `2k` 与 PNG/JPEG。
+- 节点完整遍历 `image_urls`，按 API 顺序输出 IMAGE 与 MASK 列表：第 1 项为底图，后续为全部图层；不同尺寸结果不会被缩放、拼批或截断。
+- 透明通道转换为标准 ComfyUI MASK。新增示例工作流使用原生 `Join Image with Alpha` 逐项恢复 RGBA，并由 `Save Image` 保存全部结果，无需额外辅助节点。
+- 最低规格真实节点验证返回 6 张图片，6 个 URL、6 个 IMAGE、6 个 MASK 与 `image_count` 完全一致；底图和 5 个异尺寸透明图层均成功下载与解码。
+- 完整离线回归通过 264 项测试，133 份示例工作流通过 JSON 与敏感信息审计。
 
 ## v0.5.10（2026-08-09）
 
@@ -527,6 +535,7 @@ Midjourney 图片与视频：
 - `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
 - `examples/海螺hailuo-h3*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
 - `examples/seedream-v5-pro-图像编辑和文生图.json`
+- `examples/seedream-v5-pro图层拆分.json`
 - `examples/seedream-v5-pro宽审核文生图.json`
 - `examples/seedream-v5-pro宽审核图像编辑.json`
 - `examples/zhenzhen-image-g2文生图.json`
@@ -784,6 +793,18 @@ Doubao Seed Audio 节点使用独立的 `/v1/audio/generations` 异步端点，�
 | `output_format` | `png` 或 `jpeg` |
 | `model_family` | 国内 `seedream-v5-pro` 或海外 `dola-seedream-5.0-pro` |
 | `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
+Seedream 图层拆分节点参数与输出：
+
+| 参数/输出 | 说明 |
+| --- | --- |
+| `image` | 必填，恰好 1 张待拆分图片；节点自动上传 |
+| `prompt` | 可选拆分要求，0 到 2000 字符 |
+| `resolution` | `auto`、`1k`、`1.5k` 或 `2k` |
+| `output_format` | `png` 或 `jpeg`；需要透明图层时建议使用 PNG |
+| `images` / `masks` | 按 API 顺序输出的 ComfyUI 列表；第 1 项为底图，后续为全部图层及其透明 MASK |
+| `image_urls` / `image_count` | 完整结果 URL 数组 JSON 与实际结果数量 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 Qwen Image 3.0 参数：

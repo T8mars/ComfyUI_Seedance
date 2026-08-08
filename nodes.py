@@ -1,6 +1,7 @@
 """
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
-Zhenzhen Upscaler, Seedream, Dola Seedream, Qwen, Zhenzhen Image G/NB,
+Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
+Qwen, Zhenzhen Image G/NB,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
@@ -27,11 +28,13 @@ from .core.client import (
     download_audio,
     download_file,
     download_image,
+    download_image_with_mask,
     download_image_with_path,
     download_video,
     download_video_with_path,
     extract_audio_url,
     extract_image_url,
+    extract_image_urls,
     extract_midjourney_results,
     extract_music_results,
     extract_video_url,
@@ -141,6 +144,7 @@ MAX_MULTI_AUDIOS = 3
 
 SEEDREAM_T2I_MODEL = "seedream-v5-pro-t2i"
 SEEDREAM_I2I_MODEL = "seedream-v5-pro-i2i"
+SEEDREAM_LAYER_DECOMPOSITION_MODEL = "seedream-v5-pro-layer-decomposition"
 DOLA_SEEDREAM_T2I_MODEL = "dola-seedream-5.0-pro-t2i"
 DOLA_SEEDREAM_I2I_MODEL = "dola-seedream-5.0-pro-i2i"
 SEEDREAM_FAMILY_DOMESTIC = "seedream-v5-pro (domestic)"
@@ -151,10 +155,12 @@ SEEDREAM_MODEL_PAIRS = {
     SEEDREAM_FAMILY_DOLA: (DOLA_SEEDREAM_T2I_MODEL, DOLA_SEEDREAM_I2I_MODEL),
 }
 SEEDREAM_RESOLUTIONS = ["1k", "2k", "custom"]
+SEEDREAM_LAYER_RESOLUTIONS = ["auto", "1k", "1.5k", "2k"]
 SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
 SEEDREAM_PROMPT_MIN_LENGTH = 5
 SEEDREAM_PROMPT_MAX_LENGTH = 2000
 MAX_SEEDREAM_IMAGES = 10
+MAX_SEEDREAM_LAYER_SOURCE_BYTES = 30 * 1024 * 1024
 ZHENZHEN_IMAGE_G2_T2I_MODEL = "zhenzhen-image-g2-t2i"
 ZHENZHEN_IMAGE_G2_I2I_MODEL = "zhenzhen-image-g2-i2i"
 ZHENZHEN_IMAGE_G_V2_LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"
@@ -4402,6 +4408,240 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Seedream layer decomposition
+# ---------------------------------------------------------------------------
+
+class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
+    """Split one source image into an ordered base image and layer image list."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT", "STRING", "STRING")
+    RETURN_NAMES = (
+        "images",
+        "masks",
+        "image_urls",
+        "image_count",
+        "task_id",
+        "response",
+    )
+    OUTPUT_IS_LIST = (True, True, False, False, False, False)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {
+                    "tooltip": (
+                        "Exactly one source image, up to 30 MB after upload. | "
+                        "必须连接 1 张待拆分图片，上传后不超过 30 MB。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Optional decomposition instruction, up to 2000 characters. | "
+                        "可选拆分要求，最多 2000 字符。"
+                    ),
+                }),
+                "resolution": (SEEDREAM_LAYER_RESOLUTIONS, {
+                    "default": "auto",
+                    "tooltip": (
+                        "Layer decomposition resolution: auto, 1k, 1.5k, or 2k. | "
+                        "图层拆分分辨率：auto、1k、1.5k 或 2k。"
+                    ),
+                }),
+                "output_format": (SEEDREAM_OUTPUT_FORMATS, {
+                    "default": "png",
+                    "tooltip": (
+                        "PNG is recommended because generated layers may contain transparency. | "
+                        "建议使用 PNG，生成图层可能包含透明通道。"
+                    ),
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "On failure return placeholder image/mask lists instead of stopping the workflow. | "
+                        "失败时输出占位图片与蒙版列表而不中断工作流。"
+                    ),
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        image=None,
+        prompt=None,
+        resolution=None,
+        output_format=None,
+        strict=False,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        if len(prompt_text) > SEEDREAM_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt must contain no more than {SEEDREAM_PROMPT_MAX_LENGTH} "
+                f"characters (got {len(prompt_text)}) | 提示词最多 "
+                f"{SEEDREAM_PROMPT_MAX_LENGTH} 字符"
+            )
+        if resolution not in (None, *SEEDREAM_LAYER_RESOLUTIONS):
+            return f"unsupported layer decomposition resolution: {resolution}"
+        if output_format not in (None, *SEEDREAM_OUTPUT_FORMATS):
+            return f"unsupported output_format: {output_format}"
+        if strict and image is None:
+            return (
+                "image is required for layer decomposition | "
+                "图层拆分必须连接 1 张输入图片"
+            )
+        image_shape = getattr(image, "shape", None)
+        if strict and image_shape is not None:
+            try:
+                if len(image_shape) == 4 and int(image_shape[0]) != 1:
+                    return (
+                        "layer decomposition accepts exactly one source image, "
+                        f"not a batch of {int(image_shape[0])} | "
+                        "图层拆分只接受 1 张源图，不能连接多图批次"
+                    )
+            except (TypeError, ValueError):
+                pass
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Seedream_v5_pro_layer_decomposition"
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        image = make_error_image(error_msg)
+        mask = image.new_zeros((1, image.shape[1], image.shape[2]))
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["[]", response_str]},
+            "result": ([image], [mask], "[]", 0, "", response_str),
+        }
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(
+        self,
+        source_url: str,
+        prompt: str,
+        resolution: str,
+        output_format: str,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "model": SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+            "images": [source_url],
+            "metadata": {
+                "resolution": resolution,
+                "output_format": output_format,
+            },
+        }
+        if prompt:
+            payload["prompt"] = prompt
+        return payload
+
+    def _execute_inner(
+        self,
+        image,
+        prompt: str,
+        resolution: str,
+        output_format: str,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            image=image,
+            prompt=prompt_text,
+            resolution=resolution,
+            output_format=output_format,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        source_bytes = image_to_png_bytes(image)
+        if len(source_bytes) > MAX_SEEDREAM_LAYER_SOURCE_BYTES:
+            raise SeedanceAPIError(
+                "layer decomposition source image exceeds 30 MB after PNG encoding | "
+                "图层拆分源图编码为 PNG 后超过 30 MB"
+            )
+        source_url = upload_media(
+            source_bytes,
+            "seedream_layer_source.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(
+            source_url,
+            prompt_text,
+            resolution,
+            output_format,
+        )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        def on_progress(progress: int):
+            self._update_progress(pbar, 20 + progress / 100.0 * 70)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 90)
+
+        image_urls = extract_image_urls(final_response)
+        images = []
+        masks = []
+        for index, image_url in enumerate(image_urls, start=1):
+            layer_image, layer_mask = download_image_with_mask(
+                image_url,
+                logger_prefix=self._log_prefix,
+            )
+            images.append(layer_image)
+            masks.append(layer_mask)
+            self._update_progress(
+                pbar,
+                90 + index / max(1, len(image_urls)) * 10,
+            )
+
+        urls_str = json.dumps(image_urls, ensure_ascii=False)
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [urls_str, response_str]},
+            "result": (
+                images,
+                masks,
+                urls_str,
+                len(image_urls),
+                task_id,
+                response_str,
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Zhenzhen Image G-2 image generation and editing
 # ---------------------------------------------------------------------------
 
@@ -7856,6 +8096,7 @@ NODE_CLASS_MAPPINGS = {
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
     "Seedance_2_5_Video": Seedance25Video,
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
+    "Seedream_V5_Pro_Layer_Decomposition": SeedreamV5ProLayerDecomposition,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
     "Qwen_Image_3_0": QwenImage30,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
@@ -7887,6 +8128,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedance_2_5_Video": "Seedance 2.5 Standard 视频生成（6 合 1）",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
+    "Seedream_V5_Pro_Layer_Decomposition": "Seedream v5 Pro 图层拆分",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",

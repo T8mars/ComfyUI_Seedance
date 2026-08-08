@@ -681,6 +681,27 @@ def extract_image_url(final_response: Dict[str, Any]) -> str:
     )
 
 
+def extract_image_urls(final_response: Dict[str, Any]) -> List[str]:
+    """Extract every documented image URL while preserving API result order."""
+    task_data = final_response.get("data")
+    if isinstance(task_data, dict):
+        upstream_data = task_data.get("data")
+        if isinstance(upstream_data, dict):
+            content = upstream_data.get("content")
+            if isinstance(content, dict):
+                raw_urls = content.get("image_urls")
+                if isinstance(raw_urls, (list, tuple)):
+                    urls = [
+                        str(value or "").strip()
+                        for value in raw_urls
+                        if str(value or "").strip()
+                    ]
+                    if urls:
+                        return urls
+
+    return [extract_image_url(final_response)]
+
+
 def _download_image_bytes(url: str, timeout: int) -> bytes:
     total_timeout = max(1.0, float(timeout))
     deadline = time.monotonic() + total_timeout
@@ -748,6 +769,51 @@ def download_image(
             _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {last_error}")
 
     raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
+
+
+def download_image_with_mask(
+    url: str,
+    timeout: int = _IMAGE_DOWNLOAD_TIMEOUT,
+    max_retries: int = 3,
+    logger_prefix: str = "Seedream_Layer_Decomposition",
+) -> Tuple[Any, Any]:
+    """Download one image as standard ComfyUI IMAGE and transparency MASK tensors."""
+    from io import BytesIO
+
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    _log(logger_prefix, "Download layer image -> remote result")
+    last_error: Optional[str] = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                cooperative_sleep(2 ** attempt)
+            content = _download_image_bytes(url, timeout)
+            with Image.open(BytesIO(content)) as source:
+                rgba = source.convert("RGBA")
+                rgb_array = np.asarray(rgba.convert("RGB"), dtype=np.float32).copy()
+                alpha_array = np.asarray(
+                    rgba.getchannel("A"), dtype=np.float32
+                ).copy()
+            image = torch.from_numpy(rgb_array / 255.0).unsqueeze(0)
+            mask = torch.from_numpy(1.0 - alpha_array / 255.0).unsqueeze(0)
+            _log(
+                logger_prefix,
+                f"  Downloaded layer image {image.shape[2]}x{image.shape[1]}",
+            )
+            return image, mask
+        except Exception as error:
+            last_error = type(error).__name__
+            _log(
+                logger_prefix,
+                f"Layer image download attempt {attempt + 1} failed: {last_error}",
+            )
+
+    raise RuntimeError(
+        f"Failed to download layer image after {max_retries} attempts: {last_error}"
+    )
 
 
 def download_image_with_path(
