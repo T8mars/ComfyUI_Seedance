@@ -62,6 +62,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Kling_Edit_Video",
             "Hailuo_2_3_Video",
             "Hailuo_H3_Video",
+            "Flux_3_Video",
             "Minimax_H3_OW_Video",
             "Vidu_Q3_Video",
             "Vidu_Q3_ShortPlay",
@@ -294,17 +295,44 @@ class FrontendExtensionTests(unittest.TestCase):
         required_fragments = (
             'const HAILUO_H3_NODE_NAME = "Hailuo_H3_Video"',
             'const T2V_MODEL = "hailuo-h3-t2v"',
-            'const I2V_MODEL = "hailuo-h3-i2v"',
-            'const MULTI_MODEL = "hailuo-h3-multi"',
+            'const HAILUO_MEDIA_INPUT = /^(image[1-9]|video[1-3]|audio[1-3])$/',
             'from "./dynamic_widget_ui.js"',
-            'setWidgetVisible(widgetByName(node, "ratio"), model !== I2V_MODEL)',
+            'model.endsWith("-i2v")',
+            'model.endsWith("-multi")',
+            'setWidgetVisible(widgetByName(node, "ratio"), !model.endsWith("-i2v"))',
             'return name === "image1" || name === "image2"',
             '/^(image[1-9]|video[1-3]|audio[1-3])$/.test(name)',
             "setSeedanceInputVisible as setInputVisible",
             "setInputVisible(node, input, inputAllowed(model, input.name))",
+            "scheduleHailuoH3Refresh(node)",
             "resizeSeedanceNode(node, 420)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_flux3_ui_enforces_model_specific_inputs(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "flux3_model_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const FLUX3_NODE_NAME = "Flux_3_Video"',
+            'const MEDIA_SOCKET_INPUTS = new Set(["input_video", "api_config"])',
+            'from "./dynamic_widget_ui.js"',
+            'model.endsWith("-draft-enhance")',
+            'model.endsWith("-i2v")',
+            'model.endsWith("-v2v")',
+            'setWidgetVisible(widgetByName(node, "prompt"), mode !== "draft-enhance")',
+            'setWidgetVisible(widgetByName(node, "draft_cache"), mode === "draft-enhance")',
+            'input.name === "input_video" || input.name === "video_url"',
+            'return mode === "i2v" && Number(imageMatch[1]) <= nextImage',
+            'setSeedanceInputVisible as setInputVisible',
+            'scheduleFlux3Refresh(node)',
+            'resizeSeedanceNode(node, 440)',
+            'originalOnConfigure?.apply(this, arguments)',
+            'originalOnConnectionsChange?.apply(this, arguments)',
         )
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
@@ -333,8 +361,10 @@ class FrontendExtensionTests(unittest.TestCase):
             "originalComputeSize.apply(this, arguments)",
             "syncSeedanceConcreteInputVisibility(node)",
             "const concreteInputs = node?._concreteInputs",
+            "candidate?.name === concreteInput?.name",
             "currentWidget?.name === HIDDEN_INPUT_WIDGET_NAME",
             'concreteInput.widget = { name: HIDDEN_INPUT_WIDGET_NAME }',
+            "concreteInput.alwaysVisible = original.hadWidget",
             "node._setConcreteSlots = function ()",
             "node.drawSlots = function ()",
             "setSeedanceRawInputHidden(input, nextHidden)",
@@ -364,11 +394,14 @@ class FrontendExtensionTests(unittest.TestCase):
             self.assertNotIn('widget.type = "hidden"', source)
             self.assertNotIn("input.hidden = !", source)
 
-    def test_hailuo_h3_workflows_cover_all_three_models(self):
+    def test_hailuo_h3_workflows_cover_all_six_models(self):
         workflow_names = {
             "海螺hailuo-h3文生视频.json": "hailuo-h3-t2v",
             "海螺hailuo-h3图生视频首尾帧.json": "hailuo-h3-i2v",
             "海螺hailuo-h3多模态参考生视频.json": "hailuo-h3-multi",
+            "海螺hailuo-h3-global文生视频.json": "hailuo-h3-global-t2v",
+            "海螺hailuo-h3-global图生视频首尾帧.json": "hailuo-h3-global-i2v",
+            "海螺hailuo-h3-global多模态参考生视频.json": "hailuo-h3-global-multi",
         }
         expected_inputs = (
             [f"image{index}" for index in range(1, 10)]
@@ -389,7 +422,7 @@ class FrontendExtensionTests(unittest.TestCase):
                 model,
                 node["widgets_values"][1],
                 "5",
-                "2K",
+                "768P" if "global" in model else "2K",
                 "16:9",
             ])
             self.assertEqual([item["name"] for item in node["inputs"]], expected_inputs)
@@ -398,9 +431,9 @@ class FrontendExtensionTests(unittest.TestCase):
                 for link in workflow["links"]
                 if link[3] == node["id"] and link[5] in {"IMAGE", "VIDEO", "AUDIO"}
             }
-            if model == "hailuo-h3-t2v":
+            if model.endswith("-t2v"):
                 self.assertEqual(incoming_media, set())
-            elif model == "hailuo-h3-i2v":
+            elif model.endswith("-i2v"):
                 self.assertEqual(incoming_media, {"IMAGE"})
                 self.assertEqual(sum(
                     1 for link in workflow["links"]

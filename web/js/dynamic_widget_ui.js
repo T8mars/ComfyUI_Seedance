@@ -125,7 +125,9 @@ function syncSeedanceConcreteInputVisibility(node) {
         return;
     }
     concreteInputs.forEach((concreteInput, index) => {
-        const input = inputs[index];
+        const input = inputs.find(
+            (candidate) => candidate?.name === concreteInput?.name,
+        ) ?? inputs[index];
         if (!concreteInput || !input) {
             return;
         }
@@ -141,7 +143,7 @@ function syncSeedanceConcreteInputVisibility(node) {
             concreteInput[ORIGINAL_CONCRETE_INPUT_STATE] = {
                 hadWidget: (
                     Boolean(savedRawWidget?.hadWidget)
-                    || (hasOwn(concreteInput, "widget") && !isHiddenPlaceholder)
+                    || Boolean(currentWidget && !isHiddenPlaceholder)
                 ),
                 widget: isHiddenPlaceholder && !savedRawWidget?.hadWidget
                     ? undefined
@@ -158,12 +160,15 @@ function syncSeedanceConcreteInputVisibility(node) {
             concreteInput.alwaysVisible = false;
             concreteInput.pos = [HIDDEN_INPUT_OFFSET, HIDDEN_INPUT_OFFSET];
         } else {
-            if (original.hadWidget) {
+            if (original.hadWidget && original.widget) {
                 concreteInput.widget = original.widget;
             } else {
                 delete concreteInput.widget;
             }
-            concreteInput.alwaysVisible = original.alwaysVisible;
+            concreteInput.alwaysVisible = original.hadWidget
+                ? original.alwaysVisible
+                : true;
+            concreteInput.hidden = false;
             concreteInput.pos = input.pos;
         }
     });

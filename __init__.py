@@ -1,5 +1,5 @@
 """
-ComfyUI_Seedance - ComfyUI nodes for Seedance/HappyHorse/Wan/Kling/Hailuo/
+ComfyUI_Seedance - ComfyUI nodes for Seedance/FLUX 3 Video/HappyHorse/Wan/Kling/Hailuo/
 MiniMax/Vidu video, Zhenzhen Upscaler video super-resolution, Seedream/
 Dola Seedream/Qwen/Zhenzhen Image G/GK/NB image, Zhenzhen Video G/GK/V3.1,
 Doubao Seed Audio, Whisper transcription, Suno music, and Midjourney APIs

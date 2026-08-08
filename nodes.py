@@ -1,12 +1,12 @@
 """
-ComfyUI nodes for Seedance, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
+ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
 Zhenzhen Upscaler, Seedream, Dola Seedream, Qwen, Zhenzhen Image G/NB,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
 dedicated six-model Seedance 2.5 Standard node.
-HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, and Zhenzhen Upscaler use dedicated video
+FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
@@ -354,16 +354,67 @@ HAILUO23_MAX_ASPECT_RATIO = 5 / 2
 HAILUO_H3_T2V_MODEL = "hailuo-h3-t2v"
 HAILUO_H3_I2V_MODEL = "hailuo-h3-i2v"
 HAILUO_H3_MULTI_MODEL = "hailuo-h3-multi"
+HAILUO_H3_GLOBAL_T2V_MODEL = "hailuo-h3-global-t2v"
+HAILUO_H3_GLOBAL_I2V_MODEL = "hailuo-h3-global-i2v"
+HAILUO_H3_GLOBAL_MULTI_MODEL = "hailuo-h3-global-multi"
+HAILUO_H3_T2V_MODELS = [
+    HAILUO_H3_T2V_MODEL,
+    HAILUO_H3_GLOBAL_T2V_MODEL,
+]
+HAILUO_H3_I2V_MODELS = [
+    HAILUO_H3_I2V_MODEL,
+    HAILUO_H3_GLOBAL_I2V_MODEL,
+]
+HAILUO_H3_MULTI_MODELS = [
+    HAILUO_H3_MULTI_MODEL,
+    HAILUO_H3_GLOBAL_MULTI_MODEL,
+]
 HAILUO_H3_MODELS = [
     HAILUO_H3_T2V_MODEL,
     HAILUO_H3_I2V_MODEL,
     HAILUO_H3_MULTI_MODEL,
+    HAILUO_H3_GLOBAL_T2V_MODEL,
+    HAILUO_H3_GLOBAL_I2V_MODEL,
+    HAILUO_H3_GLOBAL_MULTI_MODEL,
 ]
 HAILUO_H3_SECONDS = [str(s) for s in range(5, 16)]
-HAILUO_H3_RESOLUTIONS = ["2K"]
+HAILUO_H3_RESOLUTIONS = ["768P", "2K"]
 MAX_HAILUO_H3_IMAGES = 9
 MAX_HAILUO_H3_VIDEOS = 3
 MAX_HAILUO_H3_AUDIOS = 3
+
+FLUX3_T2V_MODELS = [
+    "flux-3-video-t2v",
+    "flux-3-video-global-t2v",
+]
+FLUX3_I2V_MODELS = [
+    "flux-3-video-i2v",
+    "flux-3-video-global-i2v",
+]
+FLUX3_V2V_MODELS = [
+    "flux-3-video-v2v",
+    "flux-3-video-global-v2v",
+]
+FLUX3_DRAFT_ENHANCE_MODELS = [
+    "flux-3-video-draft-enhance",
+    "flux-3-video-global-draft-enhance",
+]
+FLUX3_VIDEO_MODELS = [
+    FLUX3_T2V_MODELS[0],
+    FLUX3_I2V_MODELS[0],
+    FLUX3_V2V_MODELS[0],
+    FLUX3_DRAFT_ENHANCE_MODELS[0],
+    FLUX3_T2V_MODELS[1],
+    FLUX3_I2V_MODELS[1],
+    FLUX3_V2V_MODELS[1],
+    FLUX3_DRAFT_ENHANCE_MODELS[1],
+]
+FLUX3_SECONDS = [str(value) for value in range(5, 21)]
+FLUX3_RESOLUTIONS = ["hd", "fhd"]
+FLUX3_RATIOS = ["auto", "21:9", "2:1", "16:9", "4:3", "1:1", "3:4", "9:16"]
+FLUX3_AUDIO_MODES = ["api_default", "enabled", "disabled"]
+FLUX3_SAFETY_TOLERANCES = ["api_default", "0", "1", "2", "3", "4"]
+MAX_FLUX3_IMAGES = 10
 
 MINIMAX_H3_OW_T2V_MODEL = "minimax-h3-ow-t2v"
 MINIMAX_H3_OW_R2V_MODEL = "minimax-h3-ow-r2v"
@@ -1264,6 +1315,19 @@ class SeedanceVideoNodeBase:
             "result": (video, "", "", response_str),
         }
 
+    def _make_success_result(
+        self,
+        video,
+        video_url: str,
+        task_id: str,
+        final_response: Dict[str, Any],
+    ) -> Dict:
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [video_url, response_str]},
+            "result": (video, video_url, task_id, response_str),
+        }
+
     # ---- main flow ----
 
     def execute(self, **kwargs):
@@ -1316,11 +1380,12 @@ class SeedanceVideoNodeBase:
         video = download_video(video_url, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 100)
 
-        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
-        return {
-            "ui": {"text": [video_url, response_str]},
-            "result": (video, video_url, task_id, response_str),
-        }
+        return self._make_success_result(
+            video,
+            video_url,
+            task_id,
+            final_response,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -2762,8 +2827,8 @@ class HailuoH3Video(SeedanceVideoNodeBase):
                 "model": (HAILUO_H3_MODELS, {
                     "default": HAILUO_H3_T2V_MODEL,
                     "tooltip": (
-                        "Hailuo H3 task type: text-to-video, first/last-frame "
-                        "image-to-video, or multimodal reference video. | Hailuo H3 "
+                        "Hailuo H3 domestic/global task type: text-to-video, first/last-frame "
+                        "image-to-video, or multimodal reference video. | Hailuo H3 国内/海外"
                         "支持文生视频、首尾帧图生视频和多模态参考生视频。"
                     ),
                 }),
@@ -2782,7 +2847,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
                 }),
                 "resolution": (HAILUO_H3_RESOLUTIONS, {
                     "default": "2K",
-                    "tooltip": "Hailuo H3 output resolution is fixed to 2K. | Hailuo H3 输出分辨率固定为 2K。",
+                    "tooltip": "Hailuo H3 output resolution: 768P or 2K. | Hailuo H3 输出分辨率支持 768P 或 2K。",
                 }),
                 "ratio": (RATIOS, {
                     "default": "16:9",
@@ -2811,7 +2876,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
         if seconds is not None and str(seconds) not in HAILUO_H3_SECONDS:
             return "Hailuo H3 seconds must be 5 to 15 | Hailuo H3 时长必须为 5 到 15 秒"
         if resolution is not None and resolution not in HAILUO_H3_RESOLUTIONS:
-            return "Hailuo H3 resolution must be 2K | Hailuo H3 分辨率必须为 2K"
+            return "Hailuo H3 resolution must be 768P or 2K | Hailuo H3 分辨率必须为 768P 或 2K"
         if ratio is not None and ratio not in RATIOS:
             return f"unsupported ratio: {ratio}"
         prompt_text = str(prompt or "")
@@ -2819,7 +2884,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
         if (
             strict
-            and model in (HAILUO_H3_T2V_MODEL, HAILUO_H3_MULTI_MODEL)
+            and model in (*HAILUO_H3_T2V_MODELS, *HAILUO_H3_MULTI_MODELS)
             and not prompt_text.strip()
         ):
             return "prompt is required for Hailuo H3 T2V and Multi | Hailuo H3 文生与多模态必须填写提示词"
@@ -2850,29 +2915,29 @@ class HailuoH3Video(SeedanceVideoNodeBase):
 
     def collect_media(self, kwargs, config, progress_cb):
         model = kwargs.get("model")
-        if model == HAILUO_H3_T2V_MODEL:
+        if model in HAILUO_H3_T2V_MODELS:
             progress_cb(1.0)
             return {}
 
-        if model == HAILUO_H3_I2V_MODEL and kwargs.get("image1") is None:
+        if model in HAILUO_H3_I2V_MODELS and kwargs.get("image1") is None:
             raise SeedanceAPIError(
                 "image1 is required for Hailuo H3 I2V | Hailuo H3 图生视频必须连接 image1 首帧"
             )
 
-        image_limit = 2 if model == HAILUO_H3_I2V_MODEL else MAX_HAILUO_H3_IMAGES
+        image_limit = 2 if model in HAILUO_H3_I2V_MODELS else MAX_HAILUO_H3_IMAGES
         image_slots = self._gather_slots(kwargs, "image", image_limit)
         video_slots = (
             self._gather_slots(kwargs, "video", MAX_HAILUO_H3_VIDEOS)
-            if model == HAILUO_H3_MULTI_MODEL
+            if model in HAILUO_H3_MULTI_MODELS
             else []
         )
         audio_slots = (
             self._gather_slots(kwargs, "audio", MAX_HAILUO_H3_AUDIOS)
-            if model == HAILUO_H3_MULTI_MODEL
+            if model in HAILUO_H3_MULTI_MODELS
             else []
         )
 
-        if model == HAILUO_H3_MULTI_MODEL and not (
+        if model in HAILUO_H3_MULTI_MODELS and not (
             image_slots or video_slots or audio_slots
         ):
             raise SeedanceAPIError(
@@ -2953,12 +3018,12 @@ class HailuoH3Video(SeedanceVideoNodeBase):
             "metadata": metadata,
         }
 
-        if model in (HAILUO_H3_T2V_MODEL, HAILUO_H3_MULTI_MODEL):
+        if model in (*HAILUO_H3_T2V_MODELS, *HAILUO_H3_MULTI_MODELS):
             metadata["ratio"] = str(kwargs.get("ratio") or "adaptive")
             payload["prompt"] = prompt
 
         images = media.get("images") or []
-        if model == HAILUO_H3_I2V_MODEL:
+        if model in HAILUO_H3_I2V_MODELS:
             if not images:
                 raise SeedanceAPIError(
                     "image1 is required for Hailuo H3 I2V | Hailuo H3 图生视频必须连接 image1 首帧"
@@ -2968,7 +3033,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
                 payload["prompt"] = prompt
             return payload
 
-        if model == HAILUO_H3_MULTI_MODEL:
+        if model in HAILUO_H3_MULTI_MODELS:
             video_urls = media.get("video_urls") or []
             audio_urls = media.get("audio_urls") or []
             if not (images or video_urls or audio_urls):
@@ -2983,6 +3048,330 @@ class HailuoH3Video(SeedanceVideoNodeBase):
             if audio_urls:
                 metadata["audio_url"] = audio_urls[:MAX_HAILUO_H3_AUDIOS]
         return payload
+
+
+# ---------------------------------------------------------------------------
+# FLUX 3 Video
+# ---------------------------------------------------------------------------
+
+class Flux3Video(SeedanceVideoNodeBase):
+    """FLUX 3 t2v/i2v/v2v/draft-enhance across domestic and global routes."""
+
+    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("video", "video_url", "draft_cache", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": ("IMAGE", {
+                "tooltip": (
+                    f"FLUX 3 I2V keyframe {index} of {MAX_FLUX3_IMAGES}; keyframes "
+                    "are submitted in slot order. | "
+                    f"FLUX 3 图生视频关键帧 {index}/{MAX_FLUX3_IMAGES}，按插槽顺序提交。"
+                ),
+            })
+            for index in range(1, MAX_FLUX3_IMAGES + 1)
+        }
+        optional.update({
+            "input_video": ("VIDEO", {
+                "tooltip": "Local MP4 source for V2V. | V2V 使用的本地 MP4 视频。",
+            }),
+            "video_url": ("STRING", {
+                "default": "",
+                "tooltip": (
+                    "Public MP4 URL for V2V. Used instead of input_video when set. | "
+                    "V2V 公网 MP4 直链；填写后优先于本地视频。"
+                ),
+            }),
+            "draft_cache": ("STRING", {
+                "default": "",
+                "tooltip": (
+                    "Draft cache returned by a completed FLUX 3 task with draft enabled; "
+                    "required by Draft Enhance. | 开启草稿后由已完成 FLUX 3 任务返回，"
+                    "Draft Enhance 必填。"
+                ),
+            }),
+            "api_config": ("SEEDANCE_CONFIG", {
+                "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+            }),
+            "skip_error": ("BOOLEAN", {
+                "default": False,
+                "tooltip": "Return a placeholder video on failure. | 失败时输出占位视频。",
+            }),
+        })
+        return {
+            "required": {
+                "model": (FLUX3_VIDEO_MODELS, {
+                    "default": FLUX3_T2V_MODELS[0],
+                    "tooltip": (
+                        "FLUX 3 domestic/global T2V, I2V, V2V, and Draft Enhance. | "
+                        "FLUX 3 国内/海外文生、图生、视频编辑与草稿增强。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for T2V, I2V, and V2V; Draft Enhance uses draft_cache. | "
+                        "文生、图生和视频编辑必填；草稿增强使用 draft_cache。"
+                    ),
+                }),
+                "seconds": (FLUX3_SECONDS, {
+                    "default": "5",
+                    "tooltip": "FLUX 3 supports 5 to 20 seconds. | FLUX 3 支持 5 到 20 秒。",
+                }),
+                "resolution": (FLUX3_RESOLUTIONS, {
+                    "default": "hd",
+                    "tooltip": "Output resolution: HD or FHD. | 输出分辨率：HD 或 FHD。",
+                }),
+                "ratio": (FLUX3_RATIOS, {
+                    "default": "auto",
+                    "tooltip": "Documented FLUX 3 output ratio. | 文档支持的 FLUX 3 画面比例。",
+                }),
+                "draft": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Request a reusable draft cache for a later Draft Enhance task. | "
+                        "生成可供 Draft Enhance 继续使用的草稿缓存。"
+                    ),
+                }),
+                "audio_mode": (FLUX3_AUDIO_MODES, {
+                    "default": "api_default",
+                    "tooltip": (
+                        "Keep the API default, enable generated audio, or disable it. | "
+                        "使用接口默认值、开启生成音频或关闭生成音频。"
+                    ),
+                }),
+                "safety_tolerance": (FLUX3_SAFETY_TOLERANCES, {
+                    "default": "api_default",
+                    "tooltip": (
+                        "Keep the API default or send safety tolerance 0 (strictest) to 4. | "
+                        "使用接口默认值，或设置 0（最严格）到 4。"
+                    ),
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        audio_mode=None,
+        safety_tolerance=None,
+        video_url=None,
+        draft_cache=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *FLUX3_VIDEO_MODELS):
+            return f"unsupported FLUX 3 model: {model}"
+        if seconds is not None and str(seconds) not in FLUX3_SECONDS:
+            return "FLUX 3 seconds must be 5 to 20 | FLUX 3 时长必须为 5 到 20 秒"
+        if resolution is not None and resolution not in FLUX3_RESOLUTIONS:
+            return f"unsupported FLUX 3 resolution: {resolution}"
+        if ratio is not None and ratio not in FLUX3_RATIOS:
+            return f"unsupported FLUX 3 ratio: {ratio}"
+        if audio_mode is not None and audio_mode not in FLUX3_AUDIO_MODES:
+            return f"unsupported FLUX 3 audio mode: {audio_mode}"
+        if (
+            safety_tolerance is not None
+            and str(safety_tolerance) not in FLUX3_SAFETY_TOLERANCES
+        ):
+            return f"unsupported FLUX 3 safety tolerance: {safety_tolerance}"
+
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        url_text = str(video_url or "").strip()
+        if url_text and not url_text.startswith(("http://", "https://")):
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) 公网直链"
+
+        if not strict or model is None:
+            return True
+        if model not in FLUX3_DRAFT_ENHANCE_MODELS and not prompt_text.strip():
+            return "prompt is required for FLUX 3 generation | FLUX 3 生成必须填写提示词"
+        if model in FLUX3_I2V_MODELS and kwargs.get("image1") is None:
+            return "image1 is required for FLUX 3 I2V | FLUX 3 图生视频必须连接 image1"
+        if (
+            model in FLUX3_V2V_MODELS
+            and kwargs.get("input_video") is None
+            and not url_text
+        ):
+            return "input_video or video_url is required for FLUX 3 V2V | FLUX 3 视频编辑必须提供视频"
+        if model in FLUX3_DRAFT_ENHANCE_MODELS and not str(draft_cache or "").strip():
+            return "draft_cache is required for FLUX 3 Draft Enhance | FLUX 3 草稿增强必须提供 draft_cache"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Flux_3_video"
+
+    def _gather_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (index, kwargs.get(f"image{index}"))
+            for index in range(1, MAX_FLUX3_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        connected = [index for index, _image in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: image slots {connected} have gaps; "
+                f"they will be compacted to image order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model in FLUX3_I2V_MODELS:
+            image_slots = self._gather_images(kwargs)
+            if not image_slots or kwargs.get("image1") is None:
+                raise SeedanceAPIError(
+                    "image1 is required for FLUX 3 I2V | FLUX 3 图生视频必须连接 image1"
+                )
+            urls: List[str] = []
+            for completed, (slot, image) in enumerate(image_slots, start=1):
+                urls.append(upload_media(
+                    image_to_png_bytes(image),
+                    f"flux3_keyframe_{slot}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                ))
+                progress_cb(completed / len(image_slots))
+            return {"images": urls}
+
+        if model in FLUX3_V2V_MODELS:
+            direct_url = str(kwargs.get("video_url") or "").strip()
+            if direct_url:
+                if not direct_url.startswith(("http://", "https://")):
+                    raise SeedanceAPIError(
+                        "video_url must be an http(s) URL | video_url 必须是 http(s) 公网直链"
+                    )
+                progress_cb(1.0)
+                return {"video_url": direct_url}
+            input_video = kwargs.get("input_video")
+            if input_video is None:
+                raise SeedanceAPIError(
+                    "input_video or video_url is required for FLUX 3 V2V | FLUX 3 视频编辑必须提供视频"
+                )
+            video_bytes, extension = video_to_bytes(input_video)
+            url = upload_media(
+                video_bytes,
+                f"flux3_source.{extension}",
+                {
+                    "mp4": "video/mp4",
+                    "avi": "video/x-msvideo",
+                    "mov": "video/quicktime",
+                    "mkv": "video/x-matroska",
+                }.get(extension, "video/mp4"),
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            progress_cb(1.0)
+            return {"video_url": url}
+
+        progress_cb(1.0)
+        return {}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            audio_mode=kwargs.get("audio_mode"),
+            safety_tolerance=kwargs.get("safety_tolerance"),
+            video_url=kwargs.get("video_url"),
+            draft_cache=kwargs.get("draft_cache"),
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {
+            "resolution": kwargs["resolution"],
+            "ratio": kwargs["ratio"],
+        }
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+
+        if model in FLUX3_DRAFT_ENHANCE_MODELS:
+            draft_cache = str(kwargs.get("draft_cache") or "").strip()
+            if not draft_cache:
+                raise SeedanceAPIError(
+                    "draft_cache is required for FLUX 3 Draft Enhance | FLUX 3 草稿增强必须提供 draft_cache"
+                )
+            metadata["draft_cache"] = draft_cache
+        else:
+            if not prompt:
+                raise SeedanceAPIError(
+                    "prompt is required for FLUX 3 generation | FLUX 3 生成必须填写提示词"
+                )
+            payload["prompt"] = prompt
+
+        if bool(kwargs.get("draft", False)) and model not in FLUX3_DRAFT_ENHANCE_MODELS:
+            metadata["draft"] = True
+
+        audio_mode = str(kwargs.get("audio_mode") or "api_default")
+        if audio_mode == "enabled":
+            metadata["generate_audio"] = True
+        elif audio_mode == "disabled":
+            metadata["generate_audio"] = False
+
+        safety_tolerance = str(kwargs.get("safety_tolerance") or "api_default")
+        if safety_tolerance != "api_default":
+            metadata["safety_tolerance"] = int(safety_tolerance)
+
+        if model in FLUX3_I2V_MODELS:
+            images = list(media.get("images") or [])
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for FLUX 3 I2V | FLUX 3 图生视频必须连接 image1"
+                )
+            payload["images"] = images[:MAX_FLUX3_IMAGES]
+        elif model in FLUX3_V2V_MODELS:
+            video_url = str(media.get("video_url") or "").strip()
+            if not video_url:
+                raise SeedanceAPIError(
+                    "input_video or video_url is required for FLUX 3 V2V | FLUX 3 视频编辑必须提供视频"
+                )
+            metadata["video_url"] = video_url
+        return payload
+
+    def _make_error_result(self, error_msg: str) -> Dict:
+        video = make_error_video(error_msg)
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", "", response_str]},
+            "result": (video, "", "", "", response_str),
+        }
+
+    def _make_success_result(
+        self,
+        video,
+        video_url: str,
+        task_id: str,
+        final_response: Dict[str, Any],
+    ) -> Dict:
+        metadata = final_response.get("metadata")
+        draft_cache = ""
+        if isinstance(metadata, dict) and metadata.get("draft_cache"):
+            draft_cache = str(metadata["draft_cache"])
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [video_url, draft_cache, response_str]},
+            "result": (video, video_url, draft_cache, task_id, response_str),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -7434,6 +7823,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
     "Hailuo_H3_Video": HailuoH3Video,
+    "Flux_3_Video": Flux3Video,
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
@@ -7464,6 +7854,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
+    "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",

@@ -1669,7 +1669,7 @@ class NewModelNodeTests(unittest.TestCase):
         self.assertEqual(inputs["required"]["seconds"][0], [
             str(value) for value in range(5, 16)
         ])
-        self.assertEqual(inputs["required"]["resolution"][0], ["2K"])
+        self.assertEqual(inputs["required"]["resolution"][0], ["768P", "2K"])
         self.assertEqual(
             [name for name in inputs["optional"] if name.startswith("image")],
             [f"image{index}" for index in range(1, 10)],
@@ -1684,10 +1684,10 @@ class NewModelNodeTests(unittest.TestCase):
         )
         self.assertIs(
             nodes.HailuoH3Video.VALIDATE_INPUTS(
-                model="hailuo-h3-t2v",
+                model="hailuo-h3-global-t2v",
                 prompt="valid prompt",
                 seconds="15",
-                resolution="2K",
+                resolution="768P",
                 ratio="21:9",
                 strict=True,
             ),
@@ -1703,6 +1703,44 @@ class NewModelNodeTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_hailuo_h3_global_models_reuse_each_documented_task_contract(self):
+        node = nodes.HailuoH3Video()
+        t2v = node.build_payload(
+            {
+                "model": "hailuo-h3-global-t2v",
+                "prompt": "a paper airplane gliding through a bright studio",
+                "seconds": "5",
+                "resolution": "768P",
+                "ratio": "16:9",
+            },
+            {},
+        )
+        i2v = node.build_payload(
+            {
+                "model": "hailuo-h3-global-i2v",
+                "prompt": "smooth camera motion",
+                "seconds": "5",
+                "resolution": "768P",
+                "ratio": "9:16",
+            },
+            {"images": ["https://cdn.test/first.png"]},
+        )
+        multi = node.build_payload(
+            {
+                "model": "hailuo-h3-global-multi",
+                "prompt": "Use @Image 1 as the main subject",
+                "seconds": "5",
+                "resolution": "768P",
+                "ratio": "adaptive",
+            },
+            {"images": ["https://cdn.test/reference.png"]},
+        )
+
+        self.assertEqual(t2v["metadata"], {"resolution": "768P", "ratio": "16:9"})
+        self.assertEqual(i2v["images"], ["https://cdn.test/first.png"])
+        self.assertEqual(i2v["metadata"], {"resolution": "768P"})
+        self.assertEqual(multi["metadata"], {"resolution": "768P", "ratio": "adaptive"})
         self.assertIsNot(
             nodes.HailuoH3Video.VALIDATE_INPUTS(
                 model="hailuo-h3-t2v",

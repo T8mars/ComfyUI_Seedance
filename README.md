@@ -18,9 +18,18 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.9（2026-08-08）
+
+- Hailuo H3 节点新增海外 T2V、I2V、Multi 三个模型，现有节点扩展为国内/海外 6 合 1，并按最新文档支持 `768P` 与 `2K`。
+- 新增 `FLUX 3 视频生成与草稿增强（8 合 1）` 节点，覆盖国内/海外 T2V、I2V、V2V 与 Draft Enhance；I2V 支持最多 10 张关键帧，V2V 可连接本地视频或填写公网 MP4 直链。
+- FLUX 3 支持 5 到 20 秒、HD/FHD、文档列出的 8 种比例、草稿缓存、音频开关和安全容忍度；前端按模型动态显示适用素材与参数。
+- H3 新增 3 份海外模型工作流，FLUX 3 新增 8 份逐模型工作流；Draft Enhance 示例通过节点连线传递 `draft_cache`，认证字段和运行结果保持空白。
+- 已对 3 个 H3 Global 模型和 8 个 FLUX 3 模型逐一完成最小时长真实生成，11 条路径均返回有效 MP4；H3 Global Multi 同时使用图片、视频和音频，两条 Draft Enhance 均使用同线路真实草稿缓存完成。
+- 完整离线回归通过 250 项测试并审计 132 份示例工作流；ComfyUI 实机画布已验证 FLUX 3 模式切换、媒体插槽恢复和 H3 Global 多模态连线。
 
 ## v0.5.8（2026-08-07）
 
@@ -207,6 +216,7 @@ Seedance 2.0 / 2.5 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Min
 - 接入 Kling 文生视频、图生视频、O3 参考生视频和 O3 视频编辑
 - 支持 Hailuo 2.3 文生视频、图生视频和 fast 图生视频
 - 支持 Hailuo H3 文生视频、首尾帧图生视频和多模态参考生视频
+- 支持 FLUX 3 Video 国内/海外文生、最多 10 图关键帧图生、视频编辑和草稿增强
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
@@ -220,7 +230,7 @@ Seedance 2.0 / 2.5 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Min
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、3 个 Hailuo H3 视频模型、3 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -251,7 +261,8 @@ Seedance 2.0 / 2.5 / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / Min
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
-| `Hailuo H3 视频生成` | Hailuo H3 文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、固定 2K、按模型使用图片/视频/音频 |
+| `Hailuo H3 视频生成` | Hailuo H3 国内/海外文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、768P/2K、按模型使用图片/视频/音频 |
+| `FLUX 3 视频生成与草稿增强（8 合 1）` | FLUX 3 国内/海外 T2V、I2V、V2V 与 Draft Enhance | `model`、`prompt`、5 到 20 秒、HD/FHD、最多 10 图或一个视频、`draft_cache` |
 | `MiniMax H3 OW 视频生成（3 合 1）` | MiniMax H3 OW 文生、图生和参考图生视频 | `model`、`prompt`、5/10/15 秒、480p/720p、可选参考图 |
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
@@ -505,6 +516,8 @@ Midjourney 图片与视频：
 - `examples/seedance_image_to_video.json`
 - `examples/seedance_multimodal_video.json`
 - `examples/seedance-2.5-*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
+- `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
+- `examples/海螺hailuo-h3*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
 - `examples/seedream-v5-pro-图像编辑和文生图.json`
 - `examples/seedream-v5-pro宽审核文生图.json`
 - `examples/seedream-v5-pro宽审核图像编辑.json`
@@ -686,11 +699,22 @@ Hailuo H3 节点使用 `/v1/videos` 视频端点：
 
 | 模型 | 用途 | 素材 |
 | --- | --- | --- |
-| `hailuo-h3-t2v` | 文生视频 | `prompt` 必填，不使用参考素材 |
-| `hailuo-h3-i2v` | 图生视频 / 首尾帧 | `image1` 必填首帧，`image2` 可选尾帧 |
-| `hailuo-h3-multi` | 多模态参考生视频 | 最多 9 张图、3 个视频、3 段音频，至少连接一种素材 |
+| `hailuo-h3-t2v` / `hailuo-h3-global-t2v` | 国内/海外文生视频 | `prompt` 必填，不使用参考素材 |
+| `hailuo-h3-i2v` / `hailuo-h3-global-i2v` | 国内/海外图生视频 / 首尾帧 | `image1` 必填首帧，`image2` 可选尾帧 |
+| `hailuo-h3-multi` / `hailuo-h3-global-multi` | 国内/海外多模态参考生视频 | 最多 9 张图、3 个视频、3 段音频，至少连接一种素材 |
 
-Hailuo H3 分辨率固定为 `2K`，时长支持 5 到 15 秒。T2V 与 Multi 会提交 `metadata.ratio`；I2V 跟随输入帧，不提交比例。Multi 的三类本地素材会自动上传，并分别映射到图片、视频和音频参考字段。
+Hailuo H3 分辨率支持 `768P` 或 `2K`，时长支持 5 到 15 秒。T2V 与 Multi 会提交 `metadata.ratio`；I2V 跟随输入帧，不提交比例。Multi 的三类本地素材会自动上传，并分别映射到图片、视频和音频参考字段。
+
+FLUX 3 Video 节点使用 `/v1/videos` 视频端点：
+
+| 模型组 | 用途 | 素材 |
+| --- | --- | --- |
+| `flux-3-video-[global-]t2v` | 国内/海外文生视频 | `prompt` 必填 |
+| `flux-3-video-[global-]i2v` | 国内/海外关键帧图生视频 | `image1` 必填，最多连接 `image1` 到 `image10` |
+| `flux-3-video-[global-]v2v` | 国内/海外视频编辑 | `input_video` 或 `video_url` 二选一，`prompt` 必填 |
+| `flux-3-video-[global-]draft-enhance` | 国内/海外草稿增强 | 连接同线路草稿任务输出的 `draft_cache` |
+
+八个模型均支持 5 到 20 秒、`hd` / `fhd` 与 `auto`、`21:9`、`2:1`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16` 比例。开启 `draft` 的普通生成会输出可直接连接 Draft Enhance 的 `draft_cache`；`audio_mode=api_default` 和 `safety_tolerance=api_default` 时不发送对应可选字段。
 
 MiniMax H3 OW 节点使用 `/v1/videos` 视频端点：
 
@@ -904,15 +928,33 @@ Hailuo H3 节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | `hailuo-h3-t2v`、`hailuo-h3-i2v` 或 `hailuo-h3-multi` |
+| `model` | Hailuo H3 国内/海外 T2V、I2V 或 Multi 六个模型 |
 | `prompt` | T2V 与 Multi 必填；I2V 可选，最多 20480 字符 |
 | `seconds` | 5 到 15 秒 |
-| `resolution` | 固定为 `2K` |
+| `resolution` | `768P` 或 `2K` |
 | `ratio` | T2V 与 Multi 使用，支持 `adaptive`；I2V 不提交 |
 | `image1` / `image2` | I2V 的必填首帧和可选尾帧；Multi 的参考图 1、2 |
 | `image3` ... `image9` | Multi 可选参考图 |
 | `video1` ... `video3` | Multi 可选参考视频 |
 | `audio1` ... `audio3` | Multi 可选参考音频 |
+| `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+| `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
+
+FLUX 3 Video 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | FLUX 3 国内/海外 T2V、I2V、V2V 或 Draft Enhance 八个模型 |
+| `prompt` | T2V、I2V、V2V 必填；Draft Enhance 不使用 |
+| `seconds` | 5 到 20 秒 |
+| `resolution` | `hd` 或 `fhd` |
+| `ratio` | `auto`、`21:9`、`2:1`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16` |
+| `draft` | 普通生成开启后请求可复用草稿缓存 |
+| `audio_mode` | 使用接口默认值、开启或关闭生成音频 |
+| `safety_tolerance` | 使用接口默认值，或发送 0 到 4 |
+| `image1` ... `image10` | I2V 关键帧，`image1` 必填，按插槽顺序提交 |
+| `input_video` / `video_url` | V2V 本地视频或公网 MP4 直链 |
+| `draft_cache` | Draft Enhance 必填，可直接连接前一个草稿节点的同名输出 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 
