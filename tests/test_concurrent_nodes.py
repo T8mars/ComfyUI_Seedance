@@ -129,6 +129,24 @@ class ConcurrentNodeTests(unittest.TestCase):
             self.assertIsNone(validation_spec.varkw)
             self.assertFalse(wrapper.OUTPUT_NODE)
             self.assertEqual(wrapper.RETURN_NAMES, ("future",))
+            self.assertFalse(hasattr(wrapper, "IS_CHANGED"))
+            seed = (
+                wrapper.INPUT_TYPES().get("required", {}).get("seed")
+                or wrapper.INPUT_TYPES().get("optional", {}).get("seed")
+            )
+            self.assertIs(seed[1].get("control_after_generate"), True)
+
+    def test_await_nodes_remain_live_while_submit_nodes_are_cacheable(self):
+        self.assertTrue(hasattr(concurrent_nodes.SeedanceConcurrentImageAwait, "IS_CHANGED"))
+        self.assertTrue(hasattr(concurrent_nodes.SeedanceConcurrentVideoAwait, "IS_CHANGED"))
+        self.assertTrue(
+            concurrent_nodes.SeedanceConcurrentImageAwait.IS_CHANGED()
+            != concurrent_nodes.SeedanceConcurrentImageAwait.IS_CHANGED()
+        )
+        self.assertTrue(
+            concurrent_nodes.SeedanceConcurrentVideoAwait.IS_CHANGED()
+            != concurrent_nodes.SeedanceConcurrentVideoAwait.IS_CHANGED()
+        )
 
     def test_lowprice_concurrent_wrapper_rejects_short_prompt(self):
         wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[

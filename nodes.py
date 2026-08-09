@@ -18,7 +18,9 @@ download result, with a ComfyUI progress bar driven by the API's progress
 field and skip_error support for batch workflows.
 """
 
+import copy
 import json
+from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -8306,6 +8308,81 @@ NODE_CLASS_MAPPINGS = {
     "Suno_Music": SunoMusic,
     "Midjourney_Multi_Action": MidjourneyMultiAction,
 }
+
+
+def _install_generation_seed_control(target_class) -> None:
+    """Add a standard ComfyUI seed/cache control without changing API contracts."""
+    if getattr(target_class, "SEEDANCE_SEED_CONTROL_INSTALLED", False):
+        return
+
+    original_input_types = target_class.INPUT_TYPES
+    initial_inputs = original_input_types()
+    native_seed = any(
+        "seed" in initial_inputs.get(group, {})
+        for group in ("required", "optional")
+    )
+
+    @classmethod
+    def input_types(cls):
+        inputs = copy.deepcopy(original_input_types())
+        for group in ("required", "optional"):
+            seed_spec = inputs.get(group, {}).get("seed")
+            if seed_spec is None:
+                continue
+            input_type, options, *rest = seed_spec
+            options = dict(options or {})
+            options["control_after_generate"] = True
+            cache_tooltip = (
+                "Fixed reuses the cached result while all inputs stay unchanged; "
+                "randomize/increment/decrement starts a new execution. | "
+                "Fixed 在输入不变时复用缓存；随机、递增或递减会触发新任务。"
+            )
+            existing_tooltip = str(options.get("tooltip") or "").strip()
+            options["tooltip"] = f"{existing_tooltip} {cache_tooltip}".strip()
+            inputs[group]["seed"] = (input_type, options, *rest)
+            return inputs
+
+        inputs.setdefault("optional", {})["seed"] = (
+            "INT",
+            {
+                "default": 0,
+                "min": 0,
+                "max": 0xffffffffffffffff,
+                "step": 1,
+                "control_after_generate": True,
+                "tooltip": (
+                    "ComfyUI cache seed. Fixed reuses the cached result while all other "
+                    "inputs stay unchanged; randomize/increment/decrement starts a new "
+                    "execution. This value is not sent to models without documented seed "
+                    "support. | ComfyUI 缓存种子；Fixed 在其他输入不变时复用缓存，随机、"
+                    "递增或递减会触发新任务。未声明支持 seed 的模型不会收到此参数。"
+                ),
+            },
+        )
+        return inputs
+
+    target_class.INPUT_TYPES = input_types
+    target_class.SEEDANCE_SEED_CONTROL_INSTALLED = True
+    target_class.SEEDANCE_CACHE_ONLY_SEED = not native_seed
+
+    if native_seed:
+        return
+
+    function_name = str(getattr(target_class, "FUNCTION", "execute"))
+    original_function = getattr(target_class, function_name)
+
+    @wraps(original_function)
+    def cache_seed_agnostic(self, *args, **kwargs):
+        kwargs.pop("seed", None)
+        return original_function(self, *args, **kwargs)
+
+    setattr(target_class, function_name, cache_seed_agnostic)
+
+
+for _node_class in NODE_CLASS_MAPPINGS.values():
+    _inputs = _node_class.INPUT_TYPES()
+    if "skip_error" in _inputs.get("optional", {}):
+        _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_Config": "Seedance API Config",

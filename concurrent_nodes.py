@@ -326,10 +326,6 @@ def _make_submit_class(
         return _copy_input_types(target_class)
 
     @classmethod
-    def is_changed(cls, **kwargs):
-        return float("nan")
-
-    @classmethod
     def validate_wrapper_inputs(cls):
         # Let ComfyUI perform ordinary per-field type/range checks. Model-aware
         # checks run synchronously in submit() so one error is not duplicated
@@ -363,7 +359,6 @@ def _make_submit_class(
         "__module__": __name__,
         "INPUT_TYPES": input_types,
         "VALIDATE_INPUTS": validate_wrapper_inputs,
-        "IS_CHANGED": is_changed,
         "RETURN_TYPES": (future_type,),
         "RETURN_NAMES": ("future",),
         "FUNCTION": "submit",

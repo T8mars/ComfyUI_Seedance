@@ -62,6 +62,7 @@ class Flux3VideoTests(unittest.TestCase):
             "draft_cache",
             "api_config",
             "skip_error",
+            "seed",
         ])
 
     def test_t2v_payload_forwards_only_selected_optional_controls(self):

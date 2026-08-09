@@ -40,6 +40,25 @@ class FrontendExtensionTests(unittest.TestCase):
             source.index('this.addWidget("button", API_KEY_BUTTON_LABEL'),
         )
 
+    def test_seed_control_migrates_legacy_widget_values(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "seed_control_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const CONTROL_VALUES = new Set(["fixed", "increment", "decrement", "randomize"])',
+            'widget.name === "seed"',
+            'widget.name === "control_after_generate"',
+            "if (CONTROL_VALUES.has(savedControl))",
+            'control.value = "randomize"',
+            "const legacyIndex = index - 1",
+            "widget.value = values[legacyIndex]",
+            "seedOptions?.control_after_generate",
+            "migrateLegacySeedWidgets(this, info)",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
     def test_current_node_registration_keys_remain_compatible(self):
         node_names = set(ComfyUI_Seedance.NODE_CLASS_MAPPINGS)
         expected = {

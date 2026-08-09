@@ -269,7 +269,10 @@ class MinimaxH3OWFastTests(unittest.TestCase):
             [name for name in inputs["optional"] if name.startswith("image")],
             [f"image{index}" for index in range(1, 10)],
         )
-        self.assertEqual(list(inputs["optional"])[-2:], ["api_config", "skip_error"])
+        self.assertEqual(
+            list(inputs["optional"])[-3:],
+            ["api_config", "skip_error", "seed"],
+        )
 
     def test_strict_validation_enforces_fast_image_contracts(self):
         self.assertIn(
