@@ -135,6 +135,85 @@ class ImageClientTests(unittest.TestCase):
         self.assertIs(child_sessions[0], child_sessions[1])
         self.assertIsNot(child_sessions[0], main_session)
 
+    def test_retry_sessions_follow_direct_proxy_direct_proxy_order(self):
+        created = [MagicMock() for _ in client.NETWORK_ROUTE_ATTEMPTS]
+        with (
+            patch.object(client.requests, "Session", side_effect=created),
+            patch.object(
+                client, "_windows_cert_store_context", return_value=(None, 0)
+            ),
+            patch.dict(os.environ, {"SEEDANCE_CA_BUNDLE": ""}),
+        ):
+            sessions = [client._session(attempt) for attempt in range(4)]
+
+        self.assertEqual(sessions, created)
+        self.assertEqual(
+            [session.trust_env for session in sessions],
+            [False, True, False, True],
+        )
+        self.assertEqual(len({id(session) for session in sessions}), 4)
+
+    def test_idempotent_request_uses_four_routes_and_1_5_10_delays(self):
+        sessions = [MagicMock() for _ in range(4)]
+        sessions[0].get.side_effect = client.requests.exceptions.ConnectionError("down")
+        sessions[1].get.return_value = FakeResponse(status_code=503)
+        sessions[2].get.return_value = FakeResponse(status_code=502)
+        sessions[3].get.return_value = FakeResponse(status_code=200, data={"ok": True})
+        with (
+            patch.object(client, "_session", side_effect=sessions) as session_factory,
+            patch.object(client, "cooperative_sleep") as sleep,
+        ):
+            response = client._request_with_retry(
+                "get",
+                "https://example.test/result",
+                logger_prefix="test",
+                operation="query",
+                timeout=30,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([call.args[0] for call in session_factory.call_args_list], [0, 1, 2, 3])
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [1, 5, 10])
+
+    def test_http_500_is_not_retried(self):
+        session = MagicMock()
+        session.get.return_value = FakeResponse(status_code=500)
+        with (
+            patch.object(client, "_session", return_value=session) as session_factory,
+            patch.object(client, "cooperative_sleep") as sleep,
+        ):
+            response = client._request_with_retry(
+                "get",
+                "https://example.test/result",
+                logger_prefix="test",
+                operation="query",
+                timeout=30,
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(session_factory.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_paid_submit_does_not_repeat_after_ambiguous_timeout(self):
+        session = MagicMock()
+        session.post.side_effect = client.requests.exceptions.ReadTimeout("ambiguous")
+        with patch.object(client, "_session", return_value=session):
+            with self.assertRaisesRegex(RuntimeError, "was not retried"):
+                client.submit_image_task(
+                    {"model": nodes.SEEDREAM_T2I_MODEL, "prompt": "valid prompt"},
+                    CONFIG,
+                )
+        self.assertEqual(session.post.call_count, 1)
+
+    def test_image_download_rejects_declared_oversize(self):
+        response = FakeResponse(status_code=200, content=b"x")
+        response.headers = {
+            "Content-Length": str(client.IMAGE_RESULT_MAX_BYTES + 1)
+        }
+        session = MagicMock()
+        session.get.return_value = response
+        with patch.object(client, "_session", return_value=session):
+            with self.assertRaisesRegex(client.SeedanceAPIError, "too large"):
+                client._download_image_bytes("https://cdn.test/result.png", 30)
+
     def test_image_submit_uses_image_endpoint(self):
         session = FakeSession(
             post_response=FakeResponse(data={"id": "image-task", "task_id": "image-task"})

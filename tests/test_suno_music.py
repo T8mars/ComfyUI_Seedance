@@ -423,8 +423,17 @@ class SunoExecutionTests(unittest.TestCase):
 
 
     def test_skip_error_returns_ten_placeholder_outputs(self):
-        with patch.object(
-            self.node, "_execute_inner", side_effect=client.SeedanceAPIError("boom")
+        with (
+            patch.object(
+                self.node,
+                "_execute_inner",
+                side_effect=client.SeedanceAPIError("boom"),
+            ),
+            patch.object(
+                nodes,
+                "make_error_video",
+                return_value={"file_path": "placeholder.mp4", "format": "mp4"},
+            ),
         ):
             result = self.node.execute(
                 operation="suno-generation",

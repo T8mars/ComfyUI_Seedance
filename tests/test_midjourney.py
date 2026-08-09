@@ -967,6 +967,7 @@ class MidjourneyClientTests(unittest.TestCase):
         buffer = BytesIO()
         Image.new("RGB", (3, 2), (10, 20, 30)).save(buffer, format="PNG")
         response = MagicMock()
+        response.status_code = 200
         response.content = buffer.getvalue()
         response.iter_content.return_value = [buffer.getvalue()]
         response.headers = {"Content-Type": "image/png"}
@@ -1126,14 +1127,18 @@ class MidjourneyExecutionTests(unittest.TestCase):
         self.assertEqual(json.loads(result["result"][13]), ["one.mp4", "two.mp4"])
 
     def test_skip_error_returns_seventeen_outputs(self):
-        with patch.object(
-            self.node, "_execute_inner", side_effect=RuntimeError("boom")
-        ):
-            result = self.node.execute(
-                operation="midjourney-imagine",
-                prompt="paper boat",
-                skip_error=True,
-            )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with (
+                patch.dict(os.environ, {"SEEDANCE_TEMP_DIR": tmpdir}),
+                patch.object(
+                    self.node, "_execute_inner", side_effect=RuntimeError("boom")
+                ),
+            ):
+                result = self.node.execute(
+                    operation="midjourney-imagine",
+                    prompt="paper boat",
+                    skip_error=True,
+                )
         self.assertEqual(len(result["result"]), 17)
         self.assertIn("boom", result["result"][16])
         self.assertIsInstance(result["result"][0], torch.Tensor)

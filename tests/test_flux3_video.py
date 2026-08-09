@@ -1,5 +1,7 @@
 import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -209,7 +211,10 @@ class Flux3VideoTests(unittest.TestCase):
             "task-test",
             {"metadata": {"draft_cache": "cache-test"}},
         )
-        error = node._make_error_result("test error")
+        with tempfile.TemporaryDirectory() as temp_dir, patch.dict(
+            os.environ, {"SEEDANCE_TEMP_DIR": temp_dir}
+        ):
+            error = node._make_error_result("test error")
         self.assertEqual(len(success["result"]), 5)
         self.assertEqual(success["result"][2], "cache-test")
         self.assertEqual(len(error["result"]), 5)
