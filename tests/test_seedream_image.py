@@ -135,6 +135,17 @@ class ImageClientTests(unittest.TestCase):
         self.assertIs(child_sessions[0], child_sessions[1])
         self.assertIsNot(child_sessions[0], main_session)
 
+    def test_reset_thread_session_closes_only_current_session(self):
+        session_local = threading.local()
+        session = MagicMock()
+        session_local.session = session
+
+        with patch.object(client, "_session_local", session_local):
+            client._reset_thread_session()
+
+        session.close.assert_called_once_with()
+        self.assertFalse(hasattr(session_local, "session"))
+
     def test_image_submit_uses_image_endpoint(self):
         session = FakeSession(
             post_response=FakeResponse(data={"id": "image-task", "task_id": "image-task"})
@@ -221,6 +232,12 @@ class ImageClientTests(unittest.TestCase):
 
         with (
             patch.object(client, "_session", return_value=session),
+            patch.object(client, "_reset_thread_session") as reset_session,
+            patch.object(
+                client,
+                "_download_image_bytes_with_curl",
+                side_effect=client._ImageDownloadTransportError("unavailable"),
+            ),
             patch.object(client, "cooperative_sleep", return_value=None),
             patch.object(client.time, "monotonic", side_effect=[0, 46, 46, 47]),
         ):
@@ -234,9 +251,109 @@ class ImageClientTests(unittest.TestCase):
         self.assertEqual(len(session.get_calls), 2)
         self.assertTrue(timed_out.closed)
         self.assertTrue(succeeded.closed)
+        reset_session.assert_called_once_with()
         for _url, kwargs in session.get_calls:
             self.assertTrue(kwargs["stream"])
-            self.assertEqual(kwargs["timeout"], (15.0, 15.0))
+            self.assertEqual(kwargs["timeout"], (8.0, 15.0))
+            self.assertTrue(kwargs["allow_redirects"])
+            self.assertIn("image/", kwargs["headers"]["Accept"])
+
+    def test_download_image_uses_immediate_system_fallback(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (4, 3), (1, 2, 3)).save(buffer, format="PNG")
+
+        with (
+            patch.object(
+                client,
+                "_download_image_bytes",
+                side_effect=client.requests.exceptions.ConnectionError("offline"),
+            ),
+            patch.object(
+                client,
+                "_download_image_bytes_with_curl",
+                return_value=buffer.getvalue(),
+            ) as curl_download,
+            patch.object(client, "_reset_thread_session") as reset_session,
+            patch.object(client, "cooperative_sleep") as sleep,
+        ):
+            tensor = client.download_image("https://cdn.test/result.png")
+
+        self.assertEqual(tuple(tensor.shape), (1, 3, 4, 3))
+        reset_session.assert_called_once_with()
+        curl_download.assert_called_once_with("https://cdn.test/result.png", 45)
+        sleep.assert_not_called()
+
+    def test_curl_fallback_keeps_signed_url_out_of_process_arguments(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (2, 2), (7, 8, 9)).save(buffer, format="PNG")
+        result_url = "https://cdn.test/result.png?opaque=private-marker"
+        completed = MagicMock(returncode=0, stdout=buffer.getvalue(), stderr=b"")
+
+        with (
+            patch.object(client, "_find_curl_binary", return_value="curl.exe"),
+            patch.object(client.subprocess, "run", return_value=completed) as run,
+        ):
+            content = client._download_image_bytes_with_curl(result_url, 45)
+
+        self.assertEqual(content, buffer.getvalue())
+        args, kwargs = run.call_args
+        self.assertNotIn(result_url, " ".join(args[0]))
+        self.assertEqual(args[0], ["curl.exe", "--disable", "--config", "-"])
+        self.assertIn(result_url.encode("utf-8"), kwargs["input"])
+        self.assertIn(b"image/avif", kwargs["input"])
+        self.assertFalse(kwargs["check"])
+
+    def test_system_fallback_failure_retries_with_fresh_python_session(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (3, 2), (255, 128, 0)).save(buffer, format="PNG")
+
+        with (
+            patch.object(
+                client,
+                "_download_image_bytes",
+                side_effect=[
+                    client.requests.exceptions.ConnectionError("offline"),
+                    buffer.getvalue(),
+                ],
+            ) as direct_download,
+            patch.object(
+                client,
+                "_download_image_bytes_with_curl",
+                side_effect=client._ImageDownloadTransportError("failed"),
+            ),
+            patch.object(client, "_reset_thread_session") as reset_session,
+            patch.object(client, "cooperative_sleep") as sleep,
+        ):
+            tensor = client.download_image(
+                "https://cdn.test/result.png", max_retries=2
+            )
+
+        self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
+        self.assertEqual(direct_download.call_count, 2)
+        reset_session.assert_called_once_with()
+        sleep.assert_called_once_with(1)
+
+    def test_download_failure_does_not_expose_signed_result_url(self):
+        result_url = "https://private-host.test/result.png?opaque=private-marker"
+        with (
+            patch.object(
+                client,
+                "_download_image_bytes",
+                side_effect=client.requests.exceptions.ConnectionError(result_url),
+            ),
+            patch.object(
+                client,
+                "_download_image_bytes_with_curl",
+                side_effect=client._ImageDownloadTransportError(result_url),
+            ),
+            patch.object(client, "_reset_thread_session"),
+        ):
+            with self.assertRaises(RuntimeError) as context:
+                client.download_image(result_url, max_retries=1)
+
+        message = str(context.exception)
+        self.assertNotIn("private-host", message)
+        self.assertNotIn("private-marker", message)
 
 
 class AudioClientTests(unittest.TestCase):

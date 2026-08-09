@@ -22,6 +22,14 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.14（2026-08-10）
+
+- 修复图片任务已经成功、但 Python 下载结果直链发生 `ConnectionError` 时 ComfyUI 无法预览或保存图片的问题。
+- 所有图片生成节点统一使用浏览器兼容请求头；首次连接、TLS 或读取错误会立即关闭当前线程连接并切换系统 `curl` 下载，不额外等待。
+- 系统下载通道不可用或失败时，会通过全新 Python Session 在 1 秒、2 秒后继续重试；签名结果 URL 不进入进程参数、控制台日志或最终错误信息。
+- 节点输入、输出和工作流结构保持不变；普通图片、图层拆分、Midjourney 图片及 30 路图片并发均复用同一恢复链路。
+- 使用真实 NB Flash 1K 任务强制模拟 Python `ConnectionError`，系统通道在约 6.1 秒内下载并解码为 `1×1024×1024×3` ComfyUI 张量；完整离线回归通过 280 项测试，135 份示例工作流通过 JSON 审计。
+
 ## v0.5.13（2026-08-09）
 
 - 全部 29 个生成与处理节点统一提供 ComfyUI 标准 `seed` 控件，支持 `fixed`、`randomize`、`increment` 和 `decrement`。
@@ -1176,6 +1184,7 @@ Seedance 2.5 Multi 支持：
 | `SEEDANCE_UPLOAD_TIMEOUT` | `180` | 上传素材请求超时，单位秒 |
 | `SEEDANCE_CA_BUNDLE` | 空 | 可选，自定义 CA 证书包路径，用于证书链排障 |
 | `SEEDANCE_FFMPEG` | 自动查找 | 可选，指定 FFmpeg 可执行文件；未设置时检查 PATH 和整合包内置路径 |
+| `SEEDANCE_CURL` | 自动查找 | 可选，指定系统 `curl` 可执行文件；图片直连失败时自动启用独立下载通道 |
 | `SEEDANCE_SSL_VERIFY` | `1` | 设为 `0` 可关闭 SSL 校验，仅建议临时排障使用 |
 | `SEEDANCE_IMAGE_CONCURRENCY` | `30` | 图片并发工作线程数，可设置 1 到 30；不会改变接收节点的 30 个插槽 |
 | `SEEDANCE_VIDEO_CONCURRENCY` | `10` | 视频并发工作线程数，可设置 1 到 10；不会改变接收节点的 10 个插槽 |
@@ -1188,7 +1197,7 @@ Seedance 2.5 Multi 支持：
 - 上传素材遇到 API 限流时，会等待后继续重试。
 - 下载结果视频失败时会自动重试。
 - 图片任务使用独立状态规则轮询：`SUCCESS` 成功、`FAILURE` 失败，并自动下载临时结果直链。
-- 下载图片使用流式读取、短读超时和单次 45 秒总时限；损坏分块或慢连接会自动关闭并重试，成功后返回标准 ComfyUI `IMAGE` 张量。
+- 下载图片使用流式读取、8 秒连接超时、15 秒读取超时和单次 45 秒总时限。首次网络错误会立即重建线程连接并切换系统下载通道；若仍失败，再以 1 秒、2 秒短间隔使用全新 Python Session 重试，成功后返回标准 ComfyUI `IMAGE` 张量。
 - 音频任务使用 `/v1/audio/generations` 独立状态规则轮询，成功后自动下载并返回 ComfyUI `AUDIO`。
 - Whisper 转写使用同步 `/v1/audio/transcriptions` multipart 请求，不进行任务轮询。
 - Suno 任务查询兼容运行阶段的 `data[]` 和完成阶段的 `data` 对象响应。

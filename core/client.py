@@ -146,6 +146,24 @@ def _session() -> requests.Session:
     return session
 
 
+def _reset_thread_session() -> None:
+    """Discard only this worker's connection pool after a transport failure."""
+    existing = getattr(_session_local, "session", None)
+    if existing is None:
+        return
+
+    close = getattr(existing, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            pass
+    try:
+        delattr(_session_local, "session")
+    except AttributeError:
+        pass
+
+
 def _log(prefix: str, msg: str):
     print(f"[{prefix}] {msg}")
 
@@ -509,8 +527,21 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
 
 _IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS"}
 _IMAGE_DOWNLOAD_TIMEOUT = 45
-_IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 15
+_IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 8
 _IMAGE_DOWNLOAD_READ_TIMEOUT = 15
+_IMAGE_DOWNLOAD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/136.0.0.0 Safari/537.36 ComfyUI-Seedance"
+    ),
+    "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+    "Connection": "close",
+}
+
+
+class _ImageDownloadTransportError(RuntimeError):
+    """Sanitized failure from an image-result transport."""
 
 
 def submit_image_task(
@@ -713,12 +744,19 @@ def _download_image_bytes(url: str, timeout: int) -> bytes:
     try:
         response = _session().get(
             url,
+            headers=_IMAGE_DOWNLOAD_HEADERS,
             stream=True,
             timeout=request_timeout,
+            allow_redirects=True,
         )
         response.raise_for_status()
         if not hasattr(response, "iter_content"):
-            return bytes(response.content)
+            content = bytes(response.content)
+            if not content:
+                raise _ImageDownloadTransportError(
+                    "Image result download returned an empty body"
+                )
+            return content
 
         content = bytearray()
         for chunk in response.iter_content(chunk_size=1 << 16):
@@ -730,7 +768,9 @@ def _download_image_bytes(url: str, timeout: int) -> bytes:
             if chunk:
                 content.extend(chunk)
         if not content:
-            raise RuntimeError("Image result download returned an empty body")
+            raise _ImageDownloadTransportError(
+                "Image result download returned an empty body"
+            )
         return bytes(content)
     finally:
         close = getattr(response, "close", None)
@@ -752,23 +792,18 @@ def download_image(
     from PIL import Image
 
     _log(logger_prefix, "Download image -> remote result")
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            content = _download_image_bytes(url, timeout)
-            with Image.open(BytesIO(content)) as image:
-                rgb = image.convert("RGB")
-                array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
-            tensor = torch.from_numpy(array).unsqueeze(0)
-            _log(logger_prefix, f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]}")
-            return tensor
-        except Exception as e:
-            last_error = type(e).__name__
-            _log(logger_prefix, f"Image download attempt {attempt + 1} failed: {last_error}")
 
-    raise RuntimeError(f"Failed to download image after {max_retries} attempts: {last_error}")
+    def decode(content: bytes) -> Any:
+        with Image.open(BytesIO(content)) as image:
+            rgb = image.convert("RGB")
+            array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
+        return torch.from_numpy(array).unsqueeze(0)
+
+    tensor = _download_and_decode_image(
+        url, decode, timeout, max_retries, logger_prefix, "Image"
+    )
+    _log(logger_prefix, f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]}")
+    return tensor
 
 
 def download_image_with_mask(
@@ -785,35 +820,24 @@ def download_image_with_mask(
     from PIL import Image
 
     _log(logger_prefix, "Download layer image -> remote result")
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            content = _download_image_bytes(url, timeout)
-            with Image.open(BytesIO(content)) as source:
-                rgba = source.convert("RGBA")
-                rgb_array = np.asarray(rgba.convert("RGB"), dtype=np.float32).copy()
-                alpha_array = np.asarray(
-                    rgba.getchannel("A"), dtype=np.float32
-                ).copy()
-            image = torch.from_numpy(rgb_array / 255.0).unsqueeze(0)
-            mask = torch.from_numpy(1.0 - alpha_array / 255.0).unsqueeze(0)
-            _log(
-                logger_prefix,
-                f"  Downloaded layer image {image.shape[2]}x{image.shape[1]}",
-            )
-            return image, mask
-        except Exception as error:
-            last_error = type(error).__name__
-            _log(
-                logger_prefix,
-                f"Layer image download attempt {attempt + 1} failed: {last_error}",
-            )
 
-    raise RuntimeError(
-        f"Failed to download layer image after {max_retries} attempts: {last_error}"
+    def decode(content: bytes) -> Tuple[Any, Any]:
+        with Image.open(BytesIO(content)) as source:
+            rgba = source.convert("RGBA")
+            rgb_array = np.asarray(rgba.convert("RGB"), dtype=np.float32).copy()
+            alpha_array = np.asarray(rgba.getchannel("A"), dtype=np.float32).copy()
+        image = torch.from_numpy(rgb_array / 255.0).unsqueeze(0)
+        mask = torch.from_numpy(1.0 - alpha_array / 255.0).unsqueeze(0)
+        return image, mask
+
+    image, mask = _download_and_decode_image(
+        url, decode, timeout, max_retries, logger_prefix, "Layer image"
     )
+    _log(
+        logger_prefix,
+        f"  Downloaded layer image {image.shape[2]}x{image.shape[1]}",
+    )
+    return image, mask
 
 
 def download_image_with_path(
@@ -836,36 +860,26 @@ def download_image_with_path(
         output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
 
     os.makedirs(output_dir, exist_ok=True)
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            content = _download_image_bytes(url, timeout)
-            with Image.open(BytesIO(content)) as image:
-                rgb = image.convert("RGB")
-                array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
-                path = os.path.join(
-                    output_dir,
-                    f"midjourney_image_{uuid.uuid4().hex[:12]}.png",
-                )
-                rgb.save(path, format="PNG")
-            tensor = torch.from_numpy(array).unsqueeze(0)
-            _log(
-                logger_prefix,
-                f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]} -> {path}",
-            )
-            return tensor, path
-        except Exception as error:
-            last_error = type(error).__name__
-            _log(
-                logger_prefix,
-                f"Image download attempt {attempt + 1} failed: {last_error}",
-            )
 
-    raise RuntimeError(
-        f"Failed to download image after {max_retries} attempts: {last_error}"
+    def decode(content: bytes) -> Tuple[Any, str]:
+        with Image.open(BytesIO(content)) as image:
+            rgb = image.convert("RGB")
+            array = np.asarray(rgb, dtype=np.float32).copy() / 255.0
+            path = os.path.join(
+                output_dir,
+                f"midjourney_image_{uuid.uuid4().hex[:12]}.png",
+            )
+            rgb.save(path, format="PNG")
+        return torch.from_numpy(array).unsqueeze(0), path
+
+    tensor, path = _download_and_decode_image(
+        url, decode, timeout, max_retries, logger_prefix, "Image"
     )
+    _log(
+        logger_prefix,
+        f"  Downloaded image {tensor.shape[2]}x{tensor.shape[1]} -> {path}",
+    )
+    return tensor, path
 
 
 # ---------------------------------------------------------------------------
@@ -2331,6 +2345,154 @@ def _download_video_to_path(url: str, path: str, timeout: int) -> None:
                 os.remove(part_path)
             except OSError:
                 pass
+
+
+def _find_curl_binary() -> Optional[str]:
+    for variable in ("SEEDANCE_CURL", "CURL_BINARY"):
+        configured = os.environ.get(variable, "").strip()
+        if not configured:
+            continue
+        resolved = shutil.which(configured)
+        if resolved:
+            return resolved
+        if os.path.isfile(configured):
+            return configured
+
+    return shutil.which("curl.exe") or shutil.which("curl")
+
+
+def _curl_config_value(value: str) -> str:
+    if "\r" in value or "\n" in value:
+        raise _ImageDownloadTransportError("Invalid image result URL")
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _download_image_bytes_with_curl(url: str, timeout: int) -> bytes:
+    """Download through the system TLS stack without exposing signed URLs in argv."""
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        raise _ImageDownloadTransportError("Invalid image result URL")
+
+    curl_binary = _find_curl_binary()
+    if not curl_binary:
+        raise _ImageDownloadTransportError("System image downloader is unavailable")
+
+    total_timeout = max(1.0, float(timeout))
+    connect_timeout = min(float(_IMAGE_DOWNLOAD_CONNECT_TIMEOUT), total_timeout)
+    config = "\n".join(
+        (
+            "silent",
+            "show-error",
+            "fail",
+            "location",
+            "compressed",
+            f"connect-timeout = {connect_timeout:g}",
+            f"max-time = {total_timeout:g}",
+            f'user-agent = "{_curl_config_value(_IMAGE_DOWNLOAD_HEADERS["User-Agent"])}"',
+            f'header = "Accept: {_curl_config_value(_IMAGE_DOWNLOAD_HEADERS["Accept"])}"',
+            'header = "Connection: close"',
+            f'url = "{_curl_config_value(url)}"',
+            "",
+        )
+    ).encode("utf-8")
+    creation_flags = (
+        getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+    )
+
+    try:
+        completed = subprocess.run(
+            [curl_binary, "--disable", "--config", "-"],
+            input=config,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=total_timeout + 5.0,
+            creationflags=creation_flags,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise _ImageDownloadTransportError(
+            f"System image downloader failed: {type(error).__name__}"
+        ) from None
+
+    if completed.returncode != 0:
+        raise _ImageDownloadTransportError(
+            f"System image downloader failed with exit code {completed.returncode}"
+        )
+    if not completed.stdout:
+        raise _ImageDownloadTransportError(
+            "System image downloader returned an empty body"
+        )
+    return bytes(completed.stdout)
+
+
+def _is_image_transport_error(error: Exception) -> bool:
+    return isinstance(
+        error,
+        (
+            requests.exceptions.RequestException,
+            _ImageDownloadTransportError,
+            ConnectionError,
+            TimeoutError,
+            ssl.SSLError,
+        ),
+    )
+
+
+def _download_and_decode_image(
+    url: str,
+    decoder: Callable[[bytes], Any],
+    timeout: int,
+    max_retries: int,
+    logger_prefix: str,
+    item_name: str,
+) -> Any:
+    attempts = max(1, int(max_retries))
+    last_error: Optional[Exception] = None
+    curl_attempted = False
+
+    for attempt in range(attempts):
+        if attempt > 0:
+            cooperative_sleep(min(attempt, 2))
+        try:
+            return decoder(_download_image_bytes(url, timeout))
+        except Exception as error:
+            last_error = error
+            _log(
+                logger_prefix,
+                f"{item_name} download attempt {attempt + 1} failed: "
+                f"{type(error).__name__}",
+            )
+
+            if not _is_image_transport_error(error):
+                continue
+
+            _reset_thread_session()
+            if curl_attempted:
+                continue
+
+            curl_attempted = True
+            _log(
+                logger_prefix,
+                "Direct image connection failed; switching to system downloader...",
+            )
+            try:
+                result = decoder(_download_image_bytes_with_curl(url, timeout))
+                _log(logger_prefix, "  System image downloader succeeded")
+                return result
+            except Exception as fallback_error:
+                last_error = fallback_error
+                _log(
+                    logger_prefix,
+                    "System image downloader failed: "
+                    f"{type(fallback_error).__name__}",
+                )
+
+    error_name = (
+        type(last_error).__name__ if last_error is not None else "UnknownError"
+    )
+    raise RuntimeError(
+        f"Failed to download {item_name.lower()} after {attempts} attempts: {error_name}"
+    )
 
 def download_video_with_path(
     url: str,
