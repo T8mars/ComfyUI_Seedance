@@ -529,19 +529,38 @@ _IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS"}
 _IMAGE_DOWNLOAD_TIMEOUT = 45
 _IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 8
 _IMAGE_DOWNLOAD_READ_TIMEOUT = 15
+_RESULT_DOWNLOAD_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/136.0.0.0 Safari/537.36 ComfyUI-Seedance"
+)
 _IMAGE_DOWNLOAD_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/136.0.0.0 Safari/537.36 ComfyUI-Seedance"
-    ),
+    "User-Agent": _RESULT_DOWNLOAD_USER_AGENT,
     "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+    "Connection": "close",
+}
+_AUDIO_DOWNLOAD_HEADERS = {
+    "User-Agent": _RESULT_DOWNLOAD_USER_AGENT,
+    "Accept": "audio/mpeg,audio/wav,audio/ogg,audio/*,*/*;q=0.8",
+    "Connection": "close",
+}
+_VIDEO_DOWNLOAD_HEADERS = {
+    "User-Agent": _RESULT_DOWNLOAD_USER_AGENT,
+    "Accept": "video/mp4,video/webm,video/*,*/*;q=0.8",
+    "Connection": "close",
+}
+_FILE_DOWNLOAD_HEADERS = {
+    "User-Agent": _RESULT_DOWNLOAD_USER_AGENT,
+    "Accept": "*/*",
     "Connection": "close",
 }
 
 
-class _ImageDownloadTransportError(RuntimeError):
-    """Sanitized failure from an image-result transport."""
+class _ResultDownloadTransportError(RuntimeError):
+    """Sanitized failure from a generated-media result transport."""
+
+
+_ImageDownloadTransportError = _ResultDownloadTransportError
 
 
 def submit_image_task(
@@ -1322,11 +1341,16 @@ def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) ->
     )
 
 
+_AUDIO_DOWNLOAD_TIMEOUT = 300
+_AUDIO_DOWNLOAD_CONNECT_TIMEOUT = 8
+_AUDIO_DOWNLOAD_READ_TIMEOUT = 45
+
+
 def download_audio(
     url: str,
     output_format: str = "wav",
     sample_rate: int = 24000,
-    timeout: int = 300,
+    timeout: int = _AUDIO_DOWNLOAD_TIMEOUT,
     max_retries: int = 3,
     logger_prefix: str = "Doubao_Seed_Audio",
 ) -> Tuple[Any, str]:
@@ -1340,34 +1364,35 @@ def download_audio(
     os.makedirs(output_dir, exist_ok=True)
 
     _log(logger_prefix, "Download audio -> remote result")
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
+    extension = _guess_audio_extension(url, "", output_format)
+    audio_path = os.path.join(
+        output_dir,
+        f"seed_audio_{uuid.uuid4().hex[:12]}.{extension}",
+    )
+
+    def decode_download(path: str) -> Any:
         try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            response = _session().get(url, stream=True, timeout=timeout)
-            response.raise_for_status()
-            content_type = (getattr(response, "headers", {}) or {}).get("Content-Type", "")
-            ext = _guess_audio_extension(url, content_type, output_format)
-            audio_path = os.path.join(output_dir, f"seed_audio_{uuid.uuid4().hex[:12]}.{ext}")
+            return _decode_audio_file(path, int(sample_rate), logger_prefix)
+        except Exception as error:
+            raise _ResultDownloadTransportError(
+                f"Downloaded audio validation failed: {type(error).__name__}"
+            ) from None
 
-            with open(audio_path, "wb") as f:
-                if hasattr(response, "iter_content"):
-                    for chunk in response.iter_content(chunk_size=1 << 16):
-                        if chunk:
-                            f.write(chunk)
-                else:
-                    f.write(response.content)
-
-            size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-            _log(logger_prefix, f"  Downloaded {size_mb:.2f} MB -> {audio_path}")
-            audio = _decode_audio_file(audio_path, int(sample_rate), logger_prefix)
-            return audio, audio_path
-        except Exception as e:
-            last_error = type(e).__name__
-            _log(logger_prefix, f"Audio download attempt {attempt + 1} failed: {last_error}")
-
-    raise RuntimeError(f"Failed to download audio after {max_retries} attempts: {last_error}")
+    _content_type, audio = _download_to_path_with_recovery(
+        url=url,
+        path=audio_path,
+        timeout=timeout,
+        max_retries=max_retries,
+        logger_prefix=logger_prefix,
+        item_name="Audio",
+        headers=_AUDIO_DOWNLOAD_HEADERS,
+        connect_timeout=_AUDIO_DOWNLOAD_CONNECT_TIMEOUT,
+        read_timeout=_AUDIO_DOWNLOAD_READ_TIMEOUT,
+        validator=decode_download,
+    )
+    size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+    _log(logger_prefix, f"  Downloaded {size_mb:.2f} MB -> {audio_path}")
+    return audio, audio_path
 
 
 # ---------------------------------------------------------------------------
@@ -2246,11 +2271,16 @@ def _guess_file_extension(
     return f".{fallback or 'bin'}"
 
 
+_FILE_DOWNLOAD_TIMEOUT = 300
+_FILE_DOWNLOAD_CONNECT_TIMEOUT = 8
+_FILE_DOWNLOAD_READ_TIMEOUT = 45
+
+
 def download_file(
     url: str,
     filename_prefix: str = "suno_result",
     default_extension: str = "bin",
-    timeout: int = 300,
+    timeout: int = _FILE_DOWNLOAD_TIMEOUT,
     max_retries: int = 3,
     logger_prefix: str = "Suno_Music",
 ) -> str:
@@ -2262,39 +2292,27 @@ def download_file(
         output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
 
     os.makedirs(output_dir, exist_ok=True)
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            response = _session().get(url, stream=True, timeout=timeout)
-            response.raise_for_status()
-            content_type = (getattr(response, "headers", {}) or {}).get(
-                "Content-Type", ""
-            )
-            extension = _guess_file_extension(url, content_type, default_extension)
-            path = os.path.join(
-                output_dir,
-                f"{filename_prefix}_{uuid.uuid4().hex[:12]}{extension}",
-            )
-            with open(path, "wb") as f:
-                if hasattr(response, "iter_content"):
-                    for chunk in response.iter_content(chunk_size=1 << 16):
-                        if chunk:
-                            f.write(chunk)
-                else:
-                    f.write(response.content)
-            _log(logger_prefix, f"  Downloaded result -> {path}")
-            return path
-        except Exception as e:
-            last_error = type(e).__name__
-            _log(
-                logger_prefix,
-                f"File download attempt {attempt + 1} failed: {last_error}",
-            )
-    raise RuntimeError(
-        f"Failed to download result file after {max_retries} attempts: {last_error}"
+    stem = os.path.join(
+        output_dir,
+        f"{filename_prefix}_{uuid.uuid4().hex[:12]}",
     )
+    download_path = f"{stem}.download"
+    content_type, _validation = _download_to_path_with_recovery(
+        url=url,
+        path=download_path,
+        timeout=timeout,
+        max_retries=max_retries,
+        logger_prefix=logger_prefix,
+        item_name="File",
+        headers=_FILE_DOWNLOAD_HEADERS,
+        connect_timeout=_FILE_DOWNLOAD_CONNECT_TIMEOUT,
+        read_timeout=_FILE_DOWNLOAD_READ_TIMEOUT,
+    )
+    extension = _guess_file_extension(url, content_type, default_extension)
+    path = f"{stem}{extension}"
+    os.replace(download_path, path)
+    _log(logger_prefix, f"  Downloaded result -> {path}")
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -2302,23 +2320,46 @@ def download_file(
 # ---------------------------------------------------------------------------
 
 _VIDEO_DOWNLOAD_TIMEOUT = 180
-_VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 15
+_VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 8
 _VIDEO_DOWNLOAD_READ_TIMEOUT = 45
 
 
-def _download_video_to_path(url: str, path: str, timeout: int) -> None:
+def _download_result_to_path_requests(
+    url: str,
+    path: str,
+    timeout: int,
+    connect_timeout: int,
+    read_timeout: int,
+    headers: Dict[str, str],
+) -> str:
     total_timeout = max(1.0, float(timeout))
     deadline = time.monotonic() + total_timeout
     request_timeout = (
-        min(float(_VIDEO_DOWNLOAD_CONNECT_TIMEOUT), total_timeout),
-        min(float(_VIDEO_DOWNLOAD_READ_TIMEOUT), total_timeout),
+        min(float(connect_timeout), total_timeout),
+        min(float(read_timeout), total_timeout),
     )
     part_path = f"{path}.part"
     response = None
     try:
-        response = _session().get(url, stream=True, timeout=request_timeout)
+        response = _session().get(
+            url,
+            headers=headers,
+            stream=True,
+            timeout=request_timeout,
+            allow_redirects=True,
+        )
         response.raise_for_status()
-        wrote_data = False
+        response_headers = getattr(response, "headers", {}) or {}
+        content_type = str(response_headers.get("Content-Type", ""))
+        content_encoding = str(response_headers.get("Content-Encoding", "")).lower()
+        expected_size = 0
+        if not content_encoding or content_encoding == "identity":
+            try:
+                expected_size = int(response_headers.get("Content-Length", 0) or 0)
+            except (TypeError, ValueError):
+                expected_size = 0
+
+        bytes_written = 0
         with open(part_path, "wb") as file_handle:
             if hasattr(response, "iter_content"):
                 chunks = response.iter_content(chunk_size=1 << 16)
@@ -2328,14 +2369,21 @@ def _download_video_to_path(url: str, path: str, timeout: int) -> None:
                 check_cancelled()
                 if time.monotonic() > deadline:
                     raise requests.exceptions.Timeout(
-                        f"Video result download exceeded {total_timeout:g}s"
+                        f"Generated media download exceeded {total_timeout:g}s"
                     )
                 if chunk:
                     file_handle.write(chunk)
-                    wrote_data = True
-        if not wrote_data:
-            raise RuntimeError("Video result download returned an empty body")
+                    bytes_written += len(chunk)
+        if bytes_written <= 0:
+            raise _ResultDownloadTransportError(
+                "Generated media download returned an empty body"
+            )
+        if expected_size > 0 and bytes_written != expected_size:
+            raise _ResultDownloadTransportError(
+                "Generated media download length did not match the response"
+            )
         os.replace(part_path, path)
+        return content_type
     finally:
         close = getattr(response, "close", None)
         if callable(close):
@@ -2345,6 +2393,17 @@ def _download_video_to_path(url: str, path: str, timeout: int) -> None:
                 os.remove(part_path)
             except OSError:
                 pass
+
+
+def _download_video_to_path(url: str, path: str, timeout: int) -> None:
+    _download_result_to_path_requests(
+        url=url,
+        path=path,
+        timeout=timeout,
+        connect_timeout=_VIDEO_DOWNLOAD_CONNECT_TIMEOUT,
+        read_timeout=_VIDEO_DOWNLOAD_READ_TIMEOUT,
+        headers=_VIDEO_DOWNLOAD_HEADERS,
+    )
 
 
 def _find_curl_binary() -> Optional[str]:
@@ -2363,45 +2422,62 @@ def _find_curl_binary() -> Optional[str]:
 
 def _curl_config_value(value: str) -> str:
     if "\r" in value or "\n" in value:
-        raise _ImageDownloadTransportError("Invalid image result URL")
+        raise _ResultDownloadTransportError("Invalid generated media URL")
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _download_image_bytes_with_curl(url: str, timeout: int) -> bytes:
-    """Download through the system TLS stack without exposing signed URLs in argv."""
+def _run_curl_download(
+    url: str,
+    timeout: int,
+    connect_timeout: int,
+    headers: Dict[str, str],
+    output_path: Optional[str] = None,
+) -> bytes:
+    """Download through the system TLS stack without exposing result URLs in argv."""
     parsed = urlparse(url)
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
-        raise _ImageDownloadTransportError("Invalid image result URL")
+        raise _ResultDownloadTransportError("Invalid generated media URL")
 
     curl_binary = _find_curl_binary()
     if not curl_binary:
-        raise _ImageDownloadTransportError("System image downloader is unavailable")
+        raise _ResultDownloadTransportError("System media downloader is unavailable")
 
     total_timeout = max(1.0, float(timeout))
-    connect_timeout = min(float(_IMAGE_DOWNLOAD_CONNECT_TIMEOUT), total_timeout)
-    config = "\n".join(
-        (
-            "silent",
-            "show-error",
-            "fail",
-            "location",
-            "compressed",
-            f"connect-timeout = {connect_timeout:g}",
-            f"max-time = {total_timeout:g}",
-            f'user-agent = "{_curl_config_value(_IMAGE_DOWNLOAD_HEADERS["User-Agent"])}"',
-            f'header = "Accept: {_curl_config_value(_IMAGE_DOWNLOAD_HEADERS["Accept"])}"',
-            'header = "Connection: close"',
-            f'url = "{_curl_config_value(url)}"',
-            "",
-        )
-    ).encode("utf-8")
+    limited_connect_timeout = min(float(connect_timeout), total_timeout)
+    config_lines = [
+        "silent",
+        "show-error",
+        "fail",
+        "location",
+        "compressed",
+        f"connect-timeout = {limited_connect_timeout:g}",
+        f"max-time = {total_timeout:g}",
+    ]
+    user_agent = str(headers.get("User-Agent", _RESULT_DOWNLOAD_USER_AGENT))
+    config_lines.append(f'user-agent = "{_curl_config_value(user_agent)}"')
+    for name, value in headers.items():
+        if name.lower() == "user-agent":
+            continue
+        header = _curl_config_value(f"{name}: {value}")
+        config_lines.append(f'header = "{header}"')
+    config_lines.extend((f'url = "{_curl_config_value(url)}"', ""))
+    config = "\n".join(config_lines).encode("utf-8")
     creation_flags = (
         getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
     )
+    part_path = f"{output_path}.part" if output_path else None
+    command = [curl_binary, "--disable", "--config", "-"]
+    if part_path:
+        try:
+            os.remove(part_path)
+        except FileNotFoundError:
+            pass
+        command.extend(("--output", part_path))
 
     try:
+        check_cancelled()
         completed = subprocess.run(
-            [curl_binary, "--disable", "--config", "-"],
+            command,
             input=config,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -2410,31 +2486,169 @@ def _download_image_bytes_with_curl(url: str, timeout: int) -> bytes:
             creationflags=creation_flags,
         )
     except (OSError, subprocess.SubprocessError) as error:
-        raise _ImageDownloadTransportError(
-            f"System image downloader failed: {type(error).__name__}"
+        if part_path and os.path.exists(part_path):
+            try:
+                os.remove(part_path)
+            except OSError:
+                pass
+        raise _ResultDownloadTransportError(
+            f"System media downloader failed: {type(error).__name__}"
         ) from None
+    try:
+        check_cancelled()
+        if completed.returncode != 0:
+            raise _ResultDownloadTransportError(
+                f"System media downloader failed with exit code {completed.returncode}"
+            )
+        if part_path:
+            if not os.path.isfile(part_path) or os.path.getsize(part_path) <= 0:
+                raise _ResultDownloadTransportError(
+                    "System media downloader returned an empty body"
+                )
+            os.replace(part_path, output_path)
+            return b""
+        if not completed.stdout:
+            raise _ResultDownloadTransportError(
+                "System media downloader returned an empty body"
+            )
+        return bytes(completed.stdout)
+    finally:
+        if part_path and os.path.exists(part_path):
+            try:
+                os.remove(part_path)
+            except OSError:
+                pass
 
-    if completed.returncode != 0:
-        raise _ImageDownloadTransportError(
-            f"System image downloader failed with exit code {completed.returncode}"
-        )
-    if not completed.stdout:
-        raise _ImageDownloadTransportError(
-            "System image downloader returned an empty body"
-        )
-    return bytes(completed.stdout)
+
+def _download_image_bytes_with_curl(url: str, timeout: int) -> bytes:
+    return _run_curl_download(
+        url=url,
+        timeout=timeout,
+        connect_timeout=_IMAGE_DOWNLOAD_CONNECT_TIMEOUT,
+        headers=_IMAGE_DOWNLOAD_HEADERS,
+    )
 
 
-def _is_image_transport_error(error: Exception) -> bool:
+def _download_result_to_path_with_curl(
+    url: str,
+    path: str,
+    timeout: int,
+    connect_timeout: int,
+    headers: Dict[str, str],
+) -> None:
+    _run_curl_download(
+        url=url,
+        timeout=timeout,
+        connect_timeout=connect_timeout,
+        headers=headers,
+        output_path=path,
+    )
+
+
+def _is_result_transport_error(error: Exception) -> bool:
     return isinstance(
         error,
         (
             requests.exceptions.RequestException,
-            _ImageDownloadTransportError,
+            _ResultDownloadTransportError,
             ConnectionError,
             TimeoutError,
             ssl.SSLError,
         ),
+    )
+
+
+_is_image_transport_error = _is_result_transport_error
+
+
+def _remove_result_path(path: str) -> None:
+    for candidate in (path, f"{path}.part"):
+        try:
+            os.remove(candidate)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass
+
+
+def _download_to_path_with_recovery(
+    url: str,
+    path: str,
+    timeout: int,
+    max_retries: int,
+    logger_prefix: str,
+    item_name: str,
+    headers: Dict[str, str],
+    connect_timeout: int,
+    read_timeout: int,
+    validator: Optional[Callable[[str], Any]] = None,
+) -> Tuple[str, Any]:
+    attempts = max(1, int(max_retries))
+    last_error: Optional[Exception] = None
+    curl_attempted = False
+
+    for attempt in range(attempts):
+        if attempt > 0:
+            cooperative_sleep(min(attempt, 2))
+        try:
+            content_type = _download_result_to_path_requests(
+                url=url,
+                path=path,
+                timeout=timeout,
+                connect_timeout=connect_timeout,
+                read_timeout=read_timeout,
+                headers=headers,
+            )
+            validation = validator(path) if validator is not None else None
+            return content_type, validation
+        except Exception as error:
+            last_error = error
+            _remove_result_path(path)
+            _log(
+                logger_prefix,
+                f"{item_name} download attempt {attempt + 1} failed: "
+                f"{type(error).__name__}",
+            )
+
+            if not _is_result_transport_error(error):
+                continue
+
+            _reset_thread_session()
+            if curl_attempted:
+                continue
+
+            curl_attempted = True
+            _log(
+                logger_prefix,
+                f"Direct {item_name.lower()} connection failed; "
+                "switching to system downloader...",
+            )
+            try:
+                _download_result_to_path_with_curl(
+                    url=url,
+                    path=path,
+                    timeout=timeout,
+                    connect_timeout=connect_timeout,
+                    headers=headers,
+                )
+                validation = validator(path) if validator is not None else None
+                _log(logger_prefix, "  System media downloader succeeded")
+                return "", validation
+            except Exception as fallback_error:
+                last_error = fallback_error
+                _remove_result_path(path)
+                _log(
+                    logger_prefix,
+                    "System media downloader failed: "
+                    f"{type(fallback_error).__name__}",
+                )
+
+    error_name = (
+        type(last_error).__name__ if last_error is not None else "UnknownError"
+    )
+    raise RuntimeError(
+        f"Failed to download {item_name.lower()} after {attempts} attempts: "
+        f"{error_name}"
     )
 
 
@@ -2494,6 +2708,21 @@ def _download_and_decode_image(
         f"Failed to download {item_name.lower()} after {attempts} attempts: {error_name}"
     )
 
+
+def _validate_mp4_result(path: str) -> None:
+    try:
+        with open(path, "rb") as file_handle:
+            header = file_handle.read(64)
+    except OSError as error:
+        raise _ResultDownloadTransportError(
+            f"Downloaded video could not be opened: {type(error).__name__}"
+        ) from None
+    if len(header) < 12 or b"ftyp" not in header:
+        raise _ResultDownloadTransportError(
+            "Downloaded video did not contain a valid MP4 header"
+        )
+
+
 def download_video_with_path(
     url: str,
     timeout: int = _VIDEO_DOWNLOAD_TIMEOUT,
@@ -2517,23 +2746,23 @@ def download_video_with_path(
     video_path = os.path.join(output_dir, f"seedance_{uuid.uuid4().hex[:12]}.mp4")
 
     _log(logger_prefix, "Download video -> remote result")
-    last_error: Optional[str] = None
-    for attempt in range(max_retries):
-        try:
-            if attempt > 0:
-                cooperative_sleep(2 ** attempt)
-            _download_video_to_path(url, video_path, timeout)
-            size_mb = os.path.getsize(video_path) / (1024 * 1024)
-            _log(logger_prefix, f"  Downloaded {size_mb:.1f} MB -> {video_path}")
-            if VideoFromFile is not None:
-                return VideoFromFile(video_path), video_path
-            return video_path, video_path
-        except Exception as e:
-            last_error = type(e).__name__
-            _log(logger_prefix, f"Download attempt {attempt + 1} failed: {last_error}")
-            continue
-
-    raise RuntimeError(f"Failed to download video after {max_retries} attempts: {last_error}")
+    _download_to_path_with_recovery(
+        url=url,
+        path=video_path,
+        timeout=timeout,
+        max_retries=max_retries,
+        logger_prefix=logger_prefix,
+        item_name="Video",
+        headers=_VIDEO_DOWNLOAD_HEADERS,
+        connect_timeout=_VIDEO_DOWNLOAD_CONNECT_TIMEOUT,
+        read_timeout=_VIDEO_DOWNLOAD_READ_TIMEOUT,
+        validator=_validate_mp4_result,
+    )
+    size_mb = os.path.getsize(video_path) / (1024 * 1024)
+    _log(logger_prefix, f"  Downloaded {size_mb:.1f} MB -> {video_path}")
+    if VideoFromFile is not None:
+        return VideoFromFile(video_path), video_path
+    return video_path, video_path
 
 
 def download_video(
