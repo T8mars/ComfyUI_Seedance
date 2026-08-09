@@ -8,8 +8,10 @@ import {
 
 const QWEN_NODE_NAME = "Qwen_Image_3_0";
 const MINIMAX_NODE_NAME = "Minimax_H3_OW_Video";
+const MINIMAX_FAST_NODE_NAME = "Minimax_H3_OW_Fast_Video";
 const QWEN_DEFAULT_MODEL = "qwen-image-3.0-t2i";
 const MINIMAX_DEFAULT_MODEL = "minimax-h3-ow-t2v";
+const MINIMAX_FAST_DEFAULT_MODEL = "minimax-h3-ow-i2v-fast";
 
 function widgetByName(node, name) {
     return node.widgets?.find((widget) => widget.name === name);
@@ -35,12 +37,15 @@ function refreshQwenNode(node) {
     resizeSeedanceNode(node, 380);
 }
 
-function refreshMinimaxNode(node) {
-    const model = String(widgetByName(node, "model")?.value ?? MINIMAX_DEFAULT_MODEL);
-    const needsImage = model.endsWith("-i2v") || model.endsWith("-r2v");
+function refreshMinimaxNode(node, fallbackModel = MINIMAX_DEFAULT_MODEL) {
+    const model = String(widgetByName(node, "model")?.value ?? fallbackModel);
+    const maxImages = model.endsWith("-r2v-fast")
+        ? 9
+        : (model.includes("-i2v") || model.includes("-r2v") ? 1 : 0);
     for (const input of node.inputs ?? []) {
+        const imageMatch = /^image([1-9])$/.exec(input.name);
         const allowed = input.name === "api_config" || (
-            input.name === "image1" && needsImage
+            imageMatch && Number(imageMatch[1]) <= maxImages
         );
         setInputVisible(node, input, allowed);
     }
@@ -61,16 +66,31 @@ function wrapRefreshWidget(node, name, refresh, marker) {
     widget[marker] = true;
 }
 
+function scheduleQwenMinimaxRefresh(node, refresh) {
+    if (node.seedanceQwenMinimaxRefreshFrame != null) {
+        cancelAnimationFrame(node.seedanceQwenMinimaxRefreshFrame);
+    }
+    node.seedanceQwenMinimaxRefreshFrame = requestAnimationFrame(() => {
+        node.seedanceQwenMinimaxRefreshFrame = null;
+        refresh(node);
+    });
+}
+
 app.registerExtension({
     name: "ComfyUI_Seedance.QwenMinimaxModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const originalName = originalSeedanceNodeName(nodeData.name);
-        if (![QWEN_NODE_NAME, MINIMAX_NODE_NAME].includes(originalName)) {
+        if (![QWEN_NODE_NAME, MINIMAX_NODE_NAME, MINIMAX_FAST_NODE_NAME].includes(originalName)) {
             return;
         }
         const refresh = originalName === QWEN_NODE_NAME
             ? refreshQwenNode
-            : refreshMinimaxNode;
+            : (node) => refreshMinimaxNode(
+                node,
+                originalName === MINIMAX_FAST_NODE_NAME
+                    ? MINIMAX_FAST_DEFAULT_MODEL
+                    : MINIMAX_DEFAULT_MODEL,
+            );
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -79,21 +99,28 @@ app.registerExtension({
             if (originalName === QWEN_NODE_NAME) {
                 wrapRefreshWidget(this, "sizing_mode", refresh, "seedanceQwenSizingCallback");
             }
-            refresh(this);
+            scheduleQwenMinimaxRefresh(this, refresh);
             return result;
         };
 
         const originalOnConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             const result = originalOnConfigure?.apply(this, arguments);
-            refresh(this);
+            scheduleQwenMinimaxRefresh(this, refresh);
             return result;
         };
 
         const originalOnConnectionsChange = nodeType.prototype.onConnectionsChange;
         nodeType.prototype.onConnectionsChange = function () {
             const result = originalOnConnectionsChange?.apply(this, arguments);
-            refresh(this);
+            scheduleQwenMinimaxRefresh(this, refresh);
+            return result;
+        };
+
+        const originalOnAfterGraphConfigured = nodeType.prototype.onAfterGraphConfigured;
+        nodeType.prototype.onAfterGraphConfigured = function () {
+            const result = originalOnAfterGraphConfigured?.apply(this, arguments);
+            scheduleQwenMinimaxRefresh(this, refresh);
             return result;
         };
     },

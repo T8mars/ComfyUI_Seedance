@@ -430,11 +430,18 @@ MINIMAX_H3_OW_MODELS = [
     MINIMAX_H3_OW_R2V_MODEL,
     MINIMAX_H3_OW_I2V_MODEL,
 ]
+MINIMAX_H3_OW_FAST_I2V_MODEL = "minimax-h3-ow-i2v-fast"
+MINIMAX_H3_OW_FAST_R2V_MODEL = "minimax-h3-ow-r2v-fast"
+MINIMAX_H3_OW_FAST_MODELS = [
+    MINIMAX_H3_OW_FAST_I2V_MODEL,
+    MINIMAX_H3_OW_FAST_R2V_MODEL,
+]
 MINIMAX_H3_OW_SECONDS = ["5", "10", "15"]
 MINIMAX_H3_OW_RESOLUTIONS = ["480p", "720p"]
 MINIMAX_H3_OW_RATIOS = [
     "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9",
 ]
+MAX_MINIMAX_H3_OW_FAST_IMAGES = 9
 
 VIDU_T2V_MODELS = [
     "vidu-q3-pro-t2v",
@@ -2852,7 +2859,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
                     "tooltip": "Hailuo H3 supports 5 to 15 seconds. | Hailuo H3 支持 5 到 15 秒。",
                 }),
                 "resolution": (HAILUO_H3_RESOLUTIONS, {
-                    "default": "2K",
+                    "default": "768P",
                     "tooltip": "Hailuo H3 output resolution: 768P or 2K. | Hailuo H3 输出分辨率支持 768P 或 2K。",
                 }),
                 "ratio": (RATIOS, {
@@ -3529,6 +3536,184 @@ class MinimaxH3OWVideo(SeedanceVideoNodeBase):
                     "MiniMax H3 OW 图生与参考生视频必须连接 image1"
                 )
             payload["images"] = images[:1]
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# MiniMax H3 OW Fast video
+# ---------------------------------------------------------------------------
+
+class MinimaxH3OWFastVideo(SeedanceVideoNodeBase):
+    """MiniMax H3 OW Fast i2v/r2v via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for index in range(1, MAX_MINIMAX_H3_OW_FAST_IMAGES + 1):
+            optional[f"image{index}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Fast reference image {index}. I2V uses only image1; R2V accepts "
+                    f"1 to 9 images. | Fast 参考图 {index}；I2V 仅使用 image1，R2V 支持 1 到 9 张图。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (MINIMAX_H3_OW_FAST_MODELS, {
+                    "default": MINIMAX_H3_OW_FAST_I2V_MODEL,
+                    "tooltip": (
+                        "MiniMax H3 OW Fast image-to-video or multi-image reference-to-video. | "
+                        "MiniMax H3 OW Fast 支持单首帧图生视频或多图参考生视频。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for R2V Fast; optional for I2V Fast. | "
+                        "R2V Fast 必填，I2V Fast 可选。"
+                    ),
+                }),
+                "seconds": (MINIMAX_H3_OW_SECONDS, {
+                    "default": "5",
+                    "tooltip": "MiniMax H3 OW Fast supports 5, 10, or 15 seconds. | 支持 5、10 或 15 秒。",
+                }),
+                "resolution": (MINIMAX_H3_OW_RESOLUTIONS, {
+                    "default": "480p",
+                    "tooltip": "MiniMax H3 OW Fast supports 480p or 720p. | 支持 480p 或 720p。",
+                }),
+                "ratio": (MINIMAX_H3_OW_RATIOS, {
+                    "default": "16:9",
+                    "tooltip": "Documented MiniMax H3 OW Fast output aspect ratio. | 文档支持的输出画幅。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *MINIMAX_H3_OW_FAST_MODELS):
+            return f"unsupported MiniMax H3 OW Fast model: {model}"
+        if seconds is not None and str(seconds) not in MINIMAX_H3_OW_SECONDS:
+            return "MiniMax H3 OW Fast seconds must be 5, 10, or 15 | 时长必须为 5、10 或 15 秒"
+        if resolution is not None and resolution not in MINIMAX_H3_OW_RESOLUTIONS:
+            return "MiniMax H3 OW Fast resolution must be 480p or 720p | 分辨率必须为 480p 或 720p"
+        if ratio is not None and ratio not in MINIMAX_H3_OW_RATIOS:
+            return f"unsupported MiniMax H3 OW Fast ratio: {ratio}"
+
+        prompt_text = str(prompt or "").strip()
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if strict and model == MINIMAX_H3_OW_FAST_R2V_MODEL and not prompt_text:
+            return "prompt is required for MiniMax H3 OW R2V Fast | R2V Fast 必须填写提示词"
+
+        if strict:
+            connected = [
+                index
+                for index in range(1, MAX_MINIMAX_H3_OW_FAST_IMAGES + 1)
+                if kwargs.get(f"image{index}") is not None
+            ]
+            if not connected:
+                return "at least one image is required for MiniMax H3 OW Fast | Fast 视频至少需要 1 张图"
+            if model == MINIMAX_H3_OW_FAST_I2V_MODEL and connected != [1]:
+                return "MiniMax H3 OW I2V Fast requires exactly image1 | I2V Fast 必须且只能连接 image1"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Minimax_H3_OW_fast_video"
+
+    def _connected_images(self, kwargs):
+        slots = [
+            (index, kwargs.get(f"image{index}"))
+            for index in range(1, MAX_MINIMAX_H3_OW_FAST_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        connected = [index for index, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: image slots {connected} have gaps; "
+                f"they will be compacted to images order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        image_slots = self._connected_images(kwargs)
+        if not image_slots:
+            raise SeedanceAPIError(
+                "at least one image is required for MiniMax H3 OW Fast | Fast 视频至少需要 1 张图"
+            )
+        if model == MINIMAX_H3_OW_FAST_I2V_MODEL and [i for i, _ in image_slots] != [1]:
+            raise SeedanceAPIError(
+                "MiniMax H3 OW I2V Fast requires exactly image1 | I2V Fast 必须且只能连接 image1"
+            )
+
+        image_urls = []
+        for completed, (slot, image) in enumerate(image_slots, start=1):
+            image_urls.append(upload_media(
+                image_to_png_bytes(image),
+                f"minimax_h3_ow_fast_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            progress_cb(completed / len(image_slots))
+        return {"images": image_urls}
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation_kwargs = {
+            key: kwargs.get(key)
+            for key in (f"image{index}" for index in range(1, MAX_MINIMAX_H3_OW_FAST_IMAGES + 1))
+        }
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            strict=True,
+            **validation_kwargs,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        images = list(media.get("images") or [])
+        expected_max = 1 if model == MINIMAX_H3_OW_FAST_I2V_MODEL else MAX_MINIMAX_H3_OW_FAST_IMAGES
+        if not 1 <= len(images) <= expected_max:
+            raise SeedanceAPIError(
+                "invalid MiniMax H3 OW Fast image count | MiniMax H3 OW Fast 图片数量无效"
+            )
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "images": images,
+            "metadata": {
+                "resolution": kwargs["resolution"],
+                "ratio": kwargs["ratio"],
+            },
+        }
+        if prompt:
+            payload["prompt"] = prompt
         return payload
 
 
@@ -8112,6 +8297,7 @@ NODE_CLASS_MAPPINGS = {
     "Hailuo_H3_Video": HailuoH3Video,
     "Flux_3_Video": Flux3Video,
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
+    "Minimax_H3_OW_Fast_Video": MinimaxH3OWFastVideo,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
@@ -8144,6 +8330,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
     "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",
+    "Minimax_H3_OW_Fast_Video": "MiniMax H3 OW Fast 视频生成（2 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",

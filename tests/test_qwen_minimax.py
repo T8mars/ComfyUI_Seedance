@@ -253,13 +253,144 @@ class MinimaxH3OWTests(unittest.TestCase):
         self.assertIs(result["result"][0], video)
 
 
+class MinimaxH3OWFastTests(unittest.TestCase):
+    def test_exact_documented_model_catalog_and_controls(self):
+        self.assertEqual(nodes.MINIMAX_H3_OW_FAST_MODELS, [
+            "minimax-h3-ow-i2v-fast",
+            "minimax-h3-ow-r2v-fast",
+        ])
+        inputs = nodes.MinimaxH3OWFastVideo.INPUT_TYPES()
+        self.assertEqual(inputs["required"]["seconds"][0], ["5", "10", "15"])
+        self.assertEqual(inputs["required"]["resolution"][0], ["480p", "720p"])
+        self.assertEqual(inputs["required"]["ratio"][0], [
+            "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9",
+        ])
+        self.assertEqual(
+            [name for name in inputs["optional"] if name.startswith("image")],
+            [f"image{index}" for index in range(1, 10)],
+        )
+        self.assertEqual(list(inputs["optional"])[-2:], ["api_config", "skip_error"])
+
+    def test_strict_validation_enforces_fast_image_contracts(self):
+        self.assertIn(
+            "at least one image",
+            nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                model=nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+                prompt="use the reference subject",
+                seconds="5",
+                resolution="480p",
+                ratio="16:9",
+                strict=True,
+            ),
+        )
+        self.assertIn(
+            "exactly image1",
+            nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                model=nodes.MINIMAX_H3_OW_FAST_I2V_MODEL,
+                prompt="",
+                seconds="5",
+                resolution="480p",
+                ratio="16:9",
+                image1=IMAGE,
+                image2=IMAGE,
+                strict=True,
+            ),
+        )
+        self.assertIn(
+            "prompt is required",
+            nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                model=nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+                prompt="",
+                seconds="5",
+                resolution="480p",
+                ratio="16:9",
+                image1=IMAGE,
+                strict=True,
+            ),
+        )
+        self.assertIs(
+            nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                model=nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+                prompt="use all references",
+                seconds="5",
+                resolution="720p",
+                ratio="21:9",
+                image1=IMAGE,
+                image9=IMAGE,
+                strict=True,
+            ),
+            True,
+        )
+
+    def test_payload_preserves_one_i2v_or_up_to_nine_r2v_images(self):
+        node = nodes.MinimaxH3OWFastVideo()
+        common = {
+            "prompt": "subtle natural motion",
+            "seconds": "5",
+            "resolution": "480p",
+            "ratio": "16:9",
+        }
+        i2v = node.build_payload(
+            {
+                "model": nodes.MINIMAX_H3_OW_FAST_I2V_MODEL,
+                "image1": IMAGE,
+                **common,
+            },
+            {"images": ["https://media.test/first.png"]},
+        )
+        self.assertEqual(i2v["images"], ["https://media.test/first.png"])
+
+        r2v_kwargs = {
+            "model": nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+            **common,
+            **{f"image{index}": IMAGE for index in range(1, 10)},
+        }
+        r2v_urls = [f"https://media.test/reference-{index}.png" for index in range(1, 10)]
+        r2v = node.build_payload(r2v_kwargs, {"images": r2v_urls})
+        self.assertEqual(r2v["images"], r2v_urls)
+        self.assertEqual(r2v["metadata"], {"resolution": "480p", "ratio": "16:9"})
+
+    def test_collect_media_uploads_every_connected_r2v_image_in_slot_order(self):
+        node = nodes.MinimaxH3OWFastVideo()
+        progress = []
+        with (
+            patch.object(nodes, "image_to_png_bytes", return_value=b"image"),
+            patch.object(
+                nodes,
+                "upload_media",
+                side_effect=["https://media.test/1.png", "https://media.test/3.png"],
+            ) as upload,
+        ):
+            media = node.collect_media(
+                {
+                    "model": nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+                    "image1": IMAGE,
+                    "image3": IMAGE,
+                },
+                CONFIG,
+                progress.append,
+            )
+
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(media["images"], [
+            "https://media.test/1.png",
+            "https://media.test/3.png",
+        ])
+        self.assertEqual(progress, [0.5, 1.0])
+
+
 class QwenMinimaxRegistrationAndWorkflowTests(unittest.TestCase):
     def test_original_and_concurrent_nodes_are_registered(self):
         self.assertIs(nodes.NODE_CLASS_MAPPINGS["Qwen_Image_3_0"], nodes.QwenImage30)
         self.assertIs(nodes.NODE_CLASS_MAPPINGS["Minimax_H3_OW_Video"], nodes.MinimaxH3OWVideo)
+        self.assertIs(
+            nodes.NODE_CLASS_MAPPINGS["Minimax_H3_OW_Fast_Video"],
+            nodes.MinimaxH3OWFastVideo,
+        )
         for key, kind in (
             ("Qwen_Image_3_0", "image"),
             ("Minimax_H3_OW_Video", "video"),
+            ("Minimax_H3_OW_Fast_Video", "video"),
         ):
             wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[
                 f"SeedanceConcurrent_{key}_Submit"
@@ -274,15 +405,32 @@ class QwenMinimaxRegistrationAndWorkflowTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 if node.get("type") == "Qwen_Image_3_0":
                     workflow_models[node["widgets_values"][0]] = (path, workflow, node)
-                elif node.get("type") == "Minimax_H3_OW_Video":
+                elif node.get("type") in (
+                    "Minimax_H3_OW_Video",
+                    "Minimax_H3_OW_Fast_Video",
+                ):
                     workflow_models[node["widgets_values"][0]] = (path, workflow, node)
 
-        expected = set(nodes.QWEN_IMAGE_30_MODELS + nodes.MINIMAX_H3_OW_MODELS)
+        expected = set(
+            nodes.QWEN_IMAGE_30_MODELS
+            + nodes.MINIMAX_H3_OW_MODELS
+            + nodes.MINIMAX_H3_OW_FAST_MODELS
+        )
         self.assertEqual(set(workflow_models), expected)
         for model, (path, workflow, node) in workflow_models.items():
             with self.subTest(model=model, workflow=path.name):
                 config_node = next(item for item in workflow["nodes"] if item["type"] == "Seedance_Config")
                 self.assertEqual(config_node["widgets_values"][1], "")
+                if model in nodes.MINIMAX_H3_OW_FAST_MODELS:
+                    self.assertEqual(
+                        [item["name"] for item in node["inputs"]],
+                        [f"image{index}" for index in range(1, 10)] + ["api_config"],
+                    )
+                    config_link = next(
+                        link for link in workflow["links"]
+                        if link[3] == node["id"] and link[5] == "SEEDANCE_CONFIG"
+                    )
+                    self.assertEqual(config_link[4], 9)
                 incoming_images = [
                     link for link in workflow.get("links", [])
                     if link[3] == node["id"] and link[5] == "IMAGE"
@@ -290,6 +438,8 @@ class QwenMinimaxRegistrationAndWorkflowTests(unittest.TestCase):
                 if model in nodes.QWEN_IMAGE_30_I2I_MODELS or model in (
                     nodes.MINIMAX_H3_OW_I2V_MODEL,
                     nodes.MINIMAX_H3_OW_R2V_MODEL,
+                    nodes.MINIMAX_H3_OW_FAST_I2V_MODEL,
+                    nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
                 ):
                     self.assertEqual(len(incoming_images), 1)
                 else:

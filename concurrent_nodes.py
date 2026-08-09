@@ -54,6 +54,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Hailuo_H3_Video",
     "Flux_3_Video",
     "Minimax_H3_OW_Video",
+    "Minimax_H3_OW_Fast_Video",
     "Vidu_Q3_Video",
     "Vidu_Q3_ShortPlay",
     "Zhenzhen_Upscaler_Video",

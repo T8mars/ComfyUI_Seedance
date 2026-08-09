@@ -1555,7 +1555,7 @@ class NewModelNodeTests(unittest.TestCase):
                 "model": "hailuo-h3-t2v",
                 "prompt": "a paper airplane gliding through a bright studio",
                 "seconds": "5",
-                "resolution": "2K",
+                "resolution": "768P",
                 "ratio": "adaptive",
             },
             {},
@@ -1567,7 +1567,7 @@ class NewModelNodeTests(unittest.TestCase):
                 "model": "hailuo-h3-t2v",
                 "prompt": "a paper airplane gliding through a bright studio",
                 "seconds": "5",
-                "metadata": {"resolution": "2K", "ratio": "adaptive"},
+                "metadata": {"resolution": "768P", "ratio": "adaptive"},
             },
         )
 
@@ -1578,7 +1578,7 @@ class NewModelNodeTests(unittest.TestCase):
                 "model": "hailuo-h3-i2v",
                 "prompt": "smooth camera motion",
                 "seconds": "5",
-                "resolution": "2K",
+                "resolution": "768P",
                 "ratio": "9:16",
             },
             {
@@ -1593,7 +1593,7 @@ class NewModelNodeTests(unittest.TestCase):
             "https://cdn.test/first.png",
             "https://cdn.test/last.png",
         ])
-        self.assertEqual(payload["metadata"], {"resolution": "2K"})
+        self.assertEqual(payload["metadata"], {"resolution": "768P"})
         self.assertEqual(payload["prompt"], "smooth camera motion")
 
     def test_hailuo_h3_multi_payload_maps_each_media_type(self):
@@ -1603,7 +1603,7 @@ class NewModelNodeTests(unittest.TestCase):
                 "model": "hailuo-h3-multi",
                 "prompt": "Use @Image 1 in @Video 1 with the rhythm of @Audio 1",
                 "seconds": "5",
-                "resolution": "2K",
+                "resolution": "768P",
                 "ratio": "16:9",
             },
             {
@@ -1617,7 +1617,7 @@ class NewModelNodeTests(unittest.TestCase):
         self.assertEqual(
             payload["metadata"],
             {
-                "resolution": "2K",
+                "resolution": "768P",
                 "ratio": "16:9",
                 "video_url": ["https://cdn.test/reference.mp4"],
                 "audio_url": ["https://cdn.test/reference.wav"],

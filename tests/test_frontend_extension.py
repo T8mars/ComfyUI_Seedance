@@ -64,6 +64,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Hailuo_H3_Video",
             "Flux_3_Video",
             "Minimax_H3_OW_Video",
+            "Minimax_H3_OW_Fast_Video",
             "Vidu_Q3_Video",
             "Vidu_Q3_ShortPlay",
             "Zhenzhen_Upscaler_Video",
@@ -270,12 +271,17 @@ class FrontendExtensionTests(unittest.TestCase):
         required_fragments = (
             'const QWEN_NODE_NAME = "Qwen_Image_3_0"',
             'const MINIMAX_NODE_NAME = "Minimax_H3_OW_Video"',
+            'const MINIMAX_FAST_NODE_NAME = "Minimax_H3_OW_Fast_Video"',
             'from "./dynamic_widget_ui.js"',
             'String(model).endsWith("-i2i")',
             'sizingMode === "ratio"',
             'sizingMode === "custom_size"',
             'isQwenI2I(model) && /^image[1-3]$/.test(input.name)',
-            'model.endsWith("-i2v") || model.endsWith("-r2v")',
+            'model.endsWith("-r2v-fast")',
+            'model.includes("-i2v") || model.includes("-r2v")',
+            'Number(imageMatch[1]) <= maxImages',
+            'function scheduleQwenMinimaxRefresh(node, refresh)',
+            'requestAnimationFrame(() =>',
             "setSeedanceInputVisible as setInputVisible",
             "setInputVisible(node, input, allowed)",
             'wrapRefreshWidget(this, "model"',
@@ -283,6 +289,8 @@ class FrontendExtensionTests(unittest.TestCase):
             "resizeSeedanceNode(node, 380)",
             "originalOnConfigure?.apply(this, arguments)",
             "originalOnConnectionsChange?.apply(this, arguments)",
+            "originalOnAfterGraphConfigured?.apply(this, arguments)",
+            "scheduleQwenMinimaxRefresh(this, refresh)",
         )
         for fragment in required_fragments:
             with self.subTest(fragment=fragment):
@@ -422,7 +430,7 @@ class FrontendExtensionTests(unittest.TestCase):
                 model,
                 node["widgets_values"][1],
                 "5",
-                "768P" if "global" in model else "2K",
+                "768P",
                 "16:9",
             ])
             self.assertEqual([item["name"] for item in node["inputs"]], expected_inputs)
