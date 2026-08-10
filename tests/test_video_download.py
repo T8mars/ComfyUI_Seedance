@@ -61,15 +61,21 @@ class FakeSession:
 
 
 class VideoDownloadTests(unittest.TestCase):
-    def test_all_generated_media_defaults_allow_60_second_reads(self):
+    def test_all_generated_media_defaults_use_short_connects_and_60_second_reads(self):
         self.assertEqual(client._IMAGE_DOWNLOAD_TIMEOUT, 60)
+        self.assertEqual(client._IMAGE_DOWNLOAD_CONNECT_TIMEOUT, 8)
         self.assertEqual(client._IMAGE_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._VIDEO_DOWNLOAD_CONNECT_TIMEOUT, 8)
         self.assertEqual(client._VIDEO_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._AUDIO_DOWNLOAD_CONNECT_TIMEOUT, 8)
         self.assertEqual(client._AUDIO_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._FILE_DOWNLOAD_CONNECT_TIMEOUT, 8)
         self.assertEqual(client._FILE_DOWNLOAD_READ_TIMEOUT, 60)
-        self.assertGreaterEqual(client._VIDEO_DOWNLOAD_TIMEOUT, 60)
-        self.assertGreaterEqual(client._AUDIO_DOWNLOAD_TIMEOUT, 60)
-        self.assertGreaterEqual(client._FILE_DOWNLOAD_TIMEOUT, 60)
+        self.assertEqual(client._VIDEO_DOWNLOAD_TIMEOUT, 180)
+        self.assertEqual(client._AUDIO_DOWNLOAD_TIMEOUT, 300)
+        self.assertEqual(client._FILE_DOWNLOAD_TIMEOUT, 300)
+        self.assertEqual(client._result_download_seconds(45), 45)
+        self.assertEqual(client._result_download_seconds(1200), 1200)
 
     def test_streams_to_atomic_output_and_closes_response(self):
         response = FakeResponse([b"video", b"-bytes"])
@@ -172,6 +178,40 @@ class VideoDownloadTests(unittest.TestCase):
             self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
             curl_download.assert_called_once()
             reset_session.assert_called_once_with()
+            sleep.assert_not_called()
+
+    def test_video_connection_error_succeeds_without_environment_proxy(self):
+        direct_session = MagicMock(trust_env=False)
+
+        def download_result(**kwargs):
+            if kwargs.get("session") is None:
+                raise requests.exceptions.ConnectionError("broken proxy")
+            Path(kwargs["path"]).write_bytes(MP4_BYTES)
+            return "video/mp4"
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(
+                    client,
+                    "_download_result_to_path_requests",
+                    side_effect=download_result,
+                ),
+                patch.object(client, "_direct_session", return_value=direct_session),
+                patch.object(
+                    client, "_download_result_to_path_with_curl"
+                ) as curl_download,
+                patch.object(client, "_reset_thread_session"),
+                patch.object(client, "cooperative_sleep") as sleep,
+                patch.dict(os.environ, {"SEEDANCE_OUTPUT_DIR": directory}),
+            ):
+                video, path = client.download_video_with_path(
+                    "https://cdn.test/video.mp4"
+                )
+
+            self.assertEqual(video, path)
+            self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
+            self.assertFalse(direct_session.trust_env)
+            curl_download.assert_not_called()
             sleep.assert_not_called()
 
     def test_invalid_video_body_immediately_uses_system_downloader(self):

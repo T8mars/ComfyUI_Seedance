@@ -90,6 +90,46 @@ class _SSLContextAdapter(requests.adapters.HTTPAdapter):
 _session_local = threading.local()
 
 
+def _create_session(
+    *, trust_env: bool = True, announce: bool = True
+) -> requests.Session:
+    session = requests.Session()
+    session.trust_env = trust_env
+    ca_bundle = os.environ.get("SEEDANCE_CA_BUNDLE", "").strip()
+
+    if os.environ.get("SEEDANCE_SSL_VERIFY", "").strip().lower() in (
+        "0",
+        "false",
+        "no",
+    ):
+        session.verify = False
+        try:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+        if announce:
+            print(
+                "[Seedance] WARNING: SSL verification disabled via "
+                "SEEDANCE_SSL_VERIFY=0"
+            )
+    elif ca_bundle:
+        session.verify = ca_bundle
+        if announce:
+            print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
+    else:
+        ssl_context, cert_count = _windows_cert_store_context()
+        if ssl_context is not None:
+            session.mount("https://", _SSLContextAdapter(ssl_context))
+            if announce:
+                print(
+                    "[Seedance] Using Windows certificate store "
+                    f"({cert_count} certificates)"
+                )
+
+    return session
+
+
 def _windows_cert_store_context() -> Tuple[Optional[ssl.SSLContext], int]:
     """Build an SSLContext with Windows ROOT/CA stores, no third-party deps."""
     if os.name != "nt" or not hasattr(ssl, "enum_certificates"):
@@ -122,27 +162,19 @@ def _session() -> requests.Session:
     if existing is not None:
         return existing
 
-    session = requests.Session()
-    ca_bundle = os.environ.get("SEEDANCE_CA_BUNDLE", "").strip()
-
-    if os.environ.get("SEEDANCE_SSL_VERIFY", "").strip().lower() in ("0", "false", "no"):
-        session.verify = False
-        try:
-            import urllib3
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        except Exception:
-            pass
-        print("[Seedance] WARNING: SSL verification disabled via SEEDANCE_SSL_VERIFY=0")
-    elif ca_bundle:
-        session.verify = ca_bundle
-        print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
-    else:
-        ssl_context, cert_count = _windows_cert_store_context()
-        if ssl_context is not None:
-            session.mount("https://", _SSLContextAdapter(ssl_context))
-            print(f"[Seedance] Using Windows certificate store ({cert_count} certificates)")
-
+    session = _create_session()
     _session_local.session = session
+    return session
+
+
+def _direct_session() -> requests.Session:
+    """Return a result-download session that ignores broken proxy env vars."""
+    existing = getattr(_session_local, "direct_session", None)
+    if existing is not None:
+        return existing
+
+    session = _create_session(trust_env=False, announce=False)
+    _session_local.direct_session = session
     return session
 
 
@@ -160,6 +192,23 @@ def _reset_thread_session() -> None:
             pass
     try:
         delattr(_session_local, "session")
+    except AttributeError:
+        pass
+
+
+def _reset_direct_thread_session() -> None:
+    existing = getattr(_session_local, "direct_session", None)
+    if existing is None:
+        return
+
+    close = getattr(existing, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            pass
+    try:
+        delattr(_session_local, "direct_session")
     except AttributeError:
         pass
 
@@ -752,8 +801,12 @@ def extract_image_urls(final_response: Dict[str, Any]) -> List[str]:
     return [extract_image_url(final_response)]
 
 
-def _download_image_bytes(url: str, timeout: int) -> bytes:
-    total_timeout = max(1.0, float(timeout))
+def _download_image_bytes(
+    url: str,
+    timeout: int,
+    session: Optional[requests.Session] = None,
+) -> bytes:
+    total_timeout = _result_download_seconds(timeout)
     deadline = time.monotonic() + total_timeout
     request_timeout = (
         min(float(_IMAGE_DOWNLOAD_CONNECT_TIMEOUT), total_timeout),
@@ -761,7 +814,7 @@ def _download_image_bytes(url: str, timeout: int) -> bytes:
     )
     response = None
     try:
-        response = _session().get(
+        response = (session or _session()).get(
             url,
             headers=_IMAGE_DOWNLOAD_HEADERS,
             stream=True,
@@ -2324,6 +2377,14 @@ _VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 8
 _VIDEO_DOWNLOAD_READ_TIMEOUT = 60
 
 
+def _result_download_seconds(timeout: int) -> float:
+    try:
+        requested = float(timeout)
+    except (TypeError, ValueError):
+        requested = 1.0
+    return max(1.0, requested)
+
+
 def _download_result_to_path_requests(
     url: str,
     path: str,
@@ -2331,8 +2392,9 @@ def _download_result_to_path_requests(
     connect_timeout: int,
     read_timeout: int,
     headers: Dict[str, str],
+    session: Optional[requests.Session] = None,
 ) -> str:
-    total_timeout = max(1.0, float(timeout))
+    total_timeout = _result_download_seconds(timeout)
     deadline = time.monotonic() + total_timeout
     request_timeout = (
         min(float(connect_timeout), total_timeout),
@@ -2341,7 +2403,7 @@ def _download_result_to_path_requests(
     part_path = f"{path}.part"
     response = None
     try:
-        response = _session().get(
+        response = (session or _session()).get(
             url,
             headers=headers,
             stream=True,
@@ -2442,7 +2504,7 @@ def _run_curl_download(
     if not curl_binary:
         raise _ResultDownloadTransportError("System media downloader is unavailable")
 
-    total_timeout = max(1.0, float(timeout))
+    total_timeout = _result_download_seconds(timeout)
     limited_connect_timeout = min(float(connect_timeout), total_timeout)
     config_lines = [
         "silent",
@@ -2558,6 +2620,17 @@ def _is_result_transport_error(error: Exception) -> bool:
     )
 
 
+def _should_retry_without_proxy(error: Exception) -> bool:
+    return isinstance(
+        error,
+        (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ProxyError,
+            ConnectionError,
+        ),
+    )
+
+
 _is_image_transport_error = _is_result_transport_error
 
 
@@ -2614,6 +2687,34 @@ def _download_to_path_with_recovery(
                 continue
 
             _reset_thread_session()
+            if _should_retry_without_proxy(error):
+                _log(
+                    logger_prefix,
+                    f"Retrying {item_name.lower()} download without environment proxy...",
+                )
+                try:
+                    content_type = _download_result_to_path_requests(
+                        url=url,
+                        path=path,
+                        timeout=timeout,
+                        connect_timeout=connect_timeout,
+                        read_timeout=read_timeout,
+                        headers=headers,
+                        session=_direct_session(),
+                    )
+                    validation = validator(path) if validator is not None else None
+                    _log(logger_prefix, "  Direct no-proxy download succeeded")
+                    return content_type, validation
+                except Exception as direct_error:
+                    last_error = direct_error
+                    _remove_result_path(path)
+                    _reset_direct_thread_session()
+                    _log(
+                        logger_prefix,
+                        "Direct no-proxy download failed: "
+                        f"{type(direct_error).__name__}",
+                    )
+
             if curl_attempted:
                 continue
 
@@ -2681,6 +2782,30 @@ def _download_and_decode_image(
                 continue
 
             _reset_thread_session()
+            if _should_retry_without_proxy(error):
+                _log(
+                    logger_prefix,
+                    "Retrying image download without environment proxy...",
+                )
+                try:
+                    result = decoder(
+                        _download_image_bytes(
+                            url,
+                            timeout,
+                            session=_direct_session(),
+                        )
+                    )
+                    _log(logger_prefix, "  Direct no-proxy image download succeeded")
+                    return result
+                except Exception as direct_error:
+                    last_error = direct_error
+                    _reset_direct_thread_session()
+                    _log(
+                        logger_prefix,
+                        "Direct no-proxy image download failed: "
+                        f"{type(direct_error).__name__}",
+                    )
+
             if curl_attempted:
                 continue
 

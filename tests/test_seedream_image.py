@@ -304,9 +304,10 @@ class ImageClientTests(unittest.TestCase):
         self.assertIn(b"image/avif", kwargs["input"])
         self.assertFalse(kwargs["check"])
 
-    def test_system_fallback_failure_retries_with_fresh_python_session(self):
+    def test_connection_failure_retries_without_environment_proxy(self):
         buffer = io.BytesIO()
         Image.new("RGB", (3, 2), (255, 128, 0)).save(buffer, format="PNG")
+        direct_session = MagicMock(trust_env=False)
 
         with (
             patch.object(
@@ -320,8 +321,8 @@ class ImageClientTests(unittest.TestCase):
             patch.object(
                 client,
                 "_download_image_bytes_with_curl",
-                side_effect=client._ImageDownloadTransportError("failed"),
-            ),
+            ) as curl_download,
+            patch.object(client, "_direct_session", return_value=direct_session),
             patch.object(client, "_reset_thread_session") as reset_session,
             patch.object(client, "cooperative_sleep") as sleep,
         ):
@@ -331,8 +332,13 @@ class ImageClientTests(unittest.TestCase):
 
         self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
         self.assertEqual(direct_download.call_count, 2)
+        self.assertIs(
+            direct_download.call_args_list[1].kwargs["session"], direct_session
+        )
+        self.assertFalse(direct_session.trust_env)
         reset_session.assert_called_once_with()
-        sleep.assert_called_once_with(1)
+        curl_download.assert_not_called()
+        sleep.assert_not_called()
 
     def test_download_failure_does_not_expose_signed_result_url(self):
         result_url = "https://private-host.test/result.png?opaque=private-marker"
