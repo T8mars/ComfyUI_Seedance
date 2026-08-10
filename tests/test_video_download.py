@@ -61,6 +61,16 @@ class FakeSession:
 
 
 class VideoDownloadTests(unittest.TestCase):
+    def test_all_generated_media_defaults_allow_60_second_reads(self):
+        self.assertEqual(client._IMAGE_DOWNLOAD_TIMEOUT, 60)
+        self.assertEqual(client._IMAGE_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._VIDEO_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._AUDIO_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertEqual(client._FILE_DOWNLOAD_READ_TIMEOUT, 60)
+        self.assertGreaterEqual(client._VIDEO_DOWNLOAD_TIMEOUT, 60)
+        self.assertGreaterEqual(client._AUDIO_DOWNLOAD_TIMEOUT, 60)
+        self.assertGreaterEqual(client._FILE_DOWNLOAD_TIMEOUT, 60)
+
     def test_streams_to_atomic_output_and_closes_response(self):
         response = FakeResponse([b"video", b"-bytes"])
         session = FakeSession([response])

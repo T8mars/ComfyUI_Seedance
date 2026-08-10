@@ -526,9 +526,9 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 _IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS"}
-_IMAGE_DOWNLOAD_TIMEOUT = 45
+_IMAGE_DOWNLOAD_TIMEOUT = 60
 _IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 8
-_IMAGE_DOWNLOAD_READ_TIMEOUT = 15
+_IMAGE_DOWNLOAD_READ_TIMEOUT = 60
 _RESULT_DOWNLOAD_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -1343,7 +1343,7 @@ def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) ->
 
 _AUDIO_DOWNLOAD_TIMEOUT = 300
 _AUDIO_DOWNLOAD_CONNECT_TIMEOUT = 8
-_AUDIO_DOWNLOAD_READ_TIMEOUT = 45
+_AUDIO_DOWNLOAD_READ_TIMEOUT = 60
 
 
 def download_audio(
@@ -2273,7 +2273,7 @@ def _guess_file_extension(
 
 _FILE_DOWNLOAD_TIMEOUT = 300
 _FILE_DOWNLOAD_CONNECT_TIMEOUT = 8
-_FILE_DOWNLOAD_READ_TIMEOUT = 45
+_FILE_DOWNLOAD_READ_TIMEOUT = 60
 
 
 def download_file(
@@ -2321,7 +2321,7 @@ def download_file(
 
 _VIDEO_DOWNLOAD_TIMEOUT = 180
 _VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 8
-_VIDEO_DOWNLOAD_READ_TIMEOUT = 45
+_VIDEO_DOWNLOAD_READ_TIMEOUT = 60
 
 
 def _download_result_to_path_requests(

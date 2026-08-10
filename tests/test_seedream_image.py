@@ -222,6 +222,7 @@ class ImageClientTests(unittest.TestCase):
         self.assertEqual(tuple(tensor.shape), (1, 2, 3, 3))
         self.assertEqual(tensor.dtype, torch.float32)
         self.assertAlmostEqual(float(tensor[0, 0, 0, 0]), 1.0)
+        self.assertEqual(session.get_calls[0][1]["timeout"], (8.0, 60.0))
 
     def test_download_image_retries_after_total_stream_timeout(self):
         buffer = io.BytesIO()
@@ -254,7 +255,7 @@ class ImageClientTests(unittest.TestCase):
         reset_session.assert_called_once_with()
         for _url, kwargs in session.get_calls:
             self.assertTrue(kwargs["stream"])
-            self.assertEqual(kwargs["timeout"], (8.0, 15.0))
+            self.assertEqual(kwargs["timeout"], (8.0, 45.0))
             self.assertTrue(kwargs["allow_redirects"])
             self.assertIn("image/", kwargs["headers"]["Accept"])
 
@@ -280,7 +281,7 @@ class ImageClientTests(unittest.TestCase):
 
         self.assertEqual(tuple(tensor.shape), (1, 3, 4, 3))
         reset_session.assert_called_once_with()
-        curl_download.assert_called_once_with("https://cdn.test/result.png", 45)
+        curl_download.assert_called_once_with("https://cdn.test/result.png", 60)
         sleep.assert_not_called()
 
     def test_curl_fallback_keeps_signed_url_out_of_process_arguments(self):
