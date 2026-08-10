@@ -26,9 +26,13 @@ class GenerationSeedControlTests(unittest.TestCase):
                 self.assertEqual(seed[0], "INT")
                 self.assertIs(seed[1].get("control_after_generate"), True)
                 self.assertIn("Fixed", seed[1].get("tooltip", ""))
+                explicit_cache_only = bool(
+                    getattr(node_class, "SEEDANCE_EXPLICIT_CACHE_ONLY_SEED", False)
+                )
                 self.assertIs(
                     node_class.SEEDANCE_CACHE_ONLY_SEED,
-                    required_seed is None and list(inputs["optional"])[-1] == "seed",
+                    explicit_cache_only
+                    or (required_seed is None and list(inputs["optional"])[-1] == "seed"),
                 )
         self.assertEqual(generation_count, 30)
 
@@ -49,6 +53,28 @@ class GenerationSeedControlTests(unittest.TestCase):
         with patch.object(node, "_execute_inner", return_value={"ok": True}) as execute:
             self.assertEqual(node.execute(seed=1234), {"ok": True})
         execute.assert_called_once_with(seed=1234)
+
+    def test_layer_model_is_appended_after_legacy_cache_seed(self):
+        node_class = nodes.SeedreamV5ProLayerDecomposition
+        inputs = node_class.INPUT_TYPES()
+        self.assertEqual(
+            list(inputs["optional"]),
+            ["api_config", "skip_error", "seed", "model"],
+        )
+        self.assertTrue(node_class.SEEDANCE_CACHE_ONLY_SEED)
+
+        node = node_class()
+        with patch.object(node, "_execute_inner", return_value={"ok": True}) as execute:
+            self.assertEqual(
+                node.execute(
+                    seed=1234,
+                    model="dola-seedream-5.0-pro-layer-decomposition",
+                ),
+                {"ok": True},
+            )
+        execute.assert_called_once_with(
+            model="dola-seedream-5.0-pro-layer-decomposition"
+        )
 
     def test_installer_preserves_native_seed_position_and_strips_cache_seed(self):
         class NativeSeedProbe:

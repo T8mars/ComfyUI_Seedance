@@ -18,9 +18,18 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、MiniMax H3 Context IR 视频提示词增强、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream 图层拆分、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、MiniMax H3 Context IR 视频提示词增强、Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Doubao Seed Audio 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.5.19（2026-08-11）
+
+- `Seedream / Dola Seedream v5 Pro 图层拆分（2 合 1）` 节点新增海外模型 `dola-seedream-5.0-pro-layer-decomposition`，原国内模型仍为默认值。
+- 两个模型共用文档规定的单图输入、可选提示词、`auto` / `1k` / `1.5k` / `2k` 分辨率和 PNG/JPEG 输出参数。
+- 节点继续按 API 返回顺序输出完整 IMAGE/MASK 列表，不合批、不缩放、不去重；模型选择追加在原有 seed 控制之后，旧工作流不会发生控件值错位，未保存模型字段时仍按国内模型执行。
+- 新增 Dola 海外图层拆分工作流，并更新国内工作流显式保存模型选择；API Key 与运行结果保持空白。
+- 海外 Dola 模型已使用 512×512 本地图片、`auto` 和 PNG 完成真实节点验证，返回 1 张底图和 4 个异尺寸图层，5 组 IMAGE/MASK 均成功下载并解码。
+- 完整离线回归通过 300 项测试，139 份示例工作流通过 JSON 与敏感信息审计，10 个前端脚本通过语法检查。
 
 ## v0.5.18（2026-08-11）
 

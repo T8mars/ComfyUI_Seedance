@@ -1,5 +1,5 @@
 {
-  "id": "94bc8778-a814-42af-b966-acde6987d151",
+  "id": "b01f4281-a630-4d67-886d-e53580441673",
   "revision": 0,
   "last_node_id": 5,
   "last_link_id": 5,
@@ -56,8 +56,9 @@
     {
       "id": 3,
       "type": "Seedream_V5_Pro_Layer_Decomposition",
+      "title": "Dola Seedream 5.0 Pro 海外图层拆分",
       "pos": [470, 95],
-      "size": [430, 320],
+      "size": [430, 340],
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -116,7 +117,7 @@
         false,
         0,
         "fixed",
-        "seedream-v5-pro-layer-decomposition"
+        "dola-seedream-5.0-pro-layer-decomposition"
       ]
     },
     {
@@ -180,7 +181,7 @@
         "ver": "0.3.60",
         "Node name for S&R": "SaveImage"
       },
-      "widgets_values": ["seedream_layer_decomposition"]
+      "widgets_values": ["dola_seedream_layer_decomposition"]
     }
   ],
   "links": [

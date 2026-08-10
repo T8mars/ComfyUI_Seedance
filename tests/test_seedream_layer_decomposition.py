@@ -71,6 +71,15 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
             nodes.NODE_CLASS_MAPPINGS["Seedream_V5_Pro_Layer_Decomposition"],
             nodes.SeedreamV5ProLayerDecomposition,
         )
+        model_spec = nodes.SeedreamV5ProLayerDecomposition.INPUT_TYPES()["optional"]["model"]
+        self.assertEqual(
+            model_spec[0],
+            [
+                "seedream-v5-pro-layer-decomposition",
+                "dola-seedream-5.0-pro-layer-decomposition",
+            ],
+        )
+        self.assertEqual(model_spec[1]["default"], "seedream-v5-pro-layer-decomposition")
 
     def test_payload_matches_documented_layer_contract(self):
         node = nodes.SeedreamV5ProLayerDecomposition()
@@ -96,6 +105,14 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
             "jpeg",
         )
         self.assertEqual(prompted["prompt"], "separate foreground text")
+        dola = node._build_payload(
+            "https://cdn.test/source.png",
+            "",
+            "auto",
+            "png",
+            "dola-seedream-5.0-pro-layer-decomposition",
+        )
+        self.assertEqual(dola["model"], "dola-seedream-5.0-pro-layer-decomposition")
 
     def test_validation_accepts_optional_prompt_and_documented_resolutions(self):
         for resolution in ("auto", "1k", "1.5k", "2k"):
@@ -136,6 +153,17 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
                 prompt="",
                 resolution="auto",
                 output_format="png",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.SeedreamV5ProLayerDecomposition.VALIDATE_INPUTS(
+                image=torch.zeros((1, 4, 4, 3)),
+                prompt="",
+                resolution="auto",
+                output_format="png",
+                model="not-a-layer-model",
                 strict=True,
             ),
             True,
@@ -281,34 +309,49 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
         self.assertEqual(task_id, "")
         self.assertIn("forced layer failure", json.loads(response)["error"])
 
-    def test_example_workflow_is_safe_and_saves_all_list_items(self):
-        path = PACKAGE_ROOT / "examples" / "seedream-v5-pro图层拆分.json"
-        source = path.read_text(encoding="utf-8")
-        workflow = json.loads(source)
-        node_types = {node["type"] for node in workflow["nodes"]}
-        self.assertIn("Seedream_V5_Pro_Layer_Decomposition", node_types)
-        self.assertIn("LoadImage", node_types)
-        self.assertIn("SaveImage", node_types)
-        self.assertNotRegex(source, r"sk-[A-Za-z0-9]{12,}")
-        config_node = next(
-            node for node in workflow["nodes"] if node["type"] == "Seedance_Config"
-        )
-        self.assertEqual(config_node["widgets_values"][1], "")
-        layer_node = next(
-            node
-            for node in workflow["nodes"]
-            if node["type"] == "Seedream_V5_Pro_Layer_Decomposition"
-        )
-        join_link = next(
-            link for link in workflow["links"] if link[1] == layer_node["id"] and link[2] == 0
-        )
-        join_node = next(node for node in workflow["nodes"] if node["id"] == join_link[3])
-        self.assertEqual(join_node["type"], "JoinImageWithAlpha")
-        save_link = next(
-            link for link in workflow["links"] if link[1] == join_node["id"] and link[2] == 0
-        )
-        save_node = next(node for node in workflow["nodes"] if node["id"] == save_link[3])
-        self.assertEqual(save_node["type"], "SaveImage")
+    def test_example_workflows_are_safe_and_save_all_list_items(self):
+        cases = {
+            "seedream-v5-pro图层拆分.json": "seedream-v5-pro-layer-decomposition",
+            "dola-seedream-5.0-pro图层拆分.json": "dola-seedream-5.0-pro-layer-decomposition",
+        }
+        for filename, expected_model in cases.items():
+            with self.subTest(filename=filename):
+                path = PACKAGE_ROOT / "examples" / filename
+                source = path.read_text(encoding="utf-8")
+                workflow = json.loads(source)
+                node_types = {node["type"] for node in workflow["nodes"]}
+                self.assertIn("Seedream_V5_Pro_Layer_Decomposition", node_types)
+                self.assertIn("LoadImage", node_types)
+                self.assertIn("SaveImage", node_types)
+                self.assertNotRegex(source, r"sk-[A-Za-z0-9]{12,}")
+                config_node = next(
+                    node for node in workflow["nodes"] if node["type"] == "Seedance_Config"
+                )
+                self.assertEqual(config_node["widgets_values"][1], "")
+                layer_node = next(
+                    node
+                    for node in workflow["nodes"]
+                    if node["type"] == "Seedream_V5_Pro_Layer_Decomposition"
+                )
+                self.assertEqual(layer_node["widgets_values"][6], expected_model)
+                join_link = next(
+                    link
+                    for link in workflow["links"]
+                    if link[1] == layer_node["id"] and link[2] == 0
+                )
+                join_node = next(
+                    node for node in workflow["nodes"] if node["id"] == join_link[3]
+                )
+                self.assertEqual(join_node["type"], "JoinImageWithAlpha")
+                save_link = next(
+                    link
+                    for link in workflow["links"]
+                    if link[1] == join_node["id"] and link[2] == 0
+                )
+                save_node = next(
+                    node for node in workflow["nodes"] if node["id"] == save_link[3]
+                )
+                self.assertEqual(save_node["type"], "SaveImage")
 
 
 if __name__ == "__main__":

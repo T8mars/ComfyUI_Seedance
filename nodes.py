@@ -152,6 +152,11 @@ SEEDREAM_I2I_MODEL = "seedream-v5-pro-i2i"
 SEEDREAM_LAYER_DECOMPOSITION_MODEL = "seedream-v5-pro-layer-decomposition"
 DOLA_SEEDREAM_T2I_MODEL = "dola-seedream-5.0-pro-t2i"
 DOLA_SEEDREAM_I2I_MODEL = "dola-seedream-5.0-pro-i2i"
+DOLA_SEEDREAM_LAYER_DECOMPOSITION_MODEL = "dola-seedream-5.0-pro-layer-decomposition"
+SEEDREAM_LAYER_DECOMPOSITION_MODELS = [
+    SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+    DOLA_SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+]
 SEEDREAM_FAMILY_DOMESTIC = "seedream-v5-pro (domestic)"
 SEEDREAM_FAMILY_DOLA = "dola-seedream-5.0-pro (overseas)"
 SEEDREAM_MODEL_FAMILIES = [SEEDREAM_FAMILY_DOMESTIC, SEEDREAM_FAMILY_DOLA]
@@ -4973,11 +4978,12 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
 # ---------------------------------------------------------------------------
 
 class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
-    """Split one source image into an ordered base image and layer image list."""
+    """Split one source image through domestic or overseas Seedream."""
 
     CATEGORY = "Seedance"
     FUNCTION = "execute"
     OUTPUT_NODE = True
+    SEEDANCE_EXPLICIT_CACHE_ONLY_SEED = True
     RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT", "STRING", "STRING")
     RETURN_NAMES = (
         "images",
@@ -5033,6 +5039,25 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
                         "失败时输出占位图片与蒙版列表而不中断工作流。"
                     ),
                 }),
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 0xffffffffffffffff,
+                    "step": 1,
+                    "tooltip": (
+                        "ComfyUI cache seed only; this value is not sent to Seedream. | "
+                        "仅用于 ComfyUI 缓存，不会发送给 Seedream。"
+                    ),
+                }),
+                # Model follows the pre-existing seed and its linked control so
+                # every older workflow keeps the same serialized widget indexes.
+                "model": (SEEDREAM_LAYER_DECOMPOSITION_MODELS, {
+                    "default": SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+                    "tooltip": (
+                        "Domestic Seedream or overseas Dola Seedream layer decomposition. | "
+                        "选择国内 Seedream 或海外 Dola Seedream 图层拆分模型。"
+                    ),
+                }),
             },
         }
 
@@ -5043,6 +5068,7 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
         prompt=None,
         resolution=None,
         output_format=None,
+        model=None,
         strict=False,
         **kwargs,
     ):
@@ -5057,6 +5083,8 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
             return f"unsupported layer decomposition resolution: {resolution}"
         if output_format not in (None, *SEEDREAM_OUTPUT_FORMATS):
             return f"unsupported output_format: {output_format}"
+        if model not in (None, *SEEDREAM_LAYER_DECOMPOSITION_MODELS):
+            return f"unsupported layer decomposition model: {model}"
         if strict and image is None:
             return (
                 "image is required for layer decomposition | "
@@ -5101,9 +5129,10 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
         prompt: str,
         resolution: str,
         output_format: str,
+        model: str = SEEDREAM_LAYER_DECOMPOSITION_MODEL,
     ) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
-            "model": SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+            "model": model,
             "images": [source_url],
             "metadata": {
                 "resolution": resolution,
@@ -5121,6 +5150,7 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
         resolution: str,
         output_format: str,
         api_config=None,
+        model: str = SEEDREAM_LAYER_DECOMPOSITION_MODEL,
         **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
@@ -5129,6 +5159,7 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
             prompt=prompt_text,
             resolution=resolution,
             output_format=output_format,
+            model=model,
             strict=True,
         )
         if validation is not True:
@@ -5157,6 +5188,7 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
             prompt_text,
             resolution,
             output_format,
+            model,
         )
         task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 20)
@@ -8696,6 +8728,9 @@ def _install_generation_seed_control(target_class) -> None:
         "seed" in initial_inputs.get(group, {})
         for group in ("required", "optional")
     )
+    explicit_cache_only_seed = bool(
+        getattr(target_class, "SEEDANCE_EXPLICIT_CACHE_ONLY_SEED", False)
+    )
 
     @classmethod
     def input_types(cls):
@@ -8738,9 +8773,9 @@ def _install_generation_seed_control(target_class) -> None:
 
     target_class.INPUT_TYPES = input_types
     target_class.SEEDANCE_SEED_CONTROL_INSTALLED = True
-    target_class.SEEDANCE_CACHE_ONLY_SEED = not native_seed
+    target_class.SEEDANCE_CACHE_ONLY_SEED = not native_seed or explicit_cache_only_seed
 
-    if native_seed:
+    if native_seed and not explicit_cache_only_seed:
         return
 
     function_name = str(getattr(target_class, "FUNCTION", "execute"))
@@ -8766,7 +8801,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedance_2_5_Video": "Seedance 2.5 Standard 视频生成（6 合 1）",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
-    "Seedream_V5_Pro_Layer_Decomposition": "Seedream v5 Pro 图层拆分",
+    "Seedream_V5_Pro_Layer_Decomposition": "Seedream / Dola Seedream v5 Pro 图层拆分（2 合 1）",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
