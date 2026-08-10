@@ -1,7 +1,7 @@
 """
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
 Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
-Qwen, Zhenzhen Image G/NB,
+Qwen, Zhenzhen Image G/NB, MiniMax H3 Context IR prompt enhancement,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
@@ -35,17 +35,20 @@ from .core.client import (
     download_video,
     download_video_with_path,
     extract_audio_url,
+    extract_context_ir_text,
     extract_image_url,
     extract_image_urls,
     extract_midjourney_results,
     extract_music_results,
     extract_video_url,
     poll_audio_task,
+    poll_context_ir_task,
     poll_image_task,
     poll_midjourney_task,
     poll_music_task,
     poll_task,
     submit_audio_task,
+    submit_context_ir_task,
     submit_image_task,
     submit_midjourney_action,
     submit_music_action,
@@ -390,6 +393,22 @@ HAILUO_H3_RESOLUTIONS = ["768P", "2K"]
 MAX_HAILUO_H3_IMAGES = 9
 MAX_HAILUO_H3_VIDEOS = 3
 MAX_HAILUO_H3_AUDIOS = 3
+
+MINMAX_H3_CONTEXT_IR_TEXT_MODEL = "minmax-h3-context-ir-text"
+MINMAX_H3_CONTEXT_IR_IMAGE_MODEL = "minmax-h3-context-ir-image"
+MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL = "minmax-h3-context-ir-multimodal"
+MINMAX_H3_CONTEXT_IR_MODELS = [
+    MINMAX_H3_CONTEXT_IR_TEXT_MODEL,
+    MINMAX_H3_CONTEXT_IR_IMAGE_MODEL,
+    MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL,
+]
+MINMAX_H3_CONTEXT_IR_SECONDS = [str(value) for value in range(4, 16)]
+MINMAX_H3_CONTEXT_IR_TEXT_RATIOS = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
+MINMAX_H3_CONTEXT_IR_RATIOS = ["api_default", "adaptive", *MINMAX_H3_CONTEXT_IR_TEXT_RATIOS]
+MINMAX_H3_CONTEXT_IR_PROMPT_MAX_LENGTH = 7000
+MAX_MINMAX_H3_CONTEXT_IR_IMAGES = 9
+MAX_MINMAX_H3_CONTEXT_IR_VIDEOS = 3
+MAX_MINMAX_H3_CONTEXT_IR_AUDIOS = 3
 
 FLUX3_T2V_MODELS = [
     "flux-3-video-t2v",
@@ -3063,6 +3082,361 @@ class HailuoH3Video(SeedanceVideoNodeBase):
             if audio_urls:
                 metadata["audio_url"] = audio_urls[:MAX_HAILUO_H3_AUDIOS]
         return payload
+
+
+# ---------------------------------------------------------------------------
+# MiniMax H3 Context IR prompt enhancement
+# ---------------------------------------------------------------------------
+
+class MinimaxH3ContextIR:
+    """Enhance video prompts with text, image, or multimodal context."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("result_text", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for index in range(1, MAX_MINMAX_H3_CONTEXT_IR_IMAGES + 1):
+            optional[f"image{index}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Context image {index}. Image mode accepts image1 and optional image2; "
+                    f"Multimodal accepts up to 9 images. | 上下文图片 {index}；Image 模式"
+                    "使用 image1 和可选 image2，Multimodal 最多支持 9 张图。"
+                ),
+            })
+        for index in range(1, MAX_MINMAX_H3_CONTEXT_IR_VIDEOS + 1):
+            optional[f"video{index}"] = ("VIDEO", {
+                "tooltip": (
+                    f"Multimodal reference video {index}, up to 3 videos. | "
+                    f"多模态参考视频 {index}，最多 3 个。"
+                ),
+            })
+        for index in range(1, MAX_MINMAX_H3_CONTEXT_IR_AUDIOS + 1):
+            optional[f"audio{index}"] = ("AUDIO", {
+                "tooltip": (
+                    f"Multimodal reference audio {index}, up to 3 audios. | "
+                    f"多模态参考音频 {index}，最多 3 个。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": (
+                "On failure return empty text and an error response instead of stopping "
+                "the workflow. | 失败时返回空文本和错误响应，不中断工作流。"
+            ),
+        })
+
+        return {
+            "required": {
+                "model": (MINMAX_H3_CONTEXT_IR_MODELS, {
+                    "default": MINMAX_H3_CONTEXT_IR_TEXT_MODEL,
+                    "tooltip": (
+                        "Enhance a video prompt from text, first/last frames, or mixed "
+                        "image/video/audio references. | 使用文本、首尾帧或图像/视频/"
+                        "音频混合素材增强视频提示词。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Video prompt to enhance, 1 to 7000 characters. | 待增强的视频提示词，1 到 7000 字符。",
+                }),
+                "seconds": (MINMAX_H3_CONTEXT_IR_SECONDS, {
+                    "default": "4",
+                    "tooltip": "Target video duration from 4 to 15 seconds. | 目标视频时长为 4 到 15 秒。",
+                }),
+                "ratio": (MINMAX_H3_CONTEXT_IR_RATIOS, {
+                    "default": "16:9",
+                    "tooltip": (
+                        "Text mode requires a fixed ratio. Multimodal also supports "
+                        "adaptive or api_default; Image mode does not send ratio. | Text "
+                        "必须选择固定比例；Multimodal 还支持 adaptive 或 api_default；"
+                        "Image 不发送比例。"
+                    ),
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *MINMAX_H3_CONTEXT_IR_MODELS):
+            return f"unsupported MiniMax H3 Context IR model: {model}"
+        if seconds is not None and str(seconds) not in MINMAX_H3_CONTEXT_IR_SECONDS:
+            return "Context IR seconds must be 4 to 15 | Context IR 时长必须为 4 到 15 秒"
+        if ratio is not None and ratio not in MINMAX_H3_CONTEXT_IR_RATIOS:
+            return f"unsupported Context IR ratio: {ratio}"
+
+        prompt_text = str(prompt or "").strip()
+        if len(prompt_text) > MINMAX_H3_CONTEXT_IR_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt exceeds {MINMAX_H3_CONTEXT_IR_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)})"
+            )
+        if strict and not prompt_text:
+            return "prompt is required for Context IR | Context IR 必须填写提示词"
+        if (
+            model == MINMAX_H3_CONTEXT_IR_TEXT_MODEL
+            and ratio is not None
+            and ratio not in MINMAX_H3_CONTEXT_IR_TEXT_RATIOS
+        ):
+            return "Context IR Text requires a fixed documented ratio | Text 模式必须选择固定比例"
+
+        if strict and model == MINMAX_H3_CONTEXT_IR_IMAGE_MODEL:
+            connected = [
+                index
+                for index in range(1, MAX_MINMAX_H3_CONTEXT_IR_IMAGES + 1)
+                if kwargs.get(f"image{index}") is not None
+            ]
+            if not connected or connected[0] != 1:
+                return "image1 is required for Context IR Image | Image 模式必须连接 image1"
+            if any(index > 2 for index in connected):
+                return "Context IR Image accepts only image1 and image2 | Image 模式只支持 image1 和 image2"
+
+        if strict and model == MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL:
+            has_media = any(
+                kwargs.get(f"{family}{index}") is not None
+                for family, count in (
+                    ("image", MAX_MINMAX_H3_CONTEXT_IR_IMAGES),
+                    ("video", MAX_MINMAX_H3_CONTEXT_IR_VIDEOS),
+                    ("audio", MAX_MINMAX_H3_CONTEXT_IR_AUDIOS),
+                )
+                for index in range(1, count + 1)
+            )
+            if not has_media:
+                return (
+                    "Context IR Multimodal requires at least one image, video, or audio | "
+                    "Multimodal 模式至少需要一个图片、视频或音频素材"
+                )
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Minimax_H3_Context_IR"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _gather_slots(self, kwargs, family: str, count: int):
+        slots = [
+            (index, kwargs.get(f"{family}{index}"))
+            for index in range(1, count + 1)
+            if kwargs.get(f"{family}{index}") is not None
+        ]
+        connected = [index for index, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: {family} slots {connected} have gaps; "
+                f"they will be compacted to {family} order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        model = kwargs.get("model")
+        if model == MINMAX_H3_CONTEXT_IR_TEXT_MODEL:
+            progress_cb(1.0)
+            return {}
+
+        image_count = (
+            2
+            if model == MINMAX_H3_CONTEXT_IR_IMAGE_MODEL
+            else MAX_MINMAX_H3_CONTEXT_IR_IMAGES
+        )
+        image_slots = self._gather_slots(kwargs, "image", image_count)
+        video_slots = (
+            self._gather_slots(kwargs, "video", MAX_MINMAX_H3_CONTEXT_IR_VIDEOS)
+            if model == MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL
+            else []
+        )
+        audio_slots = (
+            self._gather_slots(kwargs, "audio", MAX_MINMAX_H3_CONTEXT_IR_AUDIOS)
+            if model == MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL
+            else []
+        )
+
+        video_mime = {
+            "mp4": "video/mp4",
+            "avi": "video/x-msvideo",
+            "mov": "video/quicktime",
+            "mkv": "video/x-matroska",
+        }
+        total = len(image_slots) + len(video_slots) + len(audio_slots)
+        done = 0
+        images: List[str] = []
+        video_urls: List[str] = []
+        audio_urls: List[str] = []
+
+        for slot, image in image_slots:
+            images.append(upload_media(
+                image_to_png_bytes(image),
+                f"minmax_h3_context_ir_image_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / max(1, total))
+
+        for slot, video in video_slots:
+            video_bytes, extension = video_to_bytes(video)
+            video_urls.append(upload_media(
+                video_bytes,
+                f"minmax_h3_context_ir_video_{slot}.{extension}",
+                video_mime.get(extension, "video/mp4"),
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / max(1, total))
+
+        for slot, audio in audio_slots:
+            audio_urls.append(upload_media(
+                audio_to_wav_bytes(audio),
+                f"minmax_h3_context_ir_audio_{slot}.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / max(1, total))
+
+        return {
+            "images": images,
+            "video_urls": video_urls,
+            "audio_urls": audio_urls,
+        }
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=kwargs.get("prompt"),
+            seconds=kwargs.get("seconds"),
+            ratio=kwargs.get("ratio"),
+            strict=True,
+            **{
+                key: value
+                for key, value in kwargs.items()
+                if key.startswith(("image", "video", "audio"))
+            },
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": str(kwargs.get("prompt") or "").strip(),
+            "seconds": str(kwargs["seconds"]),
+        }
+        metadata: Dict[str, Any] = {}
+
+        if model == MINMAX_H3_CONTEXT_IR_TEXT_MODEL:
+            metadata["ratio"] = kwargs["ratio"]
+        elif model == MINMAX_H3_CONTEXT_IR_IMAGE_MODEL:
+            images = media.get("images") or []
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for Context IR Image | Image 模式必须连接 image1"
+                )
+            payload["images"] = images[:2]
+        else:
+            images = media.get("images") or []
+            video_urls = media.get("video_urls") or []
+            audio_urls = media.get("audio_urls") or []
+            if not (images or video_urls or audio_urls):
+                raise SeedanceAPIError(
+                    "Context IR Multimodal requires at least one image, video, or audio | "
+                    "Multimodal 模式至少需要一个图片、视频或音频素材"
+                )
+            ratio = str(kwargs.get("ratio") or "api_default")
+            if ratio != "api_default":
+                metadata["ratio"] = ratio
+            if images:
+                payload["images"] = images[:MAX_MINMAX_H3_CONTEXT_IR_IMAGES]
+            if video_urls:
+                metadata["video_urls"] = video_urls[:MAX_MINMAX_H3_CONTEXT_IR_VIDEOS]
+            if audio_urls:
+                metadata["audio_url"] = audio_urls[:MAX_MINMAX_H3_CONTEXT_IR_AUDIOS]
+
+        if metadata:
+            payload["metadata"] = metadata
+        return payload
+
+    def _make_error_result(self, error_msg: str) -> Dict:
+        response = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", response]},
+            "result": ("", "", response),
+        }
+
+    def execute(self, **kwargs):
+        skip_error = bool(kwargs.pop("skip_error", False))
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as error:
+            if skip_error:
+                message = f"{self._log_prefix}: {error}"
+                print(f"[{self._log_prefix}] skip_error=True, returning empty text: {error}")
+                return self._make_error_result(message)
+            raise
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        media = self.collect_media(
+            kwargs,
+            config,
+            lambda fraction: self._update_progress(pbar, fraction * 15),
+        )
+        self._update_progress(pbar, 15)
+
+        payload = self.build_payload(kwargs, media)
+        task_id = submit_context_ir_task(
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+
+        final_response = poll_context_ir_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 80
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        result_text = extract_context_ir_text(final_response)
+        response = json.dumps(final_response, ensure_ascii=False, indent=2)
+        self._update_progress(pbar, 100)
+        return {
+            "ui": {"text": [result_text, response]},
+            "result": (result_text, task_id, response),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -8297,6 +8671,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
     "Hailuo_H3_Video": HailuoH3Video,
+    "Minimax_H3_Context_IR": MinimaxH3ContextIR,
     "Flux_3_Video": Flux3Video,
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
     "Minimax_H3_OW_Fast_Video": MinimaxH3OWFastVideo,
@@ -8405,6 +8780,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
+    "Minimax_H3_Context_IR": "MiniMax H3 Context IR 提示词增强（3 合 1）",
     "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",
     "Minimax_H3_OW_Fast_Video": "MiniMax H3 OW Fast 视频生成（2 合 1）",

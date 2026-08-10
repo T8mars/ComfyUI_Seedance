@@ -1,7 +1,7 @@
 [project]
 name = "comfyui_seedance"
-version = "0.5.17"
-description = "ComfyUI nodes for Seedance 2.0/2.5, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, Zhenzhen, Midjourney, Seedream, Qwen, Doubao, Whisper, and Suno APIs (api.seedance.nz)"
+version = "0.5.18"
+description = "ComfyUI nodes for Seedance 2.0/2.5, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax video/prompt enhancement, Vidu, Zhenzhen, Midjourney, Seedream, Qwen, Doubao, Whisper, and Suno APIs (api.seedance.nz)"
 requires-python = ">=3.9"
 dependencies = ["requests>=2.28"]
 

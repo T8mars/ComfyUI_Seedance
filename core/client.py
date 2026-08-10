@@ -5,6 +5,9 @@ Suno, and Midjourney APIs.
 Endpoints:
   POST {base_url}/v1/videos              submit task
   GET  {base_url}/v1/videos/{task_id}    poll task
+  POST {base_url}/v1/video/generations   submit Context IR prompt task
+  GET  {base_url}/v1/video/generations/{task_id}
+                                             poll Context IR prompt task
   POST {base_url}/v1/image/generations   submit image task
   GET  {base_url}/v1/image/generations/{task_id}
                                              poll image task
@@ -567,6 +570,234 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
         return str(content["video_url"])
     raise SeedanceAPIError(
         f"Task completed but no video URL in response: {_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# MiniMax H3 Context IR prompt enhancement (legacy compatibility endpoint)
+# ---------------------------------------------------------------------------
+
+_CONTEXT_IR_RUNNING_STATUSES = {
+    "NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS", "PENDING", "PROCESSING",
+}
+
+
+def submit_context_ir_task(
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Minimax_H3_Context_IR",
+) -> str:
+    """POST /v1/video/generations and return a Context IR task id."""
+    url = f"{config['base_url']}/v1/video/generations"
+    _log(
+        logger_prefix,
+        f"Submit -> POST /v1/video/generations model={payload.get('model')}",
+    )
+
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        if attempt > 0:
+            wait = min(2 ** attempt + 1, 15)
+            _log(
+                logger_prefix,
+                f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
+            )
+            cooperative_sleep(wait)
+
+        try:
+            response = _session().post(
+                url,
+                headers=_headers(config["api_key"]),
+                json=payload,
+                timeout=config.get("timeout", 60),
+            )
+        except requests.exceptions.RequestException as e:
+            last_error = RuntimeError(
+                f"Context IR submit network error: {_network_error_text(e)}"
+            )
+            _log(
+                logger_prefix,
+                f"Submit network error (attempt {attempt + 1}): {type(e).__name__}",
+            )
+            continue
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
+
+        if response.status_code == 429 or response.status_code >= 500:
+            last_error = RuntimeError(
+                f"HTTP {response.status_code}: "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+            _log(
+                logger_prefix,
+                f"Submit HTTP {response.status_code} "
+                f"(attempt {attempt + 1}), retrying...",
+            )
+            continue
+
+        if response.status_code != 200:
+            raise SeedanceAPIError(
+                f"Context IR submit rejected (HTTP {response.status_code}): "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+
+        task_id = None
+        if isinstance(data, dict):
+            task_id = data.get("task_id") or data.get("id")
+            nested = data.get("data")
+            if not task_id and isinstance(nested, dict):
+                task_id = nested.get("task_id") or nested.get("id")
+        if not task_id:
+            raise SeedanceAPIError(
+                "No Context IR task id in submit response: "
+                f"{_truncate(response.text, 300)}"
+            )
+
+        _log(logger_prefix, "  Submit accepted")
+        return str(task_id)
+
+    raise RuntimeError(
+        f"Context IR submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+    )
+
+
+def poll_context_ir_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Minimax_H3_Context_IR",
+) -> Dict[str, Any]:
+    """Poll a Context IR task until ``data.status`` is terminal."""
+    url = f"{config['base_url']}/v1/video/generations/{task_id}"
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+
+    _log(logger_prefix, f"Poll Context IR -> interval={poll_interval}s, max={max_poll_time}s")
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"Context IR task exceeded {max_poll_time}s, polling stopped | "
+                f"提示词增强任务超过 {max_poll_time}s，已停止轮询"
+            )
+
+        cooperative_sleep(poll_interval)
+
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as e:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                "Context IR poll network error "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): "
+                f"{type(e).__name__}",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "Context IR polling failed after repeated network errors"
+                )
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"Context IR poll HTTP {response.status_code} "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"Context IR polling failed: HTTP {response.status_code} repeatedly"
+                )
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                "Context IR poll JSON parse error "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "Context IR polling failed: invalid JSON repeatedly"
+                )
+            continue
+
+        task_data = response_data.get("data") if isinstance(response_data, dict) else None
+        if not isinstance(task_data, dict):
+            task_data = response_data if isinstance(response_data, dict) else None
+        if not isinstance(task_data, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "Context IR polling response has no task object"
+                )
+            continue
+
+        consecutive_failures = 0
+        status = str(task_data.get("status") or "").strip().upper()
+        progress = _coerce_progress(task_data.get("progress"))
+
+        if status != last_status:
+            _log(
+                logger_prefix,
+                f"  Context IR poll: status={status}, progress={progress}, "
+                f"elapsed={int(elapsed)}s",
+            )
+            last_status = status
+
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status in {"SUCCESS", "SUCCEEDED", "COMPLETED"}:
+            _log(logger_prefix, f"  Context IR task completed in {int(elapsed)}s")
+            return response_data
+
+        if status in {"FAILURE", "FAILED", "CANCELED", "CANCELLED"}:
+            reason = task_data.get("fail_reason") or _extract_error_message(
+                task_data, "Context IR task failed"
+            )
+            raise SeedanceAPIError(
+                f"Context IR task failed: {reason}"
+            )
+
+        if status and status not in _CONTEXT_IR_RUNNING_STATUSES:
+            _log(logger_prefix, f"  Unknown Context IR status '{status}', continue polling...")
+
+
+def extract_context_ir_text(final_response: Dict[str, Any]) -> str:
+    """Extract the documented ``result_text`` from a completed Context IR task."""
+    containers: List[Any] = [final_response]
+    if isinstance(final_response, dict):
+        containers.append(final_response.get("data"))
+    for container in containers:
+        if isinstance(container, dict):
+            result_text = container.get("result_text")
+            if isinstance(result_text, str) and result_text.strip():
+                return result_text.strip()
+    raise SeedanceAPIError(
+        "Context IR task completed but no result_text in response: "
+        f"{_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
     )
 
 

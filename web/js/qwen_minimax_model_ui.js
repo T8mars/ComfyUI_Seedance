@@ -9,9 +9,12 @@ import {
 const QWEN_NODE_NAME = "Qwen_Image_3_0";
 const MINIMAX_NODE_NAME = "Minimax_H3_OW_Video";
 const MINIMAX_FAST_NODE_NAME = "Minimax_H3_OW_Fast_Video";
+const CONTEXT_IR_NODE_NAME = "Minimax_H3_Context_IR";
 const QWEN_DEFAULT_MODEL = "qwen-image-3.0-t2i";
 const MINIMAX_DEFAULT_MODEL = "minimax-h3-ow-t2v";
 const MINIMAX_FAST_DEFAULT_MODEL = "minimax-h3-ow-i2v-fast";
+const CONTEXT_IR_DEFAULT_MODEL = "minmax-h3-context-ir-text";
+const CONTEXT_IR_MEDIA_INPUT = /^(image[1-9]|video[1-3]|audio[1-3])$/;
 
 function widgetByName(node, name) {
     return node.widgets?.find((widget) => widget.name === name);
@@ -52,6 +55,30 @@ function refreshMinimaxNode(node, fallbackModel = MINIMAX_DEFAULT_MODEL) {
     resizeSeedanceNode(node, 380);
 }
 
+function contextIRInputAllowed(model, name) {
+    if (name === "api_config") {
+        return true;
+    }
+    if (model.endsWith("-image")) {
+        return name === "image1" || name === "image2";
+    }
+    if (model.endsWith("-multimodal")) {
+        return CONTEXT_IR_MEDIA_INPUT.test(name);
+    }
+    return false;
+}
+
+function refreshContextIRNode(node) {
+    const model = String(widgetByName(node, "model")?.value ?? CONTEXT_IR_DEFAULT_MODEL);
+    setWidgetVisible(widgetByName(node, "ratio"), !model.endsWith("-image"));
+    for (const input of node.inputs ?? []) {
+        if (input.name === "api_config" || CONTEXT_IR_MEDIA_INPUT.test(input.name)) {
+            setInputVisible(node, input, contextIRInputAllowed(model, input.name));
+        }
+    }
+    resizeSeedanceNode(node, 420);
+}
+
 function wrapRefreshWidget(node, name, refresh, marker) {
     const widget = widgetByName(node, name);
     if (!widget || widget[marker]) {
@@ -80,17 +107,27 @@ app.registerExtension({
     name: "ComfyUI_Seedance.QwenMinimaxModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const originalName = originalSeedanceNodeName(nodeData.name);
-        if (![QWEN_NODE_NAME, MINIMAX_NODE_NAME, MINIMAX_FAST_NODE_NAME].includes(originalName)) {
+        if (![
+            QWEN_NODE_NAME,
+            MINIMAX_NODE_NAME,
+            MINIMAX_FAST_NODE_NAME,
+            CONTEXT_IR_NODE_NAME,
+        ].includes(originalName)) {
             return;
         }
-        const refresh = originalName === QWEN_NODE_NAME
-            ? refreshQwenNode
-            : (node) => refreshMinimaxNode(
+        let refresh;
+        if (originalName === QWEN_NODE_NAME) {
+            refresh = refreshQwenNode;
+        } else if (originalName === CONTEXT_IR_NODE_NAME) {
+            refresh = refreshContextIRNode;
+        } else {
+            refresh = (node) => refreshMinimaxNode(
                 node,
                 originalName === MINIMAX_FAST_NODE_NAME
                     ? MINIMAX_FAST_DEFAULT_MODEL
                     : MINIMAX_DEFAULT_MODEL,
             );
+        }
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

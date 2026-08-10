@@ -1,0 +1,124 @@
+{
+  "id": "minmax-h3-context-ir-image-workflow",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "title": "选择首帧图.png",
+      "pos": [30, 50],
+      "size": [280, 300],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"cnr_id": "comfy-core", "Node name for S&R": "LoadImage"},
+      "widgets_values": ["选择首帧图.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "Seedance_Config",
+      "pos": [30, 410],
+      "size": [300, 82],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [{"name": "api_config", "type": "SEEDANCE_CONFIG", "links": [2]}],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": ["https://api.seedance.nz", ""]
+    },
+    {
+      "id": 3,
+      "type": "Minimax_H3_Context_IR",
+      "title": "MiniMax H3 Context IR 图像提示词增强",
+      "pos": [410, 80],
+      "size": [470, 430],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "image1", "shape": 7, "type": "IMAGE", "link": 1},
+        {"name": "image2", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image3", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image4", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image5", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image6", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image7", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image8", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "image9", "shape": 7, "type": "IMAGE", "link": null},
+        {"name": "video1", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "video2", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "video3", "shape": 7, "type": "VIDEO", "link": null},
+        {"name": "audio1", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "audio2", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "audio3", "shape": 7, "type": "AUDIO", "link": null},
+        {"name": "api_config", "shape": 7, "type": "SEEDANCE_CONFIG", "link": 2}
+      ],
+      "outputs": [
+        {"name": "result_text", "type": "STRING", "links": [3]},
+        {"name": "task_id", "type": "STRING", "links": null},
+        {"name": "response", "type": "STRING", "links": [4]}
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Minimax_H3_Context_IR"
+      },
+      "widgets_values": [
+        "minmax-h3-context-ir-image",
+        "保持主体外观与场景构图，增加自然动作和连贯的电影镜头运动",
+        "4",
+        "16:9",
+        false,
+        0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "easy showAnything",
+      "title": "增强后的提示词",
+      "pos": [960, 80],
+      "size": [320, 180],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [{"name": "anything", "shape": 7, "type": "*", "link": 3}],
+      "outputs": [{"name": "output", "type": "*", "links": null}],
+      "properties": {"Node name for S&R": "easy showAnything"},
+      "widgets_values": [""]
+    },
+    {
+      "id": 5,
+      "type": "easy showAnything",
+      "title": "API 响应",
+      "pos": [960, 320],
+      "size": [320, 130],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [{"name": "anything", "shape": 7, "type": "*", "link": 4}],
+      "outputs": [{"name": "output", "type": "*", "links": null}],
+      "properties": {"Node name for S&R": "easy showAnything"},
+      "widgets_values": [""]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 3, 0, "IMAGE"],
+    [2, 2, 0, 3, 15, "SEEDANCE_CONFIG"],
+    [3, 3, 0, 4, 0, "STRING"],
+    [4, 3, 2, 5, 0, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {"frontendVersion": "1.45.20"},
+  "version": 0.4
+}
