@@ -1340,26 +1340,36 @@ def poll_audio_task(
             _log(logger_prefix, f"  Unknown audio status '{status}', continue polling...")
 
 
-def extract_audio_url(final_response: Dict[str, Any]) -> str:
-    """Extract the documented audio URL from a successful task response."""
+def extract_audio_urls(final_response: Dict[str, Any]) -> List[str]:
+    """Extract every documented audio URL while preserving upstream order."""
     task_data = final_response.get("data")
     if isinstance(task_data, dict):
-        result_url = task_data.get("result_url")
-        if result_url:
-            return str(result_url)
-
         upstream_data = task_data.get("data")
         if isinstance(upstream_data, dict):
             content = upstream_data.get("content")
             if isinstance(content, dict):
+                audio_urls = content.get("audio_urls")
+                if isinstance(audio_urls, list):
+                    urls = [str(value) for value in audio_urls if value]
+                    if urls:
+                        return urls
                 for key in ("audio_url", "url"):
                     if content.get(key):
-                        return str(content[key])
+                        return [str(content[key])]
+
+        result_url = task_data.get("result_url")
+        if result_url:
+            return [str(result_url)]
 
     raise SeedanceAPIError(
         f"Audio task completed but no audio URL in response: "
         f"{_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
     )
+
+
+def extract_audio_url(final_response: Dict[str, Any]) -> str:
+    """Extract the primary audio URL from a successful task response."""
+    return extract_audio_urls(final_response)[0]
 
 
 def _extract_transcription_text(data: Any) -> str:

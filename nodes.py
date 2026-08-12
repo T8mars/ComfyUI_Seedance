@@ -35,6 +35,7 @@ from .core.client import (
     download_video,
     download_video_with_path,
     extract_audio_url,
+    extract_audio_urls,
     extract_context_ir_text,
     extract_image_url,
     extract_image_urls,
@@ -245,6 +246,21 @@ ZHENZHEN_IMAGE_GK_V15_MODELS = [
 ]
 ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
 ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
+ZHENZHEN_IMAGE_GK_V2_MODEL = "zhenzhen-image-gk-v2"
+ZHENZHEN_IMAGE_GK_V2_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
+ZHENZHEN_IMAGE_GK_V2_PROMPT_MAX_LENGTH = 20000
+WAN27_GLOBAL_T2I_MODEL = "wan-2.7-global-t2i"
+WAN27_GLOBAL_I2I_MODEL = "wan-2.7-global-i2i"
+WAN27_GLOBAL_I2I_PRO_MODEL = "wan-2.7-global-i2i-pro"
+WAN27_GLOBAL_IMAGE_MODELS = [
+    WAN27_GLOBAL_T2I_MODEL,
+    WAN27_GLOBAL_I2I_MODEL,
+    WAN27_GLOBAL_I2I_PRO_MODEL,
+]
+WAN27_GLOBAL_I2I_MODELS = [WAN27_GLOBAL_I2I_MODEL, WAN27_GLOBAL_I2I_PRO_MODEL]
+WAN27_GLOBAL_T2I_PROMPT_MAX_LENGTH = 5000
+WAN27_GLOBAL_I2I_PROMPT_MAX_LENGTH = 2048
+MAX_WAN27_GLOBAL_IMAGES = 9
 ZHENZHEN_IMAGE_NB_FLASH_MODEL = "zhenzhen-image-nb-flash"
 ZHENZHEN_IMAGE_NB_2_MODEL = "zhenzhen-image-nb-2"
 ZHENZHEN_IMAGE_NB_2_LITE_MODEL = "zhenzhen-image-nb-2-lite"
@@ -512,6 +528,32 @@ DOUBAO_SAMPLE_RATES = ["8000", "16000", "24000", "32000", "44100"]
 DOUBAO_PROMPT_MIN_LENGTH = 5
 DOUBAO_PROMPT_MAX_LENGTH = 2048
 MAX_DOUBAO_REFERENCE_AUDIOS = 3
+QWEN3_TTS_FLASH_MODEL = "qwen3-tts-flash"
+QWEN3_TTS_INSTRUCT_FLASH_MODEL = "qwen3-tts-instruct-flash"
+QWEN3_TTS_MODELS = [QWEN3_TTS_FLASH_MODEL, QWEN3_TTS_INSTRUCT_FLASH_MODEL]
+QWEN3_TTS_LANGUAGE_TYPES = [
+    "Chinese", "English", "Japanese", "Korean", "German",
+    "French", "Russian", "Portuguese", "Spanish", "Italian",
+]
+MINIMAX_MUSIC_MODEL = "minimax-music-2.6"
+MINIMAX_SPEECH_HD_MODEL = "minimax-speech-2.8-hd"
+MINIMAX_SPEECH_TURBO_MODEL = "minimax-speech-2.8-turbo"
+MINIMAX_VOICE_CLONE_MODEL = "minimax-voice-clone"
+MINIMAX_AUDIO_MODELS = [
+    MINIMAX_MUSIC_MODEL,
+    MINIMAX_SPEECH_HD_MODEL,
+    MINIMAX_SPEECH_TURBO_MODEL,
+    MINIMAX_VOICE_CLONE_MODEL,
+]
+MINIMAX_SPEECH_MODELS = [MINIMAX_SPEECH_HD_MODEL, MINIMAX_SPEECH_TURBO_MODEL]
+MINIMAX_AUDIO_FORMATS = ["mp3", "wav", "flac"]
+MINIMAX_SAMPLE_RATES = ["16000", "24000", "32000", "44100"]
+MINIMAX_BITRATES = ["32000", "64000", "128000", "256000"]
+MINIMAX_LANGUAGE_BOOSTS = [
+    "auto", "Chinese", "Chinese,Yue", "English", "Japanese", "Korean",
+    "French", "German", "Spanish", "Portuguese", "Russian",
+]
+MUREKA_BGM_MODELS = ["mureka-v8-bgm", "mureka-v9-bgm"]
 WHISPER_TRANSCRIPTION_MODEL = "whisper-1"
 WHISPER_RESPONSE_FORMATS = ["json", "verbose_json", "srt", "text", "vtt"]
 
@@ -6101,6 +6143,314 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Zhenzhen Image GK v2 text-to-image
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageGKV2(SeedanceImageNodeBase):
+    """Grok Imagine 2.0 text-to-image through the Zhenzhen gateway."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Text-to-image prompt, up to 20000 characters. | 文生图提示词，最多 20000 字符。",
+                }),
+                "size": (ZHENZHEN_IMAGE_GK_V2_SIZES, {
+                    "default": "1:1",
+                    "tooltip": "Output aspect ratio. | 输出画面比例。",
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 10,
+                    "step": 1,
+                    "tooltip": "Number of images requested, 1 to 10; the node downloads the primary result. | 请求 1 到 10 张，节点下载主结果。",
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, size=None, n=None, strict=False, **kwargs):
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Zhenzhen Image GK v2 | Zhenzhen Image GK v2 必须填写提示词"
+        if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_GK_V2_PROMPT_MAX_LENGTH:
+            return f"prompt must not exceed {ZHENZHEN_IMAGE_GK_V2_PROMPT_MAX_LENGTH} characters | 提示词过长"
+        if size is not None and size not in ZHENZHEN_IMAGE_GK_V2_SIZES:
+            return f"unsupported Zhenzhen Image GK v2 size: {size}"
+        if n is not None and not 1 <= int(n) <= 10:
+            return "n must be between 1 and 10 | n 必须在 1 到 10 之间"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_gk_v2"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(self, prompt: str, size: str, n: int) -> Dict[str, Any]:
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt, size=size, n=n, strict=True
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        return {
+            "model": ZHENZHEN_IMAGE_GK_V2_MODEL,
+            "prompt": prompt,
+            "size": size,
+            "n": int(n),
+        }
+
+    def _execute_inner(self, prompt: str, size: str, n: int, api_config=None):
+        prompt_text = str(prompt or "").strip()
+        payload = self._build_payload(prompt_text, size, n)
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Wan 2.7 global image generation and editing
+# ---------------------------------------------------------------------------
+
+class Wan27GlobalImage(SeedanceImageNodeBase):
+    """Wan 2.7 global T2I and one-to-nine-image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{i}": ("IMAGE", {
+                "tooltip": f"Wan I2I reference image {i} of {MAX_WAN27_GLOBAL_IMAGES}; ignored by T2I. | Wan 图像编辑参考图 {i}/{MAX_WAN27_GLOBAL_IMAGES}。",
+            })
+            for i in range(1, MAX_WAN27_GLOBAL_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
+        })
+        return {
+            "required": {
+                "model": (WAN27_GLOBAL_IMAGE_MODELS, {
+                    "default": WAN27_GLOBAL_T2I_MODEL,
+                    "tooltip": "Wan 2.7 global text generation or standard/Pro image editing. | Wan 2.7 海外文生图或标准/Pro 图像编辑。",
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "T2I: up to 5000 characters; I2I: up to 2048. | 文生图最多 5000 字符，图像编辑最多 2048 字符。",
+                }),
+                "width": ("INT", {
+                    "default": 1024, "min": 512, "max": 4096, "step": 8,
+                    "tooltip": "T2I only. Output width, 512 to 4096. | 仅文生图使用，宽度 512 到 4096。",
+                }),
+                "height": ("INT", {
+                    "default": 1024, "min": 512, "max": 4096, "step": 8,
+                    "tooltip": "T2I only. Output height, 512 to 4096. | 仅文生图使用，高度 512 到 4096。",
+                }),
+                "thinking_mode": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "T2I only. Enable upstream reasoning mode. | 仅文生图使用，启用上游思考模式。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        width=None,
+        height=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *WAN27_GLOBAL_IMAGE_MODELS):
+            return f"unsupported Wan 2.7 global image model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Wan 2.7 global image | Wan 2.7 海外图像必须填写提示词"
+        limit = (
+            WAN27_GLOBAL_T2I_PROMPT_MAX_LENGTH
+            if model in (None, WAN27_GLOBAL_T2I_MODEL)
+            else WAN27_GLOBAL_I2I_PROMPT_MAX_LENGTH
+        )
+        if prompt_text and len(prompt_text) > limit:
+            return f"prompt must not exceed {limit} characters for {model} | 当前模型提示词过长"
+        if model in (None, WAN27_GLOBAL_T2I_MODEL):
+            if width is not None and not 512 <= int(width) <= 4096:
+                return "width must be between 512 and 4096"
+            if height is not None and not 512 <= int(height) <= 4096:
+                return "height must be between 512 and 4096"
+        connected = sum(
+            kwargs.get(f"image{i}") is not None
+            for i in range(1, MAX_WAN27_GLOBAL_IMAGES + 1)
+        )
+        if strict and model in WAN27_GLOBAL_I2I_MODELS and not 1 <= connected <= MAX_WAN27_GLOBAL_IMAGES:
+            return "Wan 2.7 global I2I requires 1 to 9 images | Wan 2.7 海外图像编辑需要 1 到 9 张参考图"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Wan_2_7_global_image"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        return [
+            (i, kwargs.get(f"image{i}"))
+            for i in range(1, MAX_WAN27_GLOBAL_IMAGES + 1)
+            if kwargs.get(f"image{i}") is not None
+        ]
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        width: int,
+        height: int,
+        thinking_mode: bool,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"model": model, "prompt": prompt}
+        if model == WAN27_GLOBAL_T2I_MODEL:
+            payload["metadata"] = {
+                "width": int(width),
+                "height": int(height),
+                "thinking_mode": bool(thinking_mode),
+            }
+        else:
+            if not 1 <= len(images) <= MAX_WAN27_GLOBAL_IMAGES:
+                raise SeedanceAPIError(
+                    "Wan 2.7 global I2I requires 1 to 9 images | "
+                    "Wan 2.7 海外图像编辑需要 1 到 9 张参考图"
+                )
+            payload["images"] = images
+        return payload
+
+    def _execute_inner(
+        self,
+        model: str,
+        prompt: str,
+        width: int,
+        height: int,
+        thinking_mode: bool,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            width=width,
+            height=height,
+            strict=True,
+            **kwargs,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        references = self._connected_images(kwargs) if model in WAN27_GLOBAL_I2I_MODELS else []
+        image_urls: List[str] = []
+        for done, (slot, tensor) in enumerate(references, start=1):
+            image_urls.append(upload_media(
+                image_to_png_bytes(tensor),
+                f"wan_2_7_global_reference_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            self._update_progress(pbar, done / len(references) * 15)
+        self._update_progress(pbar, 15)
+
+        payload = self._build_payload(
+            model, prompt_text, width, height, thinking_mode, image_urls
+        )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Zhenzhen Image Nano Banana generation and editing
 # ---------------------------------------------------------------------------
 
@@ -6674,6 +7024,688 @@ class DoubaoSeedAudio:
         return {
             "ui": {"text": [audio_url, audio_path, response_str]},
             "result": (audio, audio_url, audio_path, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Qwen3 TTS
+# ---------------------------------------------------------------------------
+
+class Qwen3TTS:
+    """Qwen3 Flash and Instruct Flash text-to-speech."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (QWEN3_TTS_MODELS, {
+                    "default": QWEN3_TTS_FLASH_MODEL,
+                    "tooltip": "Flash reads text directly; Instruct Flash also accepts delivery instructions. | Flash 直接朗读，Instruct Flash 可接受表达指令。",
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Text to synthesize. | 需要合成的文本。",
+                }),
+                "voice": ("STRING", {
+                    "default": "Cherry",
+                    "tooltip": "Qwen3 TTS system or custom voice ID. | Qwen3 TTS 系统音色或自定义音色 ID。",
+                }),
+                "language_type": (QWEN3_TTS_LANGUAGE_TYPES, {
+                    "default": "Chinese",
+                    "tooltip": "Language matching the input text. | 与输入文本匹配的语言。",
+                }),
+                "instructions": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Instruct Flash only: natural-language speaking style, in Chinese or English. | 仅 Instruct Flash：中文或英文表达风格指令。",
+                }),
+                "optimize_instructions": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Instruct Flash only: refine non-empty instructions upstream. | 仅 Instruct Flash：优化非空表达指令。",
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return one second of silence instead of stopping the workflow. | 失败时输出 1 秒静音。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls, model=None, prompt=None, voice=None, language_type=None, strict=False, **kwargs
+    ):
+        if model not in (None, *QWEN3_TTS_MODELS):
+            return f"unsupported Qwen3 TTS model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Qwen3 TTS | Qwen3 TTS 必须填写合成文本"
+        if strict and not str(voice or "").strip():
+            return "voice is required for Qwen3 TTS | Qwen3 TTS 必须填写音色"
+        if language_type not in (None, *QWEN3_TTS_LANGUAGE_TYPES):
+            return f"unsupported Qwen3 TTS language_type: {language_type}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Qwen3_TTS"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(
+        self,
+        model: str,
+        prompt: str,
+        voice: str,
+        language_type: str,
+        instructions: str,
+        optimize_instructions: bool,
+    ) -> Dict[str, Any]:
+        metadata: Dict[str, Any] = {
+            "voice": str(voice).strip(),
+            "language_type": language_type,
+        }
+        instruction_text = str(instructions or "").strip()
+        if model == QWEN3_TTS_INSTRUCT_FLASH_MODEL and instruction_text:
+            metadata["instructions"] = instruction_text
+            metadata["optimize_instructions"] = bool(optimize_instructions)
+        return {"model": model, "prompt": prompt, "metadata": metadata}
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", "", response_str]},
+            "result": (make_silent_audio(24000, 1.0), "", "", "", response_str),
+        }
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        voice: str,
+        language_type: str,
+        instructions: str,
+        optimize_instructions: bool,
+        api_config=None,
+        skip_error: bool = False,
+    ):
+        try:
+            return self._execute_inner(
+                model, prompt, voice, language_type, instructions,
+                optimize_instructions, api_config
+            )
+        except Exception as error:
+            if skip_error:
+                return self._make_error_result(
+                    f"{self._log_prefix}: {type(error).__name__}: {error}"
+                )
+            raise
+
+    def _execute_inner(
+        self,
+        model: str,
+        prompt: str,
+        voice: str,
+        language_type: str,
+        instructions: str,
+        optimize_instructions: bool,
+        api_config=None,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            voice=voice,
+            language_type=language_type,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        task_id = submit_audio_task(
+            self._build_payload(
+                model, prompt_text, voice, language_type,
+                instructions, optimize_instructions
+            ),
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+        final_response = poll_audio_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        audio_url = extract_audio_url(final_response)
+        audio, audio_path = download_audio(
+            audio_url,
+            output_format="wav",
+            sample_rate=24000,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 100)
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [audio_url, audio_path, response_str]},
+            "result": (audio, audio_url, audio_path, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# MiniMax music, speech, and voice cloning
+# ---------------------------------------------------------------------------
+
+class MinimaxAudio:
+    """MiniMax 2.6 music, 2.8 speech, and voice cloning in one node."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "result_text", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (MINIMAX_AUDIO_MODELS, {
+                    "default": MINIMAX_SPEECH_TURBO_MODEL,
+                    "tooltip": "Choose music, HD/Turbo speech, or voice cloning. | 选择音乐、HD/Turbo 语音或声音克隆。",
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Music style, speech text, or clone preview text according to the selected model. | 按模型填写音乐风格、朗读文本或克隆试听文本。",
+                }),
+                "lyrics": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Music only: lyrics with optional structure tags. | 仅音乐：歌词，可包含结构标签。",
+                }),
+                "is_instrumental": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Music only: generate without vocals; lyrics are then omitted. | 仅音乐：生成纯音乐，此时不提交歌词。",
+                }),
+                "lyrics_optimizer": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Music only: generate lyrics from the prompt when lyrics are empty. | 仅音乐：歌词为空时根据提示词生成歌词。",
+                }),
+                "voice_id": ("STRING", {
+                    "default": "Wise_Woman",
+                    "tooltip": "Speech only: MiniMax system or cloned voice ID. | 仅语音：MiniMax 系统或克隆音色 ID。",
+                }),
+                "speed": ("FLOAT", {
+                    "default": 1.0, "min": 0.5, "max": 2.0, "step": 0.05,
+                    "tooltip": "Speech only: playback speed. | 仅语音：语速。",
+                }),
+                "volume": ("FLOAT", {
+                    "default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1,
+                    "tooltip": "Speech only: volume. | 仅语音：音量。",
+                }),
+                "pitch": ("INT", {
+                    "default": 0, "min": -12, "max": 12, "step": 1,
+                    "tooltip": "Speech only: pitch adjustment. | 仅语音：音高调整。",
+                }),
+                "language_boost": (MINIMAX_LANGUAGE_BOOSTS, {
+                    "default": "auto",
+                    "tooltip": "Speech only: language recognition enhancement. | 仅语音：语言识别增强。",
+                }),
+                "output_format": (MINIMAX_AUDIO_FORMATS, {
+                    "default": "mp3",
+                    "tooltip": "Music/speech output format. | 音乐或语音输出格式。",
+                }),
+                "sample_rate": (MINIMAX_SAMPLE_RATES, {
+                    "default": "32000",
+                    "tooltip": "Music/speech output sample rate. | 音乐或语音输出采样率。",
+                }),
+                "bitrate": (MINIMAX_BITRATES, {
+                    "default": "128000",
+                    "tooltip": "Music/speech output bitrate. | 音乐或语音输出码率。",
+                }),
+                "channel": (["1", "2"], {
+                    "default": "1",
+                    "tooltip": "Speech only: mono or stereo. | 仅语音：单声道或双声道。",
+                }),
+                "custom_voice_id": ("STRING", {
+                    "default": "SeedanceVoice01",
+                    "tooltip": "Voice Clone only: unique ID, 8-256 characters, starting with a letter. | 仅声音克隆：唯一 ID，8-256 字符且以字母开头。",
+                }),
+                "clone_target_model": (MINIMAX_SPEECH_MODELS, {
+                    "default": MINIMAX_SPEECH_HD_MODEL,
+                    "tooltip": "Voice Clone only: target speech model. | 仅声音克隆：目标语音模型。",
+                }),
+                "need_noise_reduction": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Voice Clone only: reduce reference noise. | 仅声音克隆：降低参考音频噪声。",
+                }),
+                "need_volume_normalization": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Voice Clone only: normalize reference volume. | 仅声音克隆：归一化参考音量。",
+                }),
+            },
+            "optional": {
+                "reference_audio": ("AUDIO", {
+                    "tooltip": "Voice Clone only: one 10-second to 5-minute reference audio. | 仅声音克隆：一段 10 秒到 5 分钟的参考音频。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return one second of silence instead of stopping the workflow. | 失败时输出 1 秒静音。",
+                }),
+            },
+        }
+
+    @staticmethod
+    def _valid_custom_voice_id(value: Any) -> bool:
+        text = str(value or "").strip()
+        return (
+            8 <= len(text) <= 256
+            and text[0].isalpha()
+            and text[-1] not in "-_"
+            and all(char.isalnum() or char in "-_" for char in text)
+        )
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        lyrics=None,
+        is_instrumental=None,
+        lyrics_optimizer=None,
+        voice_id=None,
+        speed=None,
+        volume=None,
+        pitch=None,
+        output_format=None,
+        sample_rate=None,
+        bitrate=None,
+        channel=None,
+        custom_voice_id=None,
+        clone_target_model=None,
+        reference_audio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *MINIMAX_AUDIO_MODELS):
+            return f"unsupported MiniMax audio model: {model}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for MiniMax audio | MiniMax 音频必须填写提示词或朗读文本"
+        if output_format not in (None, *MINIMAX_AUDIO_FORMATS):
+            return f"unsupported MiniMax output_format: {output_format}"
+        if str(sample_rate) not in ("None", *MINIMAX_SAMPLE_RATES):
+            return f"unsupported MiniMax sample_rate: {sample_rate}"
+        if str(bitrate) not in ("None", *MINIMAX_BITRATES):
+            return f"unsupported MiniMax bitrate: {bitrate}"
+        if str(channel) not in ("None", "1", "2"):
+            return "MiniMax channel must be 1 or 2"
+        if speed is not None and not 0.5 <= float(speed) <= 2.0:
+            return "MiniMax speed must be between 0.5 and 2.0"
+        if volume is not None and not 0 < float(volume) <= 10:
+            return "MiniMax volume must be greater than 0 and at most 10"
+        if pitch is not None and not -12 <= int(pitch) <= 12:
+            return "MiniMax pitch must be between -12 and 12"
+        if strict and model == MINIMAX_MUSIC_MODEL:
+            if not bool(is_instrumental) and not str(lyrics or "").strip() and not bool(lyrics_optimizer):
+                return "MiniMax Music requires lyrics, lyrics_optimizer, or instrumental mode | 音乐必须填写歌词、启用歌词生成或选择纯音乐"
+        if strict and model in MINIMAX_SPEECH_MODELS and not str(voice_id or "").strip():
+            return "voice_id is required for MiniMax speech | MiniMax 语音必须填写 voice_id"
+        if model == MINIMAX_VOICE_CLONE_MODEL:
+            if strict and reference_audio is None:
+                return "reference_audio is required for MiniMax Voice Clone | MiniMax 声音克隆必须连接参考音频"
+            if strict and not cls._valid_custom_voice_id(custom_voice_id):
+                return "custom_voice_id must be 8-256 letters/digits/-/_, start with a letter, and not end with -/_ | custom_voice_id 格式不正确"
+            if clone_target_model not in (None, *MINIMAX_SPEECH_MODELS):
+                return f"unsupported clone target model: {clone_target_model}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Minimax_audio"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(self, kwargs: Dict[str, Any], audio_url: str = "") -> Dict[str, Any]:
+        model = kwargs["model"]
+        metadata: Dict[str, Any]
+        if model == MINIMAX_MUSIC_MODEL:
+            instrumental = bool(kwargs["is_instrumental"])
+            metadata = {
+                "is_instrumental": instrumental,
+                "lyrics_optimizer": bool(kwargs["lyrics_optimizer"]),
+                "format": kwargs["output_format"],
+                "sample_rate": str(kwargs["sample_rate"]),
+                "bitrate": str(kwargs["bitrate"]),
+            }
+            lyrics_text = str(kwargs.get("lyrics") or "").strip()
+            if not instrumental and lyrics_text:
+                metadata["lyrics"] = lyrics_text
+        elif model in MINIMAX_SPEECH_MODELS:
+            metadata = {
+                "voice_id": str(kwargs["voice_id"]).strip(),
+                "speed": float(kwargs["speed"]),
+                "vol": float(kwargs["volume"]),
+                "pitch": int(kwargs["pitch"]),
+                "language_boost": kwargs["language_boost"],
+                "format": kwargs["output_format"],
+                "sample_rate": str(kwargs["sample_rate"]),
+                "bitrate": str(kwargs["bitrate"]),
+                "channel": int(kwargs["channel"]),
+            }
+        else:
+            metadata = {
+                "audio_url": audio_url,
+                "custom_voice_id": str(kwargs["custom_voice_id"]).strip(),
+                "model": kwargs["clone_target_model"],
+                "need_noise_reduction": bool(kwargs["need_noise_reduction"]),
+                "need_volume_normalization": bool(kwargs["need_volume_normalization"]),
+            }
+        return {
+            "model": model,
+            "prompt": str(kwargs["prompt"]).strip(),
+            "metadata": metadata,
+        }
+
+    @staticmethod
+    def _result_text(final_response: Dict[str, Any], fallback: str = "") -> str:
+        candidates: List[Any] = [final_response]
+        while candidates:
+            value = candidates.pop(0)
+            if isinstance(value, dict):
+                for key in ("voice_id", "custom_voice_id", "result_text", "text"):
+                    if value.get(key):
+                        return str(value[key])
+                candidates.extend(value.values())
+            elif isinstance(value, list):
+                candidates.extend(value)
+        return fallback
+
+    def _make_error_result(self, error_msg: str, sample_rate: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", "", "", response_str]},
+            "result": (
+                make_silent_audio(int(sample_rate or 32000), 1.0),
+                "", "", "", "", response_str,
+            ),
+        }
+
+    def execute(self, api_config=None, skip_error: bool = False, **kwargs):
+        try:
+            return self._execute_inner(api_config=api_config, **kwargs)
+        except Exception as error:
+            if skip_error:
+                return self._make_error_result(
+                    f"{self._log_prefix}: {type(error).__name__}: {error}",
+                    str(kwargs.get("sample_rate") or "32000"),
+                )
+            raise
+
+    def _execute_inner(self, api_config=None, **kwargs):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        audio_url = ""
+        if kwargs["model"] == MINIMAX_VOICE_CLONE_MODEL:
+            audio_url = upload_media(
+                audio_to_wav_bytes(kwargs["reference_audio"]),
+                "minimax_voice_clone_reference.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+        self._update_progress(pbar, 15)
+        task_id = submit_audio_task(
+            self._build_payload(kwargs, audio_url),
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+        final_response = poll_audio_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        result_text = self._result_text(
+            final_response,
+            str(kwargs.get("custom_voice_id") or "").strip()
+            if kwargs["model"] == MINIMAX_VOICE_CLONE_MODEL else "",
+        )
+        try:
+            result_audio_url = extract_audio_url(final_response)
+        except SeedanceAPIError:
+            if kwargs["model"] != MINIMAX_VOICE_CLONE_MODEL:
+                raise
+            result_audio_url = ""
+
+        if result_audio_url:
+            audio, audio_path = download_audio(
+                result_audio_url,
+                output_format=kwargs["output_format"],
+                sample_rate=int(kwargs["sample_rate"]),
+                logger_prefix=self._log_prefix,
+            )
+        else:
+            audio = make_silent_audio(int(kwargs["sample_rate"]), 1.0)
+            audio_path = ""
+        self._update_progress(pbar, 100)
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [result_audio_url, audio_path, result_text, response_str]},
+            "result": (
+                audio, result_audio_url, audio_path, result_text, task_id, response_str
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Mureka BGM generation
+# ---------------------------------------------------------------------------
+
+class MurekaBGM:
+    """Mureka v8/v9 BGM generation with ordered multi-audio output."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audios", "audio_urls", "audio_paths", "task_id", "response")
+    OUTPUT_IS_LIST = (True, False, False, False, False)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (MUREKA_BGM_MODELS, {
+                    "default": MUREKA_BGM_MODELS[0],
+                    "tooltip": "Mureka v8 or v9 background-music model. | Mureka v8 或 v9 背景音乐模型。",
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Music description; use either prompt or instrumental_id. | 音乐描述，与 instrumental_id 二选一。",
+                }),
+                "instrumental_id": ("STRING", {
+                    "default": "",
+                    "tooltip": "Existing Mureka instrumental ID; use either this or prompt. | 已有 Mureka 伴奏 ID，与 prompt 二选一。",
+                }),
+                "n": ("INT", {
+                    "default": 1, "min": 1, "max": 3, "step": 1,
+                    "tooltip": "Number of ordered BGM results, 1 to 3. | 有序背景音乐结果数量，1 到 3。",
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "On failure return one second of silence instead of stopping the workflow. | 失败时输出 1 秒静音。",
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls, model=None, prompt=None, instrumental_id=None, n=None, strict=False, **kwargs
+    ):
+        if model not in (None, *MUREKA_BGM_MODELS):
+            return f"unsupported Mureka BGM model: {model}"
+        if n is not None and not 1 <= int(n) <= 3:
+            return "Mureka n must be between 1 and 3"
+        has_prompt = bool(str(prompt or "").strip())
+        has_id = bool(str(instrumental_id or "").strip())
+        if strict and has_prompt == has_id:
+            return "provide exactly one of prompt or instrumental_id | prompt 与 instrumental_id 必须且只能填写一个"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Mureka_BGM"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(
+        self, model: str, prompt: str, instrumental_id: str, n: int
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "model": model,
+            "metadata": {"n": int(n), "stream": False},
+        }
+        prompt_text = str(prompt or "").strip()
+        if prompt_text:
+            payload["prompt"] = prompt_text
+        else:
+            payload["metadata"]["instrumental_id"] = str(instrumental_id).strip()
+        return payload
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["[]", "[]", response_str]},
+            "result": ([make_silent_audio(44100, 1.0)], "[]", "[]", "", response_str),
+        }
+
+    def execute(
+        self,
+        model: str,
+        prompt: str,
+        instrumental_id: str,
+        n: int,
+        api_config=None,
+        skip_error: bool = False,
+    ):
+        try:
+            return self._execute_inner(
+                model, prompt, instrumental_id, n, api_config
+            )
+        except Exception as error:
+            if skip_error:
+                return self._make_error_result(
+                    f"{self._log_prefix}: {type(error).__name__}: {error}"
+                )
+            raise
+
+    def _execute_inner(
+        self,
+        model: str,
+        prompt: str,
+        instrumental_id: str,
+        n: int,
+        api_config=None,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            instrumental_id=instrumental_id,
+            n=n,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        task_id = submit_audio_task(
+            self._build_payload(model, prompt, instrumental_id, n),
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+        final_response = poll_audio_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        audio_urls = extract_audio_urls(final_response)
+        audios: List[Any] = []
+        audio_paths: List[str] = []
+        for index, audio_url in enumerate(audio_urls, start=1):
+            audio, audio_path = download_audio(
+                audio_url,
+                output_format="mp3",
+                sample_rate=44100,
+                logger_prefix=self._log_prefix,
+            )
+            audios.append(audio)
+            audio_paths.append(audio_path)
+            self._update_progress(pbar, 95 + index / len(audio_urls) * 5)
+
+        urls_str = json.dumps(audio_urls, ensure_ascii=False)
+        paths_str = json.dumps(audio_paths, ensure_ascii=False)
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [urls_str, paths_str, response_str]},
+            "result": (audios, urls_str, paths_str, task_id, response_str),
         }
 
 
@@ -8693,6 +9725,8 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
     "Qwen_Image_3_0": QwenImage30,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
+    "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
+    "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_GK_V15": ZhenzhenVideoGKV15,
@@ -8711,6 +9745,9 @@ NODE_CLASS_MAPPINGS = {
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
+    "Qwen3_TTS": Qwen3TTS,
+    "Minimax_Audio": MinimaxAudio,
+    "Mureka_BGM": MurekaBGM,
     "Whisper_Transcription": WhisperTranscription,
     "Suno_Music": SunoMusic,
     "Midjourney_Multi_Action": MidjourneyMultiAction,
@@ -8805,6 +9842,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
+    "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
+    "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_GK_V15": "Zhenzhen Video GK v1.5",
@@ -8823,6 +9862,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
+    "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",
+    "Minimax_Audio": "MiniMax 音乐/语音/声音克隆（4 合 1）",
+    "Mureka_BGM": "Mureka BGM 背景音乐（2 合 1）",
     "Whisper_Transcription": "Whisper 1 语音转写",
     "Suno_Music": "Suno 音乐生成与处理（31 合 1）",
     "Midjourney_Multi_Action": "Midjourney 图像与视频（16 合 1）",

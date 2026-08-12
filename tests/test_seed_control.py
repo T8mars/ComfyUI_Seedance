@@ -34,7 +34,7 @@ class GenerationSeedControlTests(unittest.TestCase):
                     explicit_cache_only
                     or (required_seed is None and list(inputs["optional"])[-1] == "seed"),
                 )
-        self.assertEqual(generation_count, 30)
+        self.assertEqual(generation_count, 35)
 
     def test_config_node_does_not_gain_seed_or_cache_policy(self):
         inputs = nodes.SeedanceConfig.INPUT_TYPES()
