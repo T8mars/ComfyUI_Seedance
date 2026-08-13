@@ -42,12 +42,15 @@ function refreshQwenNode(node) {
 
 function refreshMinimaxNode(node, fallbackModel = MINIMAX_DEFAULT_MODEL) {
     const model = String(widgetByName(node, "model")?.value ?? fallbackModel);
+    const isAudioDrive = model.includes("-audio-drive-fast");
     const maxImages = model.endsWith("-r2v-fast")
         ? 9
-        : (model.includes("-i2v") || model.includes("-r2v") ? 1 : 0);
+        : (isAudioDrive || model.includes("-i2v") || model.includes("-r2v") ? 1 : 0);
     for (const input of node.inputs ?? []) {
         const imageMatch = /^image([1-9])$/.exec(input.name);
-        const allowed = input.name === "api_config" || (
+        const allowed = input.name === "api_config"
+            || (input.name === "audio" && isAudioDrive)
+            || (
             imageMatch && Number(imageMatch[1]) <= maxImages
         );
         setInputVisible(node, input, allowed);

@@ -16,6 +16,10 @@ from ComfyUI_Seedance.core.client import SeedanceAPIError
 
 CONFIG = {"base_url": "https://example.test", "api_key": "sk-test"}
 IMAGE = torch.zeros((1, 8, 8, 3), dtype=torch.float32)
+AUDIO = {
+    "waveform": torch.zeros((1, 1, 16000), dtype=torch.float32),
+    "sample_rate": 16000,
+}
 
 
 class QwenImage30Tests(unittest.TestCase):
@@ -258,6 +262,9 @@ class MinimaxH3OWFastTests(unittest.TestCase):
         self.assertEqual(nodes.MINIMAX_H3_OW_FAST_MODELS, [
             "minimax-h3-ow-i2v-fast",
             "minimax-h3-ow-r2v-fast",
+            "minimax-h3-ow-fl2va-audio-drive-fast",
+            "minimax-h3-ow-ref2va-audio-drive-fast",
+            "minimax-h3-ow-t2v-fast",
         ])
         inputs = nodes.MinimaxH3OWFastVideo.INPUT_TYPES()
         self.assertEqual(inputs["required"]["seconds"][0], ["5", "10", "15"])
@@ -269,10 +276,9 @@ class MinimaxH3OWFastTests(unittest.TestCase):
             [name for name in inputs["optional"] if name.startswith("image")],
             [f"image{index}" for index in range(1, 10)],
         )
-        self.assertEqual(
-            list(inputs["optional"])[-3:],
-            ["api_config", "skip_error", "seed"],
-        )
+        self.assertEqual(list(inputs["optional"])[-4:], [
+            "api_config", "audio", "skip_error", "seed",
+        ])
 
     def test_strict_validation_enforces_fast_image_contracts(self):
         self.assertIn(
@@ -353,6 +359,108 @@ class MinimaxH3OWFastTests(unittest.TestCase):
         self.assertEqual(r2v["images"], r2v_urls)
         self.assertEqual(r2v["metadata"], {"resolution": "480p", "ratio": "16:9"})
 
+    def test_t2v_fast_requires_prompt_and_omits_media(self):
+        node = nodes.MinimaxH3OWFastVideo()
+        self.assertIn(
+            "prompt is required",
+            node.VALIDATE_INPUTS(
+                model=nodes.MINIMAX_H3_OW_FAST_T2V_MODEL,
+                prompt="",
+                seconds="5",
+                resolution="480p",
+                ratio="16:9",
+                strict=True,
+            ),
+        )
+        payload = node.build_payload({
+            "model": nodes.MINIMAX_H3_OW_FAST_T2V_MODEL,
+            "prompt": "A paper kite floating through warm sunlight",
+            "seconds": "5",
+            "resolution": "480p",
+            "ratio": "16:9",
+        }, {})
+        self.assertNotIn("images", payload)
+        self.assertNotIn("audio_urls", payload["metadata"])
+
+    def test_audio_drive_requires_exactly_one_image_and_one_audio(self):
+        for model in nodes.MINIMAX_H3_OW_FAST_AUDIO_MODELS:
+            with self.subTest(model=model):
+                self.assertIn(
+                    "audio is required",
+                    nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                        model=model,
+                        prompt="subtle performance",
+                        seconds="5",
+                        resolution="480p",
+                        ratio="16:9",
+                        image1=IMAGE,
+                        strict=True,
+                    ),
+                )
+                self.assertIn(
+                    "exactly image1",
+                    nodes.MinimaxH3OWFastVideo.VALIDATE_INPUTS(
+                        model=model,
+                        prompt="subtle performance",
+                        seconds="5",
+                        resolution="480p",
+                        ratio="16:9",
+                        image1=IMAGE,
+                        image2=IMAGE,
+                        audio=AUDIO,
+                        strict=True,
+                    ),
+                )
+                payload = nodes.MinimaxH3OWFastVideo().build_payload({
+                    "model": model,
+                    "prompt": "subtle performance",
+                    "seconds": "5",
+                    "resolution": "480p",
+                    "ratio": "16:9",
+                    "image1": IMAGE,
+                    "audio": AUDIO,
+                }, {
+                    "images": ["https://media.test/reference.png"],
+                    "audio_urls": ["https://media.test/drive.wav"],
+                })
+                self.assertEqual(payload["images"], ["https://media.test/reference.png"])
+                self.assertEqual(
+                    payload["metadata"],
+                    {
+                        "resolution": "480p",
+                        "ratio": "16:9",
+                        "audio_urls": ["https://media.test/drive.wav"],
+                    },
+                )
+
+    def test_collect_media_uploads_audio_drive_image_then_wav(self):
+        node = nodes.MinimaxH3OWFastVideo()
+        progress = []
+        with (
+            patch.object(nodes, "image_to_png_bytes", return_value=b"image"),
+            patch.object(nodes, "audio_to_wav_bytes", return_value=b"audio"),
+            patch.object(
+                nodes,
+                "upload_media",
+                side_effect=[
+                    "https://media.test/reference.png",
+                    "https://media.test/drive.wav",
+                ],
+            ) as upload,
+        ):
+            media = node.collect_media({
+                "model": nodes.MINIMAX_H3_OW_FAST_FL2VA_AUDIO_MODEL,
+                "image1": IMAGE,
+                "audio": AUDIO,
+            }, CONFIG, progress.append)
+
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(media, {
+            "images": ["https://media.test/reference.png"],
+            "audio_urls": ["https://media.test/drive.wav"],
+        })
+        self.assertEqual(progress, [0.5, 1.0])
+
     def test_collect_media_uploads_every_connected_r2v_image_in_slot_order(self):
         node = nodes.MinimaxH3OWFastVideo()
         progress = []
@@ -425,9 +533,17 @@ class QwenMinimaxRegistrationAndWorkflowTests(unittest.TestCase):
                 config_node = next(item for item in workflow["nodes"] if item["type"] == "Seedance_Config")
                 self.assertEqual(config_node["widgets_values"][1], "")
                 if model in nodes.MINIMAX_H3_OW_FAST_MODELS:
+                    expected_inputs = [
+                        f"image{index}" for index in range(1, 10)
+                    ] + ["api_config"]
+                    if model in (
+                        *nodes.MINIMAX_H3_OW_FAST_AUDIO_MODELS,
+                        nodes.MINIMAX_H3_OW_FAST_T2V_MODEL,
+                    ):
+                        expected_inputs.append("audio")
                     self.assertEqual(
                         [item["name"] for item in node["inputs"]],
-                        [f"image{index}" for index in range(1, 10)] + ["api_config"],
+                        expected_inputs,
                     )
                     config_link = next(
                         link for link in workflow["links"]
@@ -443,10 +559,20 @@ class QwenMinimaxRegistrationAndWorkflowTests(unittest.TestCase):
                     nodes.MINIMAX_H3_OW_R2V_MODEL,
                     nodes.MINIMAX_H3_OW_FAST_I2V_MODEL,
                     nodes.MINIMAX_H3_OW_FAST_R2V_MODEL,
+                    *nodes.MINIMAX_H3_OW_FAST_AUDIO_MODELS,
                 ):
                     self.assertEqual(len(incoming_images), 1)
                 else:
                     self.assertEqual(incoming_images, [])
+                incoming_audio = [
+                    link for link in workflow.get("links", [])
+                    if link[3] == node["id"] and link[5] == "AUDIO"
+                ]
+                if model in nodes.MINIMAX_H3_OW_FAST_AUDIO_MODELS:
+                    self.assertEqual(len(incoming_audio), 1)
+                    self.assertEqual(incoming_audio[0][4], 10)
+                else:
+                    self.assertEqual(incoming_audio, [])
 
 
 if __name__ == "__main__":

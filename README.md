@@ -22,6 +22,15 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.21（2026-08-14）
+
+- 将 `MiniMax H3 OW Fast 视频生成` 节点由 2 合 1 扩展为 5 合 1，新增 `minimax-h3-ow-t2v-fast`、`minimax-h3-ow-fl2va-audio-drive-fast` 和 `minimax-h3-ow-ref2va-audio-drive-fast`。
+- T2V Fast 仅使用必填提示词；两种 Audio Drive Fast 严格使用 1 张 `image1` 和 1 段 `audio`，本地音频转为 WAV 上传后按文档发送到 `metadata.audio_urls` 单元素数组。
+- 保留原有 I2V Fast 单首帧与 R2V Fast 最多 9 张参考图的行为；`image1..image9` 和 `api_config` 的输入位置不变，旧工作流可继续加载。
+- 前端按模型动态显示 0、1 或 9 个图片插槽，并仅在两种 Audio Drive 模型下显示音频输入；原节点与 10 路视频并发提交版本同步生效。
+- 新增 3 份逐模型示例工作流，认证字段和运行结果保持空白；三个新模型均已用 5 秒、480p 完成真实提交、素材上传、轮询、下载与 MP4 校验。
+- 完整离线回归通过 313 项测试，154 份示例工作流通过 JSON 与敏感信息审计，11 个前端脚本通过语法检查。
+
 ## v0.5.20（2026-08-12）
 
 - 新增独立的 `Zhenzhen Image GK v2 文生图` 节点，支持 5 种常用画幅、单次 1 到 10 张请求，并提供 30 路图片并发提交版本。
@@ -311,7 +320,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 - 支持 Hailuo H3 文生视频、首尾帧图生视频和多模态参考生视频
 - 支持 MiniMax H3 Context IR 文本、首尾帧和图/视频/音频多模态视频提示词增强
 - 支持 FLUX 3 Video 国内/海外文生、最多 10 图关键帧图生、视频编辑和草稿增强
-- 支持 MiniMax H3 OW Fast 单首帧图生视频和最多 9 图参考生视频
+- 支持 MiniMax H3 OW Fast 文生、单首帧图生、最多 9 图参考生和单图单音频驱动视频
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
@@ -325,7 +334,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、5 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -360,7 +369,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 | `FLUX 3 视频生成与草稿增强（8 合 1）` | FLUX 3 国内/海外 T2V、I2V、V2V 与 Draft Enhance | `model`、`prompt`、5 到 20 秒、HD/FHD、最多 10 图或一个视频、`draft_cache` |
 | `MiniMax H3 Context IR 提示词增强（3 合 1）` | 通过文本、首尾帧或图/视频/音频素材增强视频提示词 | `model`、`prompt`、4 到 15 秒、按模型使用比例和参考素材 |
 | `MiniMax H3 OW 视频生成（3 合 1）` | MiniMax H3 OW 文生、图生和参考图生视频 | `model`、`prompt`、5/10/15 秒、480p/720p、可选参考图 |
-| `MiniMax H3 OW Fast 视频生成（2 合 1）` | MiniMax H3 OW Fast 图生和多图参考生视频 | `model`、`prompt`、5/10/15 秒、480p/720p、1 到 9 张参考图 |
+| `MiniMax H3 OW Fast 视频生成（5 合 1）` | MiniMax H3 OW Fast 文生、图生、多图参考和音频驱动视频 | `model`、`prompt`、5/10/15 秒、480p/720p、按模型连接图片与音频 |
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
@@ -835,14 +844,17 @@ MiniMax H3 OW 节点使用 `/v1/videos` 视频端点：
 
 三个模型均支持 5、10、15 秒，分辨率为 `480p` 或 `720p`；画幅支持 `1:1`、`2:3`、`3:2`、`3:4`、`4:3`、`9:16`、`16:9`、`21:9`。
 
-MiniMax H3 OW Fast 使用独立二合一节点和相同的视频端点：
+MiniMax H3 OW Fast 使用独立五合一节点和相同的视频端点：
 
 | 模型 | 用途 | 素材 |
 | --- | --- | --- |
 | `minimax-h3-ow-i2v-fast` | Fast 图生视频 | 必须且只能连接 `image1`，`prompt` 可选 |
 | `minimax-h3-ow-r2v-fast` | Fast 参考生视频 | `prompt` 必填，支持 `image1` 到 `image9` |
+| `minimax-h3-ow-fl2va-audio-drive-fast` | Fast 首帧音频驱动视频 | 必须且只能连接 `image1` 和一段 `audio`，`prompt` 可选 |
+| `minimax-h3-ow-ref2va-audio-drive-fast` | Fast 参考图音频驱动视频 | 必须且只能连接 `image1` 和一段 `audio`，`prompt` 可选 |
+| `minimax-h3-ow-t2v-fast` | Fast 文生视频 | `prompt` 必填，不使用图片或音频 |
 
-两个 Fast 模型同样支持 5、10、15 秒、`480p` / `720p` 与上述 8 种画幅。前端会在 I2V 模式仅显示首帧，在 R2V 模式显示全部 9 个参考图插槽。
+五个 Fast 模型均支持 5、10、15 秒、`480p` / `720p` 与上述 8 种画幅。前端会按模式显示 0、1 或 9 个图片插槽，并只为两种 Audio Drive 显示单个音频输入；上传后的音频 URL 以单元素数组发送到 `metadata.audio_urls`。
 
 Vidu Q3 节点使用 `/v1/videos` 视频端点：
 
@@ -1116,13 +1128,14 @@ MiniMax H3 OW Fast 节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | `minimax-h3-ow-i2v-fast` 或 `minimax-h3-ow-r2v-fast` |
-| `prompt` | R2V Fast 必填；I2V Fast 可选，最多 20480 字符 |
+| `model` | 五个 MiniMax H3 OW Fast 文生、图生、参考生或音频驱动模型之一 |
+| `prompt` | T2V/R2V Fast 必填；I2V 与 Audio Drive Fast 可选，最多 20480 字符 |
 | `seconds` | `5`、`10` 或 `15` 秒 |
 | `resolution` | `480p` 或 `720p` |
 | `ratio` | `1:1`、`2:3`、`3:2`、`3:4`、`4:3`、`9:16`、`16:9`、`21:9` |
-| `image1` | 两个模型均必填；I2V Fast 只允许这一张图 |
+| `image1` | I2V 和两种 Audio Drive 必须且只能使用这一张图；R2V 的第 1 张参考图 |
 | `image2` ... `image9` | 仅 R2V Fast 使用的可选参考图 |
+| `audio` | 仅两种 Audio Drive Fast 使用且必填，只接受一段本地音频 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 
