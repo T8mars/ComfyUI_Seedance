@@ -327,13 +327,6 @@ def _make_submit_class(
             return input_types_factory()
         return _copy_input_types(target_class)
 
-    @classmethod
-    def validate_wrapper_inputs(cls):
-        # Let ComfyUI perform ordinary per-field type/range checks. Model-aware
-        # checks run synchronously in submit() so one error is not duplicated
-        # across every input by ComfyUI 0.30 custom validation reporting.
-        return True
-
     def submit(self, **kwargs):
         try:
             _preflight_original_inputs(target_class, kwargs)
@@ -359,8 +352,8 @@ def _make_submit_class(
     class_name = f"SeedanceConcurrentSubmit_{_safe_class_name(original_node_key)}"
     attrs = {
         "__module__": __name__,
+        "__doc__": f"Concurrent submit wrapper for {original_node_key}.",
         "INPUT_TYPES": input_types,
-        "VALIDATE_INPUTS": validate_wrapper_inputs,
         "RETURN_TYPES": (future_type,),
         "RETURN_NAMES": ("future",),
         "FUNCTION": "submit",
@@ -372,7 +365,11 @@ def _make_submit_class(
         "PRIMARY_OUTPUT_INDEX": primary_output_index,
         "submit": submit,
     }
-    return type(class_name, (target_class,), attrs)
+    # Keep the submit node independent from the original node class. Inheriting
+    # VALIDATE_INPUTS makes some ComfyUI versions apply one model-aware failure
+    # to every supplied input. Runtime preflight above still calls the original
+    # strict validator before any Future enters the worker pool.
+    return type(class_name, (), attrs)
 
 
 def _midjourney_input_types(kind: str) -> Dict[str, Any]:

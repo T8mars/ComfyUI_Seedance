@@ -1,5 +1,4 @@
 import concurrent.futures
-import inspect
 import json
 import os
 import sys
@@ -112,7 +111,7 @@ class ConcurrentNodeTests(unittest.TestCase):
             len(concurrent_nodes.SeedanceConcurrentVideoAwait.RETURN_TYPES), 11
         )
 
-    def test_generated_wrappers_preserve_inputs_and_validation(self):
+    def test_generated_wrappers_preserve_inputs_without_queue_validator_inheritance(self):
         for original_key in (
             *concurrent_nodes.PURE_IMAGE_NODE_KEYS,
             *concurrent_nodes.PURE_VIDEO_NODE_KEYS,
@@ -120,13 +119,11 @@ class ConcurrentNodeTests(unittest.TestCase):
             wrapper_key = f"SeedanceConcurrent_{original_key}_Submit"
             wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[wrapper_key]
             original = nodes.NODE_CLASS_MAPPINGS[original_key]
-            self.assertTrue(issubclass(wrapper, original))
+            self.assertFalse(issubclass(wrapper, original))
             self.assertIs(wrapper.ORIGINAL_NODE_CLASS, original)
             self.assertEqual(wrapper.ORIGINAL_NODE_KEY, original_key)
             self.assertEqual(wrapper.INPUT_TYPES(), original.INPUT_TYPES())
-            validation_spec = inspect.getfullargspec(wrapper.VALIDATE_INPUTS)
-            self.assertEqual(validation_spec.args, ["cls"])
-            self.assertIsNone(validation_spec.varkw)
+            self.assertFalse(hasattr(wrapper, "VALIDATE_INPUTS"))
             self.assertFalse(wrapper.OUTPUT_NODE)
             self.assertEqual(wrapper.RETURN_NAMES, ("future",))
             self.assertFalse(hasattr(wrapper, "IS_CHANGED"))
@@ -152,7 +149,6 @@ class ConcurrentNodeTests(unittest.TestCase):
         wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[
             "SeedanceConcurrent_Zhenzhen_Image_G2_Submit"
         ]
-        self.assertIs(wrapper.VALIDATE_INPUTS(), True)
         with patch.object(concurrent_nodes, "_submit_original") as submit:
             with self.assertRaisesRegex(
                 concurrent_nodes.SeedanceAPIError,

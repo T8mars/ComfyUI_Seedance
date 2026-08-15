@@ -61,6 +61,13 @@ class FakeSession:
 
 
 class VideoDownloadTests(unittest.TestCase):
+    def assert_video_points_to_path(self, video, path):
+        if isinstance(video, str):
+            self.assertEqual(video, path)
+            return
+        self.assertTrue(hasattr(video, "get_stream_source"))
+        self.assertEqual(os.fspath(video.get_stream_source()), path)
+
     def test_all_generated_media_defaults_use_short_connects_and_60_second_reads(self):
         self.assertEqual(client._IMAGE_DOWNLOAD_TIMEOUT, 60)
         self.assertEqual(client._IMAGE_DOWNLOAD_CONNECT_TIMEOUT, 8)
@@ -118,7 +125,7 @@ class VideoDownloadTests(unittest.TestCase):
                     max_retries=2,
                 )
 
-                self.assertEqual(video, path)
+                self.assert_video_points_to_path(video, path)
                 self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
                 self.assertEqual(list(Path(directory).glob("*.part")), [])
 
@@ -174,7 +181,7 @@ class VideoDownloadTests(unittest.TestCase):
                     "https://cdn.test/video.mp4"
                 )
 
-            self.assertEqual(video, path)
+            self.assert_video_points_to_path(video, path)
             self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
             curl_download.assert_called_once()
             reset_session.assert_called_once_with()
@@ -208,7 +215,7 @@ class VideoDownloadTests(unittest.TestCase):
                     "https://cdn.test/video.mp4"
                 )
 
-            self.assertEqual(video, path)
+            self.assert_video_points_to_path(video, path)
             self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
             self.assertFalse(direct_session.trust_env)
             curl_download.assert_not_called()
