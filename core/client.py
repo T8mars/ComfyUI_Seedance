@@ -25,8 +25,9 @@ Endpoints:
                                              submit Midjourney action
 
 Reliability rules:
-  - Submit: retry on network errors / HTTP 5xx / 429; never retry 4xx
-    business errors (invalid params, auth, moderation).
+  - Submit: retry only failures that prove the request was not sent and HTTP
+    429 responses. Ambiguous transport failures and HTTP 5xx responses are not
+    replayed because the upstream may already have created a task.
   - Poll: consecutive-failure counter with exponential backoff; transient
     network / HTTP / JSON errors never kill a running task, but a terminal
     ``failed`` status raises immediately.
@@ -43,6 +44,7 @@ import subprocess
 import threading
 import time
 import uuid
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
@@ -61,8 +63,8 @@ class SeedanceAPIError(RuntimeError):
 # Keep runtime dependencies minimal. Requests uses its bundled/default CA
 # handling on most systems; on Windows we additionally load the OS certificate
 # store into a standard-library SSLContext, avoiding the truststore dependency.
-# SEEDANCE_CA_BUNDLE can point to a custom CA file, and SEEDANCE_SSL_VERIFY=0
-# disables verification as a last-resort escape hatch.
+# SEEDANCE_CA_BUNDLE can point to a custom CA file. SEEDANCE_SSL_VERIFY=0 is a
+# deprecated last-resort escape hatch retained for workflow compatibility.
 # ---------------------------------------------------------------------------
 
 class _SSLContextAdapter(requests.adapters.HTTPAdapter):
@@ -91,6 +93,25 @@ class _SSLContextAdapter(requests.adapters.HTTPAdapter):
 
 
 _session_local = threading.local()
+_insecure_tls_warning_lock = threading.Lock()
+_insecure_tls_warning_emitted = False
+
+
+def _warn_insecure_tls_once() -> None:
+    global _insecure_tls_warning_emitted
+    with _insecure_tls_warning_lock:
+        if _insecure_tls_warning_emitted:
+            return
+        _insecure_tls_warning_emitted = True
+
+    message = (
+        "SEEDANCE_SSL_VERIFY=0 disables server identity verification and is "
+        "deprecated. Configure SEEDANCE_CA_BUNDLE or the Windows certificate "
+        "store instead; this compatibility escape hatch will be removed in a "
+        "future release."
+    )
+    warnings.warn(message, FutureWarning, stacklevel=3)
+    print(f"[Seedance] SECURITY WARNING: {message}")
 
 
 def _create_session(
@@ -100,26 +121,18 @@ def _create_session(
     session.trust_env = trust_env
     ca_bundle = os.environ.get("SEEDANCE_CA_BUNDLE", "").strip()
 
-    if os.environ.get("SEEDANCE_SSL_VERIFY", "").strip().lower() in (
+    if ca_bundle:
+        session.verify = ca_bundle
+        if announce:
+            print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
+    elif os.environ.get("SEEDANCE_SSL_VERIFY", "").strip().lower() in (
         "0",
         "false",
         "no",
     ):
         session.verify = False
-        try:
-            import urllib3
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        except Exception:
-            pass
         if announce:
-            print(
-                "[Seedance] WARNING: SSL verification disabled via "
-                "SEEDANCE_SSL_VERIFY=0"
-            )
-    elif ca_bundle:
-        session.verify = ca_bundle
-        if announce:
-            print(f"[Seedance] Using custom CA bundle: {ca_bundle}")
+            _warn_insecure_tls_once()
     else:
         ssl_context, cert_count = _windows_cert_store_context()
         if ssl_context is not None:
@@ -226,10 +239,10 @@ def _network_error_text(e: Exception) -> str:
         text += (
             " | SSL certificate verification failed. Fix: update certifi/requests "
             "in ComfyUI's Python, set SEEDANCE_CA_BUNDLE to a CA bundle file, or set "
-            "SEEDANCE_SSL_VERIFY=0 to skip verification temporarily. | "
+            "SEEDANCE_SSL_VERIFY=0 only as a deprecated temporary diagnostic. | "
             "SSL 证书校验失败：请更新 ComfyUI Python 环境中的 certifi/requests，"
-            "或设置 SEEDANCE_CA_BUNDLE 指向证书包；临时排障可设置 "
-            "SEEDANCE_SSL_VERIFY=0 跳过校验。"
+            "或设置 SEEDANCE_CA_BUNDLE 指向证书包；SEEDANCE_SSL_VERIFY=0 "
+            "仅保留为即将移除的临时排障方式。"
         )
     return text
 
@@ -372,6 +385,138 @@ def upload_media(
 _SUBMIT_MAX_ATTEMPTS = 3
 
 
+def _is_safe_submit_retry_error(error: Exception) -> bool:
+    """Return True only when the task-creation request was not transmitted."""
+    if isinstance(error, requests.exceptions.ConnectTimeout):
+        return True
+
+    pending: List[Any] = [error]
+    visited: Set[int] = set()
+    safe_connect_error_names = {
+        "ConnectTimeoutError",
+        "NameResolutionError",
+        "NewConnectionError",
+    }
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        if type(current).__name__ in safe_connect_error_names:
+            return True
+        for nested in (
+            getattr(current, "__cause__", None),
+            getattr(current, "__context__", None),
+            getattr(current, "reason", None),
+        ):
+            if isinstance(nested, BaseException):
+                pending.append(nested)
+        for argument in getattr(current, "args", ()):
+            if isinstance(argument, BaseException):
+                pending.append(argument)
+    return False
+
+
+def _submit_retry_wait(attempt: int, response: Any = None) -> float:
+    retry_after = ""
+    headers = getattr(response, "headers", None)
+    if headers:
+        retry_after = str(headers.get("Retry-After", "") or "").strip()
+    if retry_after:
+        try:
+            return max(1.0, min(float(retry_after), 60.0))
+        except (TypeError, ValueError):
+            pass
+    return float(min(2 ** (attempt + 1) + 1, 15))
+
+
+def _close_response(response: Any) -> None:
+    close = getattr(response, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            pass
+
+
+def _post_task_creation(
+    request: Callable[[], Any],
+    logger_prefix: str,
+    operation: str,
+) -> Any:
+    """Run a non-idempotent POST without duplicating ambiguous submissions."""
+    last_error: Optional[Exception] = None
+    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
+        try:
+            response = request()
+        except requests.exceptions.RequestException as error:
+            if not _is_safe_submit_retry_error(error):
+                raise RuntimeError(
+                    f"{operation} response was not received "
+                    f"({type(error).__name__}). The request was not retried "
+                    "because the upstream may already have created the task."
+                ) from None
+
+            last_error = RuntimeError(
+                f"{operation} connection failed before send: "
+                f"{_network_error_text(error)}"
+            )
+            if attempt + 1 >= _SUBMIT_MAX_ATTEMPTS:
+                break
+            _reset_thread_session()
+            wait = _submit_retry_wait(attempt)
+            _log(
+                logger_prefix,
+                f"{operation} connection failed before send; retry "
+                f"{attempt + 2}/{_SUBMIT_MAX_ATTEMPTS} in {wait:g}s...",
+            )
+            cooperative_sleep(wait)
+            continue
+
+        if response.status_code == 429:
+            try:
+                data = response.json() if response.text else {}
+            except ValueError:
+                data = {}
+            last_error = RuntimeError(
+                "HTTP 429: "
+                f"{_extract_error_message(data, response.text[:200])}"
+            )
+            if attempt + 1 >= _SUBMIT_MAX_ATTEMPTS:
+                _close_response(response)
+                break
+            wait = _submit_retry_wait(attempt, response)
+            _close_response(response)
+            _log(
+                logger_prefix,
+                f"{operation} HTTP 429; retry "
+                f"{attempt + 2}/{_SUBMIT_MAX_ATTEMPTS} in {wait:g}s...",
+            )
+            cooperative_sleep(wait)
+            continue
+
+        if response.status_code >= 500:
+            try:
+                data = response.json() if response.text else {}
+            except ValueError:
+                data = {}
+            detail = _extract_error_message(data, response.text[:200])
+            status_code = response.status_code
+            _close_response(response)
+            raise RuntimeError(
+                f"{operation} returned HTTP {status_code}: {detail}. "
+                "The request was not retried because the upstream may already "
+                "have created the task."
+            )
+
+        return response
+
+    raise RuntimeError(
+        f"{operation} failed after {_SUBMIT_MAX_ATTEMPTS} safe attempts: "
+        f"{last_error}"
+    )
+
+
 def submit_task(
     payload: Dict[str, Any],
     config: Dict[str, Any],
@@ -384,53 +529,35 @@ def submit_task(
     _log(logger_prefix, f"Submit -> POST /v1/videos model={payload.get('model')}")
     _log(logger_prefix, f"  Payload: {_truncate(safe_payload, 500)}")
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Submit network error: {_network_error_text(e)}")
-            _log(logger_prefix, f"Submit network error (attempt {attempt + 1}): {type(e).__name__}")
-            continue
+        ),
+        logger_prefix,
+        "Video submit",
+    )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
 
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"Submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
 
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: {_extract_error_message(data, response.text[:200])}"
-            )
-            _log(logger_prefix, f"Submit HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
-            continue
+    task_id = None
+    if isinstance(data, dict):
+        task_id = data.get("id") or data.get("task_id")
+    if not task_id:
+        raise SeedanceAPIError(f"No task id in submit response: {_truncate(response.text, 300)}")
 
-        if response.status_code != 200:
-            raise SeedanceAPIError(
-                f"Submit rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-
-        task_id = None
-        if isinstance(data, dict):
-            task_id = data.get("id") or data.get("task_id")
-        if not task_id:
-            raise SeedanceAPIError(f"No task id in submit response: {_truncate(response.text, 300)}")
-
-        _log(logger_prefix, "  Submit accepted")
-        return str(task_id)
-
-    raise RuntimeError(f"Submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
 
 
 # ---------------------------------------------------------------------------
@@ -594,74 +721,41 @@ def submit_context_ir_task(
         f"Submit -> POST /v1/video/generations model={payload.get('model')}",
     )
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(
-                logger_prefix,
-                f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
-            )
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(
-                f"Context IR submit network error: {_network_error_text(e)}"
-            )
-            _log(
-                logger_prefix,
-                f"Submit network error (attempt {attempt + 1}): {type(e).__name__}",
-            )
-            continue
-
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
-
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-            _log(
-                logger_prefix,
-                f"Submit HTTP {response.status_code} "
-                f"(attempt {attempt + 1}), retrying...",
-            )
-            continue
-
-        if response.status_code != 200:
-            raise SeedanceAPIError(
-                f"Context IR submit rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-
-        task_id = None
-        if isinstance(data, dict):
-            task_id = data.get("task_id") or data.get("id")
-            nested = data.get("data")
-            if not task_id and isinstance(nested, dict):
-                task_id = nested.get("task_id") or nested.get("id")
-        if not task_id:
-            raise SeedanceAPIError(
-                "No Context IR task id in submit response: "
-                f"{_truncate(response.text, 300)}"
-            )
-
-        _log(logger_prefix, "  Submit accepted")
-        return str(task_id)
-
-    raise RuntimeError(
-        f"Context IR submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+        ),
+        logger_prefix,
+        "Context IR submit",
     )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
+
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"Context IR submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
+
+    task_id = None
+    if isinstance(data, dict):
+        task_id = data.get("task_id") or data.get("id")
+        nested = data.get("data")
+        if not task_id and isinstance(nested, dict):
+            task_id = nested.get("task_id") or nested.get("id")
+    if not task_id:
+        raise SeedanceAPIError(
+            "No Context IR task id in submit response: "
+            f"{_truncate(response.text, 300)}"
+        )
+
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
 
 
 def poll_context_ir_task(
@@ -809,6 +903,28 @@ _IMAGE_RUNNING_STATUSES = {"NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS"}
 _IMAGE_DOWNLOAD_TIMEOUT = 60
 _IMAGE_DOWNLOAD_CONNECT_TIMEOUT = 8
 _IMAGE_DOWNLOAD_READ_TIMEOUT = 60
+
+
+def _download_limit_bytes(environment_name: str, default_mib: int) -> int:
+    raw_value = os.environ.get(environment_name, "").strip()
+    if not raw_value:
+        return int(default_mib) * 1024 * 1024
+    try:
+        value_mib = int(raw_value)
+        if value_mib <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        print(
+            f"[Seedance] WARNING: ignoring invalid {environment_name}; "
+            f"using {default_mib} MiB"
+        )
+        value_mib = int(default_mib)
+    return value_mib * 1024 * 1024
+
+
+_IMAGE_DOWNLOAD_MAX_BYTES = _download_limit_bytes(
+    "SEEDANCE_IMAGE_MAX_MIB", 64
+)
 _RESULT_DOWNLOAD_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -840,7 +956,32 @@ class _ResultDownloadTransportError(RuntimeError):
     """Sanitized failure from a generated-media result transport."""
 
 
+class _ResultDownloadLimitError(_ResultDownloadTransportError):
+    """Generated media exceeded its configured safety limit."""
+
+
 _ImageDownloadTransportError = _ResultDownloadTransportError
+
+
+def _declared_content_length(response: Any) -> int:
+    headers = getattr(response, "headers", {}) or {}
+    raw_value = headers.get("Content-Length", None)
+    if raw_value is None:
+        for name, value in getattr(headers, "items", lambda: ())():
+            if str(name).lower() == "content-length":
+                raw_value = value
+                break
+    try:
+        return max(0, int(raw_value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _raise_if_download_too_large(size: int, max_bytes: int, item_name: str) -> None:
+    if int(size) > int(max_bytes):
+        raise _ResultDownloadLimitError(
+            f"{item_name} exceeded the configured download size limit"
+        )
 
 
 def submit_image_task(
@@ -852,51 +993,33 @@ def submit_image_task(
     url = f"{config['base_url']}/v1/image/generations"
     _log(logger_prefix, f"Submit -> POST /v1/image/generations model={payload.get('model')}")
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Submit network error: {_network_error_text(e)}")
-            _log(logger_prefix, f"Submit network error (attempt {attempt + 1}): {type(e).__name__}")
-            continue
+        ),
+        logger_prefix,
+        "Image submit",
+    )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
 
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"Image submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
 
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: {_extract_error_message(data, response.text[:200])}"
-            )
-            _log(logger_prefix, f"Submit HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
-            continue
+    task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
+    if not task_id:
+        raise SeedanceAPIError(f"No image task id in submit response: {_truncate(response.text, 300)}")
 
-        if response.status_code != 200:
-            raise SeedanceAPIError(
-                f"Image submit rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-
-        task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
-        if not task_id:
-            raise SeedanceAPIError(f"No image task id in submit response: {_truncate(response.text, 300)}")
-
-        _log(logger_prefix, "  Submit accepted")
-        return str(task_id)
-
-    raise RuntimeError(f"Image submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
 
 
 def poll_image_task(
@@ -1053,12 +1176,20 @@ def _download_image_bytes(
             allow_redirects=True,
         )
         response.raise_for_status()
+        _raise_if_download_too_large(
+            _declared_content_length(response),
+            _IMAGE_DOWNLOAD_MAX_BYTES,
+            "Image result",
+        )
         if not hasattr(response, "iter_content"):
             content = bytes(response.content)
             if not content:
                 raise _ImageDownloadTransportError(
                     "Image result download returned an empty body"
                 )
+            _raise_if_download_too_large(
+                len(content), _IMAGE_DOWNLOAD_MAX_BYTES, "Image result"
+            )
             return content
 
         content = bytearray()
@@ -1069,6 +1200,11 @@ def _download_image_bytes(
                     f"Image result download exceeded {total_timeout:g}s"
                 )
             if chunk:
+                _raise_if_download_too_large(
+                    len(content) + len(chunk),
+                    _IMAGE_DOWNLOAD_MAX_BYTES,
+                    "Image result",
+                )
                 content.extend(chunk)
         if not content:
             raise _ImageDownloadTransportError(
@@ -1201,51 +1337,33 @@ def submit_audio_task(
     url = f"{config['base_url']}/v1/audio/generations"
     _log(logger_prefix, f"Submit -> POST /v1/audio/generations model={payload.get('model')}")
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(logger_prefix, f"Submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Submit network error: {_network_error_text(e)}")
-            _log(logger_prefix, f"Submit network error (attempt {attempt + 1}): {type(e).__name__}")
-            continue
+        ),
+        logger_prefix,
+        "Audio submit",
+    )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
 
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"Audio submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
 
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: {_extract_error_message(data, response.text[:200])}"
-            )
-            _log(logger_prefix, f"Submit HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
-            continue
+    task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
+    if not task_id:
+        raise SeedanceAPIError(f"No audio task id in submit response: {_truncate(response.text, 300)}")
 
-        if response.status_code != 200:
-            raise SeedanceAPIError(
-                f"Audio submit rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-
-        task_id = data.get("task_id") or data.get("id") if isinstance(data, dict) else None
-        if not task_id:
-            raise SeedanceAPIError(f"No audio task id in submit response: {_truncate(response.text, 300)}")
-
-        _log(logger_prefix, "  Submit accepted")
-        return str(task_id)
-
-    raise RuntimeError(f"Audio submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
 
 
 def poll_audio_task(
@@ -1410,58 +1528,40 @@ def transcribe_audio(
         "file": (filename, file_bytes, mime_type),
     }
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(logger_prefix, f"Transcription retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...")
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"], with_json=False),
                 data=data,
                 files=files,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Transcription network error: {_network_error_text(e)}")
-            _log(logger_prefix, f"Transcription network error (attempt {attempt + 1}): {type(e).__name__}")
-            continue
+        ),
+        logger_prefix,
+        "Transcription submit",
+    )
+    parsed: Any = None
+    try:
+        parsed = response.json() if response.text else None
+    except ValueError:
+        parsed = None
 
-        parsed: Any = None
-        try:
-            parsed = response.json() if response.text else None
-        except ValueError:
-            parsed = None
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"Transcription rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(parsed, response.text[:200])}"
+        )
 
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: {_extract_error_message(parsed, response.text[:200])}"
-            )
-            _log(logger_prefix, f"Transcription HTTP {response.status_code} (attempt {attempt + 1}), retrying...")
-            continue
+    if response_format in {"json", "verbose_json"}:
+        if parsed is None:
+            raise SeedanceAPIError(f"Transcription returned invalid JSON: {_truncate(response.text, 300)}")
+        response_str = json.dumps(parsed, ensure_ascii=False, indent=2)
+        text = _extract_transcription_text(parsed)
+    else:
+        response_str = response.text
+        text = response.text
 
-        if response.status_code != 200:
-            raise SeedanceAPIError(
-                f"Transcription rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(parsed, response.text[:200])}"
-            )
-
-        if response_format in {"json", "verbose_json"}:
-            if parsed is None:
-                raise SeedanceAPIError(f"Transcription returned invalid JSON: {_truncate(response.text, 300)}")
-            response_str = json.dumps(parsed, ensure_ascii=False, indent=2)
-            text = _extract_transcription_text(parsed)
-        else:
-            response_str = response.text
-            text = response.text
-
-        _log(logger_prefix, f"  Transcription completed, text length={len(text)}")
-        return text, response_str
-
-    raise RuntimeError(f"Transcription failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}")
+    _log(logger_prefix, f"  Transcription completed, text length={len(text)}")
+    return text, response_str
 
 
 def _guess_audio_extension(url: str, content_type: str, fallback_format: str) -> str:
@@ -1638,6 +1738,9 @@ def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) ->
 _AUDIO_DOWNLOAD_TIMEOUT = 300
 _AUDIO_DOWNLOAD_CONNECT_TIMEOUT = 8
 _AUDIO_DOWNLOAD_READ_TIMEOUT = 60
+_AUDIO_DOWNLOAD_MAX_BYTES = _download_limit_bytes(
+    "SEEDANCE_AUDIO_MAX_MIB", 512
+)
 
 
 def download_audio(
@@ -1682,6 +1785,7 @@ def download_audio(
         headers=_AUDIO_DOWNLOAD_HEADERS,
         connect_timeout=_AUDIO_DOWNLOAD_CONNECT_TIMEOUT,
         read_timeout=_AUDIO_DOWNLOAD_READ_TIMEOUT,
+        max_bytes=_AUDIO_DOWNLOAD_MAX_BYTES,
         validator=decode_download,
     )
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
@@ -1746,69 +1850,38 @@ def submit_music_action(
     route_label = f"/v1/music/generations{suffix}"
     _log(logger_prefix, f"Submit -> POST {route_label}")
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(
-                logger_prefix,
-                f"Music submit retry {attempt + 1}/{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
-            )
-            cooperative_sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Music submit network error: {_network_error_text(e)}")
-            _log(
-                logger_prefix,
-                f"Music submit network error (attempt {attempt + 1}): {type(e).__name__}",
-            )
-            continue
-
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
-
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-            _log(
-                logger_prefix,
-                f"Music submit HTTP {response.status_code} "
-                f"(attempt {attempt + 1}), retrying...",
-            )
-            continue
-
-        if response.status_code < 200 or response.status_code >= 300:
-            raise SeedanceAPIError(
-                f"Music submit rejected (HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:300])}"
-            )
-        if not isinstance(data, dict):
-            raise SeedanceAPIError(
-                f"Music submit returned invalid JSON object: {_truncate(response.text, 300)}"
-            )
-
-        task_id = _extract_music_task_id(data)
-        response_mode = "asynchronous" if task_id else "synchronous"
-        _log(
-            logger_prefix,
-            f"  Music submit accepted with {response_mode} response",
-        )
-        return task_id, data
-
-    raise RuntimeError(
-        f"Music submit failed after {_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+        ),
+        logger_prefix,
+        "Music submit",
     )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
+
+    if response.status_code < 200 or response.status_code >= 300:
+        raise SeedanceAPIError(
+            f"Music submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:300])}"
+        )
+    if not isinstance(data, dict):
+        raise SeedanceAPIError(
+            f"Music submit returned invalid JSON object: {_truncate(response.text, 300)}"
+        )
+
+    task_id = _extract_music_task_id(data)
+    response_mode = "asynchronous" if task_id else "synchronous"
+    _log(
+        logger_prefix,
+        f"  Music submit accepted with {response_mode} response",
+    )
+    return task_id, data
 
 
 def poll_music_task(
@@ -2151,75 +2224,39 @@ def submit_midjourney_action(
     url = f"{config['base_url']}{route_label}"
     _log(logger_prefix, f"Submit -> POST {route_label}")
 
-    last_error: Optional[Exception] = None
-    for attempt in range(_SUBMIT_MAX_ATTEMPTS):
-        if attempt > 0:
-            wait = min(2 ** attempt + 1, 15)
-            _log(
-                logger_prefix,
-                f"Midjourney submit retry {attempt + 1}/"
-                f"{_SUBMIT_MAX_ATTEMPTS} in {wait}s...",
-            )
-            time.sleep(wait)
-
-        try:
-            response = _session().post(
+    response = _post_task_creation(
+        lambda: _session().post(
                 url,
                 headers=_headers(config["api_key"]),
                 json=payload,
                 timeout=config.get("timeout", 60),
-            )
-        except requests.exceptions.RequestException as error:
-            last_error = RuntimeError(
-                f"Midjourney submit network error: {_network_error_text(error)}"
-            )
-            _log(
-                logger_prefix,
-                f"Midjourney submit network error "
-                f"(attempt {attempt + 1}): {type(error).__name__}",
-            )
-            continue
-
-        try:
-            data = response.json() if response.text else {}
-        except ValueError:
-            data = {}
-
-        if response.status_code == 429 or response.status_code >= 500:
-            last_error = RuntimeError(
-                f"HTTP {response.status_code}: "
-                f"{_extract_error_message(data, response.text[:200])}"
-            )
-            _log(
-                logger_prefix,
-                f"Midjourney submit HTTP {response.status_code} "
-                f"(attempt {attempt + 1}), retrying...",
-            )
-            continue
-
-        if response.status_code < 200 or response.status_code >= 300:
-            raise SeedanceAPIError(
-                f"Midjourney {action_text} rejected "
-                f"(HTTP {response.status_code}): "
-                f"{_extract_error_message(data, response.text[:300])}"
-            )
-        if not isinstance(data, dict):
-            raise SeedanceAPIError(
-                "Midjourney submit returned an invalid JSON object"
-            )
-
-        task_id = _extract_midjourney_task_id(data)
-        response_mode = "task" if task_id else "immediate"
-        _log(
-            logger_prefix,
-            f"  Midjourney {action_text} accepted with {response_mode} response",
-        )
-        return task_id, data
-
-    raise RuntimeError(
-        "Midjourney submit failed after "
-        f"{_SUBMIT_MAX_ATTEMPTS} attempts: {last_error}"
+        ),
+        logger_prefix,
+        "Midjourney submit",
     )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
+
+    if response.status_code < 200 or response.status_code >= 300:
+        raise SeedanceAPIError(
+            f"Midjourney {action_text} rejected "
+            f"(HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:300])}"
+        )
+    if not isinstance(data, dict):
+        raise SeedanceAPIError(
+            "Midjourney submit returned an invalid JSON object"
+        )
+
+    task_id = _extract_midjourney_task_id(data)
+    response_mode = "task" if task_id else "immediate"
+    _log(
+        logger_prefix,
+        f"  Midjourney {action_text} accepted with {response_mode} response",
+    )
+    return task_id, data
 
 
 _MIDJOURNEY_ENVELOPE_KEYS = ("data", "result", "task", "output")
@@ -2568,6 +2605,9 @@ def _guess_file_extension(
 _FILE_DOWNLOAD_TIMEOUT = 300
 _FILE_DOWNLOAD_CONNECT_TIMEOUT = 8
 _FILE_DOWNLOAD_READ_TIMEOUT = 60
+_FILE_DOWNLOAD_MAX_BYTES = _download_limit_bytes(
+    "SEEDANCE_FILE_MAX_MIB", 1024
+)
 
 
 def download_file(
@@ -2601,6 +2641,7 @@ def download_file(
         headers=_FILE_DOWNLOAD_HEADERS,
         connect_timeout=_FILE_DOWNLOAD_CONNECT_TIMEOUT,
         read_timeout=_FILE_DOWNLOAD_READ_TIMEOUT,
+        max_bytes=_FILE_DOWNLOAD_MAX_BYTES,
     )
     extension = _guess_file_extension(url, content_type, default_extension)
     path = f"{stem}{extension}"
@@ -2616,6 +2657,9 @@ def download_file(
 _VIDEO_DOWNLOAD_TIMEOUT = 180
 _VIDEO_DOWNLOAD_CONNECT_TIMEOUT = 8
 _VIDEO_DOWNLOAD_READ_TIMEOUT = 60
+_VIDEO_DOWNLOAD_MAX_BYTES = _download_limit_bytes(
+    "SEEDANCE_VIDEO_MAX_MIB", 8192
+)
 
 
 def _result_download_seconds(timeout: int) -> float:
@@ -2633,6 +2677,7 @@ def _download_result_to_path_requests(
     connect_timeout: int,
     read_timeout: int,
     headers: Dict[str, str],
+    max_bytes: int = _VIDEO_DOWNLOAD_MAX_BYTES,
     session: Optional[requests.Session] = None,
 ) -> str:
     total_timeout = _result_download_seconds(timeout)
@@ -2652,6 +2697,9 @@ def _download_result_to_path_requests(
             allow_redirects=True,
         )
         response.raise_for_status()
+        _raise_if_download_too_large(
+            _declared_content_length(response), max_bytes, "Generated media"
+        )
         response_headers = getattr(response, "headers", {}) or {}
         content_type = str(response_headers.get("Content-Type", ""))
         content_encoding = str(response_headers.get("Content-Encoding", "")).lower()
@@ -2675,6 +2723,9 @@ def _download_result_to_path_requests(
                         f"Generated media download exceeded {total_timeout:g}s"
                     )
                 if chunk:
+                    _raise_if_download_too_large(
+                        bytes_written + len(chunk), max_bytes, "Generated media"
+                    )
                     file_handle.write(chunk)
                     bytes_written += len(chunk)
         if bytes_written <= 0:
@@ -2706,6 +2757,7 @@ def _download_video_to_path(url: str, path: str, timeout: int) -> None:
         connect_timeout=_VIDEO_DOWNLOAD_CONNECT_TIMEOUT,
         read_timeout=_VIDEO_DOWNLOAD_READ_TIMEOUT,
         headers=_VIDEO_DOWNLOAD_HEADERS,
+        max_bytes=_VIDEO_DOWNLOAD_MAX_BYTES,
     )
 
 
@@ -2735,6 +2787,7 @@ def _run_curl_download(
     connect_timeout: int,
     headers: Dict[str, str],
     output_path: Optional[str] = None,
+    max_bytes: Optional[int] = None,
 ) -> bytes:
     """Download through the system TLS stack without exposing result URLs in argv."""
     parsed = urlparse(url)
@@ -2756,6 +2809,8 @@ def _run_curl_download(
         f"connect-timeout = {limited_connect_timeout:g}",
         f"max-time = {total_timeout:g}",
     ]
+    if max_bytes is not None:
+        config_lines.append(f"max-filesize = {int(max_bytes)}")
     user_agent = str(headers.get("User-Agent", _RESULT_DOWNLOAD_USER_AGENT))
     config_lines.append(f'user-agent = "{_curl_config_value(user_agent)}"')
     for name, value in headers.items():
@@ -2800,6 +2855,10 @@ def _run_curl_download(
     try:
         check_cancelled()
         if completed.returncode != 0:
+            if completed.returncode == 63:
+                raise _ResultDownloadLimitError(
+                    "Generated media exceeded the configured download size limit"
+                )
             raise _ResultDownloadTransportError(
                 f"System media downloader failed with exit code {completed.returncode}"
             )
@@ -2808,11 +2867,19 @@ def _run_curl_download(
                 raise _ResultDownloadTransportError(
                     "System media downloader returned an empty body"
                 )
+            if max_bytes is not None:
+                _raise_if_download_too_large(
+                    os.path.getsize(part_path), max_bytes, "Generated media"
+                )
             os.replace(part_path, output_path)
             return b""
         if not completed.stdout:
             raise _ResultDownloadTransportError(
                 "System media downloader returned an empty body"
+            )
+        if max_bytes is not None:
+            _raise_if_download_too_large(
+                len(completed.stdout), max_bytes, "Generated media"
             )
         return bytes(completed.stdout)
     finally:
@@ -2829,6 +2896,7 @@ def _download_image_bytes_with_curl(url: str, timeout: int) -> bytes:
         timeout=timeout,
         connect_timeout=_IMAGE_DOWNLOAD_CONNECT_TIMEOUT,
         headers=_IMAGE_DOWNLOAD_HEADERS,
+        max_bytes=_IMAGE_DOWNLOAD_MAX_BYTES,
     )
 
 
@@ -2838,6 +2906,7 @@ def _download_result_to_path_with_curl(
     timeout: int,
     connect_timeout: int,
     headers: Dict[str, str],
+    max_bytes: Optional[int] = None,
 ) -> None:
     _run_curl_download(
         url=url,
@@ -2845,6 +2914,7 @@ def _download_result_to_path_with_curl(
         connect_timeout=connect_timeout,
         headers=headers,
         output_path=path,
+        max_bytes=max_bytes,
     )
 
 
@@ -2895,6 +2965,7 @@ def _download_to_path_with_recovery(
     headers: Dict[str, str],
     connect_timeout: int,
     read_timeout: int,
+    max_bytes: int,
     validator: Optional[Callable[[str], Any]] = None,
 ) -> Tuple[str, Any]:
     attempts = max(1, int(max_retries))
@@ -2912,6 +2983,7 @@ def _download_to_path_with_recovery(
                 connect_timeout=connect_timeout,
                 read_timeout=read_timeout,
                 headers=headers,
+                max_bytes=max_bytes,
             )
             validation = validator(path) if validator is not None else None
             return content_type, validation
@@ -2923,6 +2995,9 @@ def _download_to_path_with_recovery(
                 f"{item_name} download attempt {attempt + 1} failed: "
                 f"{type(error).__name__}",
             )
+
+            if isinstance(error, _ResultDownloadLimitError):
+                break
 
             if not _is_result_transport_error(error):
                 continue
@@ -2941,6 +3016,7 @@ def _download_to_path_with_recovery(
                         connect_timeout=connect_timeout,
                         read_timeout=read_timeout,
                         headers=headers,
+                        max_bytes=max_bytes,
                         session=_direct_session(),
                     )
                     validation = validator(path) if validator is not None else None
@@ -2955,6 +3031,8 @@ def _download_to_path_with_recovery(
                         "Direct no-proxy download failed: "
                         f"{type(direct_error).__name__}",
                     )
+                    if isinstance(direct_error, _ResultDownloadLimitError):
+                        break
 
             if curl_attempted:
                 continue
@@ -2972,6 +3050,7 @@ def _download_to_path_with_recovery(
                     timeout=timeout,
                     connect_timeout=connect_timeout,
                     headers=headers,
+                    max_bytes=max_bytes,
                 )
                 validation = validator(path) if validator is not None else None
                 _log(logger_prefix, "  System media downloader succeeded")
@@ -2984,6 +3063,8 @@ def _download_to_path_with_recovery(
                     "System media downloader failed: "
                     f"{type(fallback_error).__name__}",
                 )
+                if isinstance(fallback_error, _ResultDownloadLimitError):
+                    break
 
     error_name = (
         type(last_error).__name__ if last_error is not None else "UnknownError"
@@ -3019,6 +3100,9 @@ def _download_and_decode_image(
                 f"{type(error).__name__}",
             )
 
+            if isinstance(error, _ResultDownloadLimitError):
+                break
+
             if not _is_image_transport_error(error):
                 continue
 
@@ -3046,6 +3130,8 @@ def _download_and_decode_image(
                         "Direct no-proxy image download failed: "
                         f"{type(direct_error).__name__}",
                     )
+                    if isinstance(direct_error, _ResultDownloadLimitError):
+                        break
 
             if curl_attempted:
                 continue
@@ -3066,6 +3152,8 @@ def _download_and_decode_image(
                     "System image downloader failed: "
                     f"{type(fallback_error).__name__}",
                 )
+                if isinstance(fallback_error, _ResultDownloadLimitError):
+                    break
 
     error_name = (
         type(last_error).__name__ if last_error is not None else "UnknownError"
@@ -3122,6 +3210,7 @@ def download_video_with_path(
         headers=_VIDEO_DOWNLOAD_HEADERS,
         connect_timeout=_VIDEO_DOWNLOAD_CONNECT_TIMEOUT,
         read_timeout=_VIDEO_DOWNLOAD_READ_TIMEOUT,
+        max_bytes=_VIDEO_DOWNLOAD_MAX_BYTES,
         validator=_validate_mp4_result,
     )
     size_mb = os.path.getsize(video_path) / (1024 * 1024)
