@@ -35,7 +35,7 @@ class Seedance25ContractTests(unittest.TestCase):
         ])
         self.assertEqual(
             inputs["required"]["resolution"][0],
-            ["480p", "720p", "1080p", "2k", "4k"],
+            ["480p", "720p", "1080p", "2k", "4k", "native1080p"],
         )
         optional_names = list(inputs["optional"])
         self.assertEqual(
@@ -92,7 +92,7 @@ class Seedance25ContractTests(unittest.TestCase):
             ),
             True,
         )
-        self.assertIsNot(
+        self.assertIs(
             nodes.Seedance25Video.VALIDATE_INPUTS(
                 model=nodes.SEEDANCE25_T2V_MODELS[0],
                 prompt="valid prompt",
@@ -102,6 +102,36 @@ class Seedance25ContractTests(unittest.TestCase):
             ),
             True,
         )
+
+    def test_native1080p_is_forwarded_exactly_for_every_model(self):
+        node = nodes.Seedance25Video()
+        for model in nodes.SEEDANCE25_MODELS:
+            with self.subTest(model=model):
+                media = {}
+                prompt = "native resolution contract test"
+                if model in nodes.SEEDANCE25_I2V_MODELS:
+                    media = {"images": ["https://cdn.test/first.png"]}
+                    prompt = ""
+                elif model in nodes.SEEDANCE25_MULTI_MODELS:
+                    media = {
+                        "content": [{
+                            "type": "image_url",
+                            "image_url": {"url": "https://cdn.test/reference.png"},
+                        }]
+                    }
+                payload = node.build_payload(
+                    {
+                        "model": model,
+                        "prompt": prompt,
+                        "seconds": "4",
+                        "resolution": "native1080p",
+                        "ratio": "adaptive",
+                        "generate_audio": True,
+                        "seed": -1,
+                    },
+                    media,
+                )
+                self.assertEqual(payload["metadata"]["resolution"], "native1080p")
 
     def test_t2v_payload_uses_seconds_and_documented_metadata(self):
         payload = nodes.Seedance25Video().build_payload(

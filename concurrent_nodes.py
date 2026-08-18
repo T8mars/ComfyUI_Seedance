@@ -59,6 +59,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Minimax_H3_OW_Fast_Video",
     "Vidu_Q3_Video",
     "Vidu_Q3_ShortPlay",
+    "FashVSR_Video_Upscale",
     "Zhenzhen_Upscaler_Video",
 )
 

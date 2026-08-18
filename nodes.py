@@ -1,13 +1,13 @@
 """
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
-Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
+FashVSR/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
 Qwen, Zhenzhen Image G/NB, MiniMax H3 Context IR prompt enhancement,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
 dedicated six-model Seedance 2.5 Standard node.
-FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, and Zhenzhen Upscaler use dedicated video
+FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FashVSR, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
@@ -41,16 +41,19 @@ from .core.client import (
     extract_image_urls,
     extract_midjourney_results,
     extract_music_results,
+    extract_legacy_video_url,
     extract_video_url,
     poll_audio_task,
     poll_context_ir_task,
     poll_image_task,
+    poll_legacy_video_task,
     poll_midjourney_task,
     poll_music_task,
     poll_task,
     submit_audio_task,
     submit_context_ir_task,
     submit_image_task,
+    submit_legacy_video_task,
     submit_midjourney_action,
     submit_music_action,
     submit_task,
@@ -132,7 +135,7 @@ SEEDANCE25_MODELS = [
     SEEDANCE25_MULTI_MODELS[1],
 ]
 SEEDANCE25_SECONDS = ["-1"] + [str(value) for value in range(4, 31)]
-SEEDANCE25_RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k"]
+SEEDANCE25_RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k", "native1080p"]
 MAX_SEEDANCE25_MULTI_IMAGES = 30
 MAX_SEEDANCE25_MULTI_VIDEOS = 10
 MAX_SEEDANCE25_MULTI_AUDIOS = 10
@@ -531,6 +534,7 @@ MAX_VIDU_SHORT_PLAY_ASSETS = 14
 
 ZHENZHEN_UPSCALER_MODEL = "zhenzhen-upscaler"
 ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
+FASHVSR_VIDEO_UPSCALE_MODEL = "FashVSR_video_upscale"
 
 DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
 DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
@@ -1646,8 +1650,9 @@ class Seedance25Video(SeedanceVideoNodeBase):
                 "resolution": (SEEDANCE25_RESOLUTIONS, {
                     "default": "480p",
                     "tooltip": (
-                        "Seedance 2.5 Standard output resolution; native presets are "
-                        "not supported. | Seedance 2.5 Standard 输出分辨率，不支持 native 档。"
+                        "Seedance 2.5 Standard output resolution, including the "
+                        "documented native1080p preset. | Seedance 2.5 Standard "
+                        "输出分辨率，包含文档支持的 native1080p。"
                     ),
                 }),
                 "ratio": (RATIOS, {
@@ -4611,6 +4616,160 @@ class ViduQ3ShortPlay(SeedanceVideoNodeBase):
                 "assets": assets,
             },
         }
+
+
+# ---------------------------------------------------------------------------
+# FashVSR video upscaling
+# ---------------------------------------------------------------------------
+
+class FashVSRVideoUpscale(SeedanceVideoNodeBase):
+    """Upscale one 480P, 3-15 second video through the legacy video endpoint."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Optional public video URL. Leave empty when connecting "
+                        "input_video. The source must be 480P and 3-15 seconds. | "
+                        "可选公网视频直链；连接 input_video 时留空。源视频必须为 "
+                        "480P，时长 3-15 秒。"
+                    ),
+                }),
+            },
+            "optional": {
+                "input_video": ("VIDEO", {
+                    "tooltip": (
+                        "Local ComfyUI video to upload. Use exactly one local video or "
+                        "one public URL. | 本地 ComfyUI 视频；本地视频和公网直链二选一。"
+                    ),
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "On failure return a placeholder error video instead of stopping "
+                        "the workflow. | 失败时输出占位错误视频而不中断工作流。"
+                    ),
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video_url=None, **kwargs):
+        url_text = str(video_url or "").strip()
+        if url_text and not url_text.startswith(("http://", "https://")):
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) URL"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "FashVSR_video_upscale"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        video_url = str(kwargs.get("video_url") or "").strip()
+        input_video = kwargs.get("input_video")
+        if video_url and input_video is not None:
+            raise SeedanceAPIError(
+                "FashVSR accepts exactly one source: input_video or video_url | "
+                "FashVSR 只能选择一个来源：input_video 或 video_url"
+            )
+        if video_url:
+            progress_cb(1.0)
+            return {"video_url": video_url}
+        if input_video is None:
+            raise SeedanceAPIError(
+                "connect input_video or provide video_url for FashVSR | "
+                "FashVSR 需要连接 input_video 或填写 video_url"
+            )
+
+        video_bytes, extension = video_to_bytes(input_video)
+        video_mime = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+        }.get(extension, "video/mp4")
+        url = upload_media(
+            video_bytes,
+            f"fashvsr_input.{extension}",
+            video_mime,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"video_url": url}
+
+    def build_payload(self, kwargs, media):
+        video_url = str(media.get("video_url") or "").strip()
+        if not video_url:
+            raise SeedanceAPIError(
+                "metadata.video_url is required for FashVSR | "
+                "FashVSR 必须提供 metadata.video_url"
+            )
+        return {
+            "model": FASHVSR_VIDEO_UPSCALE_MODEL,
+            "metadata": {"video_url": video_url},
+        }
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        try:
+            media = self.collect_media(
+                kwargs,
+                config,
+                lambda fraction: self._update_progress(
+                    pbar, fraction * self.PROGRESS_UPLOAD_END
+                ),
+            )
+        except SeedanceAPIError:
+            raise
+        except Exception as error:
+            raise RuntimeError(
+                f"[{self._log_prefix}] Media upload failed: {error}"
+            ) from error
+        self._update_progress(pbar, self.PROGRESS_UPLOAD_END)
+
+        payload = self.build_payload(kwargs, media)
+        task_id = submit_legacy_video_task(
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+
+        poll_span = self.PROGRESS_POLL_END - self.PROGRESS_SUBMIT_END
+        final_response = poll_legacy_video_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar,
+                self.PROGRESS_SUBMIT_END + progress / 100.0 * poll_span,
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+
+        result_url = extract_legacy_video_url(final_response)
+        video = download_video(result_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(
+            video,
+            result_url,
+            task_id,
+            final_response,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -9810,6 +9969,7 @@ NODE_CLASS_MAPPINGS = {
     "Minimax_H3_OW_Fast_Video": MinimaxH3OWFastVideo,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
+    "FashVSR_Video_Upscale": FashVSRVideoUpscale,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Qwen3_TTS": Qwen3TTS,
@@ -9927,6 +10087,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Minimax_H3_OW_Fast_Video": "MiniMax H3 OW Fast 视频生成（5 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
+    "FashVSR_Video_Upscale": "FashVSR 480P 视频超分",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",

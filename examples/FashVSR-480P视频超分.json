@@ -1,0 +1,144 @@
+{
+  "id": "fashvsr-video-upscale-workflow",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [40, 410],
+      "size": [315, 92],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [2]
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "Seedance_Config"
+      },
+      "widgets_values": ["https://api.seedance.nz", ""]
+    },
+    {
+      "id": 2,
+      "type": "LoadVideo",
+      "pos": [40, 40],
+      "size": [300, 330],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [1]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": ["请选择480P且3到15秒的视频.mp4", "image"]
+    },
+    {
+      "id": 3,
+      "type": "FashVSR_Video_Upscale",
+      "title": "FashVSR 480P 视频超分",
+      "pos": [430, 110],
+      "size": [430, 250],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_video",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 1
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [3]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "T8mars/ComfyUI_Seedance",
+        "Node name for S&R": "FashVSR_Video_Upscale"
+      },
+      "widgets_values": ["", false, 0, "fixed"]
+    },
+    {
+      "id": 4,
+      "type": "SaveVideo",
+      "pos": [940, 135],
+      "size": [300, 190],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": ["video/fashvsr-upscale", "auto", "auto"]
+    }
+  ],
+  "links": [
+    [1, 2, 0, 3, 0, "VIDEO"],
+    [2, 1, 0, 3, 1, "SEEDANCE_CONFIG"],
+    [3, 3, 0, 4, 0, "VIDEO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20"
+  },
+  "version": 0.4
+}
