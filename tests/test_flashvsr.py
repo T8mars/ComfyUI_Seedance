@@ -30,10 +30,10 @@ class _Response:
         return self._data
 
 
-class FashVSRContractTests(unittest.TestCase):
+class FlashVSRContractTests(unittest.TestCase):
     def test_inputs_match_single_source_contract(self):
-        inputs = nodes.FashVSRVideoUpscale.INPUT_TYPES()
-        self.assertEqual(nodes.FASHVSR_VIDEO_UPSCALE_MODEL, "FashVSR_video_upscale")
+        inputs = nodes.FlashVSRVideoUpscale.INPUT_TYPES()
+        self.assertEqual(nodes.FLASHVSR_VIDEO_UPSCALE_MODEL, "FlashVSR_video_upscale")
         self.assertEqual(list(inputs["required"]), ["video_url"])
         self.assertEqual(
             list(inputs["optional"]),
@@ -45,12 +45,12 @@ class FashVSRContractTests(unittest.TestCase):
         )
 
     def test_payload_uses_exact_legacy_metadata_video_url(self):
-        payload = nodes.FashVSRVideoUpscale().build_payload(
+        payload = nodes.FlashVSRVideoUpscale().build_payload(
             {},
             {"video_url": "https://cdn.test/source.mp4"},
         )
         self.assertEqual(payload, {
-            "model": "FashVSR_video_upscale",
+            "model": "FlashVSR_video_upscale",
             "metadata": {"video_url": "https://cdn.test/source.mp4"},
         })
 
@@ -64,23 +64,23 @@ class FashVSRContractTests(unittest.TestCase):
                 return_value="https://cdn.test/uploaded.mp4",
             ) as upload,
         ):
-            media = nodes.FashVSRVideoUpscale().collect_media(
+            media = nodes.FlashVSRVideoUpscale().collect_media(
                 {"video_url": "", "input_video": {"file_path": "source.mp4"}},
                 CONFIG,
                 progress.append,
             )
         upload.assert_called_once_with(
             b"video",
-            "fashvsr_input.mp4",
+            "flashvsr_input.mp4",
             "video/mp4",
             CONFIG,
-            logger_prefix="FashVSR_video_upscale",
+            logger_prefix="FlashVSR_video_upscale",
         )
         self.assertEqual(media, {"video_url": "https://cdn.test/uploaded.mp4"})
         self.assertEqual(progress, [1.0])
 
     def test_exactly_one_source_is_required(self):
-        node = nodes.FashVSRVideoUpscale()
+        node = nodes.FlashVSRVideoUpscale()
         with self.assertRaisesRegex(client.SeedanceAPIError, "exactly one source"):
             node.collect_media(
                 {
@@ -106,7 +106,7 @@ class FashVSRContractTests(unittest.TestCase):
             },
         }
         video = {"file_path": "result.mp4"}
-        node = nodes.FashVSRVideoUpscale()
+        node = nodes.FlashVSRVideoUpscale()
         with (
             patch.object(nodes, "get_config", return_value=CONFIG),
             patch.object(
@@ -125,12 +125,12 @@ class FashVSRContractTests(unittest.TestCase):
             result = node.execute(video_url="https://cdn.test/source.mp4")
 
         self.assertEqual(submit.call_args.args[0], {
-            "model": "FashVSR_video_upscale",
+            "model": "FlashVSR_video_upscale",
             "metadata": {"video_url": "https://cdn.test/source.mp4"},
         })
         download.assert_called_once_with(
             "https://cdn.test/result.mp4",
-            logger_prefix="FashVSR_video_upscale",
+            logger_prefix="FlashVSR_video_upscale",
         )
         self.assertEqual(result["result"][:3], (
             video,
@@ -139,7 +139,7 @@ class FashVSRContractTests(unittest.TestCase):
         ))
 
 
-class FashVSRLegacyClientTests(unittest.TestCase):
+class FlashVSRLegacyClientTests(unittest.TestCase):
     def test_submit_and_poll_use_compatibility_endpoint(self):
         session = Mock()
         session.post.return_value = _Response(200, {"data": {"id": "task-test"}})
@@ -158,7 +158,7 @@ class FashVSRLegacyClientTests(unittest.TestCase):
         ):
             task_id = client.submit_legacy_video_task(
                 {
-                    "model": "FashVSR_video_upscale",
+                    "model": "FlashVSR_video_upscale",
                     "metadata": {"video_url": "https://cdn.test/source.mp4"},
                 },
                 CONFIG,
@@ -192,20 +192,20 @@ class FashVSRLegacyClientTests(unittest.TestCase):
         )
 
 
-class FashVSRRegistrationAndWorkflowTests(unittest.TestCase):
+class FlashVSRRegistrationAndWorkflowTests(unittest.TestCase):
     def test_serial_and_concurrent_nodes_are_registered(self):
         self.assertIs(
             nodes.NODE_CLASS_MAPPINGS["FashVSR_Video_Upscale"],
-            nodes.FashVSRVideoUpscale,
+            nodes.FlashVSRVideoUpscale,
         )
         wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[
             "SeedanceConcurrent_FashVSR_Video_Upscale_Submit"
         ]
         self.assertEqual(wrapper.CONCURRENT_KIND, "video")
-        self.assertIs(wrapper.ORIGINAL_NODE_CLASS, nodes.FashVSRVideoUpscale)
+        self.assertIs(wrapper.ORIGINAL_NODE_CLASS, nodes.FlashVSRVideoUpscale)
 
     def test_safe_example_workflow(self):
-        path = PLUGIN_ROOT / "examples" / "FashVSR-480P视频超分.json"
+        path = PLUGIN_ROOT / "examples" / "FlashVSR-480P视频超分.json"
         workflow = json.loads(path.read_text(encoding="utf-8"))
         node = next(
             item for item in workflow["nodes"]

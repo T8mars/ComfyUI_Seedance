@@ -1,13 +1,13 @@
 """
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
-FashVSR/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
+FlashVSR/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
 Qwen, Zhenzhen Image G/NB, MiniMax H3 Context IR prompt enhancement,
 Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
 dedicated six-model Seedance 2.5 Standard node.
-FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FashVSR, and Zhenzhen Upscaler use dedicated video
+FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FlashVSR, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
@@ -534,7 +534,9 @@ MAX_VIDU_SHORT_PLAY_ASSETS = 14
 
 ZHENZHEN_UPSCALER_MODEL = "zhenzhen-upscaler"
 ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
-FASHVSR_VIDEO_UPSCALE_MODEL = "FashVSR_video_upscale"
+FLASHVSR_VIDEO_UPSCALE_MODEL = "FlashVSR_video_upscale"
+# Backward-compatible import alias; existing workflows use the stable node key below.
+FASHVSR_VIDEO_UPSCALE_MODEL = FLASHVSR_VIDEO_UPSCALE_MODEL
 
 DOUBAO_SEED_AUDIO_MODEL = "doubao-seed-audio-1.0"
 DOUBAO_AUDIO_FORMATS = ["wav", "mp3", "pcm", "ogg_opus"]
@@ -4619,10 +4621,10 @@ class ViduQ3ShortPlay(SeedanceVideoNodeBase):
 
 
 # ---------------------------------------------------------------------------
-# FashVSR video upscaling
+# FlashVSR video upscaling
 # ---------------------------------------------------------------------------
 
-class FashVSRVideoUpscale(SeedanceVideoNodeBase):
+class FlashVSRVideoUpscale(SeedanceVideoNodeBase):
     """Upscale one 480P, 3-15 second video through the legacy video endpoint."""
 
     @classmethod
@@ -4668,23 +4670,23 @@ class FashVSRVideoUpscale(SeedanceVideoNodeBase):
 
     @property
     def _log_prefix(self) -> str:
-        return "FashVSR_video_upscale"
+        return FLASHVSR_VIDEO_UPSCALE_MODEL
 
     def collect_media(self, kwargs, config, progress_cb):
         video_url = str(kwargs.get("video_url") or "").strip()
         input_video = kwargs.get("input_video")
         if video_url and input_video is not None:
             raise SeedanceAPIError(
-                "FashVSR accepts exactly one source: input_video or video_url | "
-                "FashVSR 只能选择一个来源：input_video 或 video_url"
+                "FlashVSR accepts exactly one source: input_video or video_url | "
+                "FlashVSR 只能选择一个来源：input_video 或 video_url"
             )
         if video_url:
             progress_cb(1.0)
             return {"video_url": video_url}
         if input_video is None:
             raise SeedanceAPIError(
-                "connect input_video or provide video_url for FashVSR | "
-                "FashVSR 需要连接 input_video 或填写 video_url"
+                "connect input_video or provide video_url for FlashVSR | "
+                "FlashVSR 需要连接 input_video 或填写 video_url"
             )
 
         video_bytes, extension = video_to_bytes(input_video)
@@ -4696,7 +4698,7 @@ class FashVSRVideoUpscale(SeedanceVideoNodeBase):
         }.get(extension, "video/mp4")
         url = upload_media(
             video_bytes,
-            f"fashvsr_input.{extension}",
+            f"flashvsr_input.{extension}",
             video_mime,
             config,
             logger_prefix=self._log_prefix,
@@ -4708,11 +4710,11 @@ class FashVSRVideoUpscale(SeedanceVideoNodeBase):
         video_url = str(media.get("video_url") or "").strip()
         if not video_url:
             raise SeedanceAPIError(
-                "metadata.video_url is required for FashVSR | "
-                "FashVSR 必须提供 metadata.video_url"
+                "metadata.video_url is required for FlashVSR | "
+                "FlashVSR 必须提供 metadata.video_url"
             )
         return {
-            "model": FASHVSR_VIDEO_UPSCALE_MODEL,
+            "model": FLASHVSR_VIDEO_UPSCALE_MODEL,
             "metadata": {"video_url": video_url},
         }
 
@@ -4770,6 +4772,10 @@ class FashVSRVideoUpscale(SeedanceVideoNodeBase):
             task_id,
             final_response,
         )
+
+
+# Preserve third-party imports and the existing ComfyUI workflow node type.
+FashVSRVideoUpscale = FlashVSRVideoUpscale
 
 
 # ---------------------------------------------------------------------------
@@ -9969,7 +9975,7 @@ NODE_CLASS_MAPPINGS = {
     "Minimax_H3_OW_Fast_Video": MinimaxH3OWFastVideo,
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
-    "FashVSR_Video_Upscale": FashVSRVideoUpscale,
+    "FashVSR_Video_Upscale": FlashVSRVideoUpscale,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Qwen3_TTS": Qwen3TTS,
@@ -10087,7 +10093,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Minimax_H3_OW_Fast_Video": "MiniMax H3 OW Fast 视频生成（5 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
-    "FashVSR_Video_Upscale": "FashVSR 480P 视频超分",
+    "FashVSR_Video_Upscale": "FlashVSR 480P 视频超分",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",

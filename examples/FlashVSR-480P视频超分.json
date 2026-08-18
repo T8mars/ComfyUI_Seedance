@@ -52,7 +52,7 @@
     {
       "id": 3,
       "type": "FashVSR_Video_Upscale",
-      "title": "FashVSR 480P 视频超分",
+      "title": "FlashVSR 480P 视频超分",
       "pos": [430, 110],
       "size": [430, 250],
       "flags": {},

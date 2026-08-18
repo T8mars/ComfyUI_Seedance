@@ -1,7 +1,7 @@
 """
 ComfyUI_Seedance - ComfyUI nodes for Seedance/FLUX 3 Video/HappyHorse/Wan/Kling/Hailuo/
 MiniMax/Vidu video, MiniMax H3 Context IR prompt enhancement,
-FashVSR/Zhenzhen Upscaler video super-resolution, Seedream image
+FlashVSR/Zhenzhen Upscaler video super-resolution, Seedream image
 generation/layer decomposition, Dola Seedream/Qwen/Wan/Zhenzhen Image G/GK/NB image,
 Zhenzhen Video G/GK/V3.1,
 Doubao/Qwen/MiniMax/Mureka audio, Whisper transcription, Suno music, and Midjourney APIs
