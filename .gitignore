@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
 config/.env
+node.zip
 SKILL.md
 skill.md

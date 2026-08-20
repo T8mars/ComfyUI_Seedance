@@ -1,0 +1,4 @@
+# Development-only files excluded from the Registry package.
+tests/
+roadmap.md
+generate_*_workflows.py

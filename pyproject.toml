@@ -1,10 +1,21 @@
 [project]
-name = "comfyui_seedance"
-version = "0.5.25"
+name = "seedance"
+version = "0.5.27"
 description = "ComfyUI nodes for Seedance 2.0/2.5, FLUX 3 Video, FlashVSR, HappyHorse, Wan, Kling, Hailuo, MiniMax video/audio/prompt enhancement, Vidu, Zhenzhen, Midjourney, Seedream, Qwen, Mureka, Doubao, Whisper, and Suno APIs (api.seedance.nz)"
+readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["requests>=2.28"]
+classifiers = [
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/T8mars/ComfyUI_Seedance"
+Documentation = "https://github.com/T8mars/ComfyUI_Seedance#readme"
+"Bug Tracker" = "https://github.com/T8mars/ComfyUI_Seedance/issues"
 
 [tool.comfy]
-PublisherId = "seedance"
+PublisherId = "t8star"
 DisplayName = "ComfyUI Seedance"
+Icon = "https://avatars.githubusercontent.com/u/96167788"
+includes = []

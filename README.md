@@ -22,6 +22,15 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 
 本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.5.27（2026-08-20）
+
+- 修正发布提交的 GitHub 作者关联，统一使用仓库账号 `T8mars` 的 GitHub noreply 邮箱。
+
+## v0.5.26（2026-08-20）
+
+- 正式发布到 Comfy Registry，Publisher ID 为 `t8star`，节点 ID 为 `seedance`，可通过 ComfyUI-Manager 或 Comfy CLI 安装。
+- 补全官方 Registry 元数据、仓库链接、系统兼容性声明和自动发布工作流。
+
 ## v0.5.25（2026-08-18）
 
 - 将视频超分模型名修正为 `FlashVSR_video_upscale`，节点显示、请求日志、README 与示例工作流同步更新。
@@ -477,6 +486,18 @@ Midjourney 节点输出：
 | `response` | 完整 JSON 响应文本 |
 
 ## 安装
+
+### ComfyUI-Manager
+
+在 ComfyUI-Manager 的节点管理器中搜索 `ComfyUI Seedance` 或 `seedance`，点击安装并重启 ComfyUI。
+
+也可以使用官方 Comfy CLI：
+
+```bash
+comfy node install seedance
+```
+
+### 手动安装
 
 进入 ComfyUI 的 `custom_nodes` 目录并克隆插件：
 
