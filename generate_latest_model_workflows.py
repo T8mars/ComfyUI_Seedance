@@ -193,6 +193,23 @@ def main():
         ["a clean cinematic portrait, natural light, fine details", "1:1", 1, False, 0, "fixed"],
     )
     _image_workflow(
+        "zhenzhen-image-gk-v2-edit图像编辑.json",
+        "Zhenzhen_Image_GK_V2_Edit",
+        "Zhenzhen Image GK v2 多图编辑",
+        [
+            "keep the main subject, use the reference palette and create a polished poster",
+            "auto",
+            "1k",
+            1,
+            False,
+            False,
+            0,
+            "fixed",
+        ],
+        input_count=3,
+        connect_image=True,
+    )
+    _image_workflow(
         "wan-2.7-global-t2i文生图.json",
         "Wan_2_7_Global_Image",
         "Wan 2.7 海外文生图",

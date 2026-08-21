@@ -1,0 +1,178 @@
+{
+  "id": "d0305dfd-8f4b-5a4a-8334-ea2e8a7260c3",
+  "revision": 0,
+  "last_node_id": 2,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Flow_Music",
+      "pos": [
+        380,
+        80
+      ],
+      "size": [
+        500,
+        560
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio1",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "audio2",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "clip_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_urls",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "primary_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "result_paths",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Flow_Music",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "flowmusic-lyrics",
+        "default",
+        "warm cinematic piano with soft strings",
+        "",
+        "a hopeful song about finding light after rain",
+        "",
+        120,
+        30,
+        "",
+        0.0,
+        15,
+        "continue naturally with soft strings",
+        0.0,
+        5.0,
+        0.5,
+        "mp3",
+        "modern",
+        0,
+        "",
+        false,
+        "fixed"
+      ],
+      "title": "Flow Music - flowmusic-lyrics"
+    },
+    {
+      "id": 2,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        720
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      1,
+      "SEEDANCE_CONFIG"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 0.85,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

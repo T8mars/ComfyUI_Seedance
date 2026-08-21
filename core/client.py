@@ -2138,6 +2138,10 @@ def _extract_music_text(value: Any) -> str:
         simple = [item for item in value if isinstance(item, (str, int, float, bool))]
         if simple and len(simple) == len(value):
             return json.dumps(simple, ensure_ascii=False)
+        for item in value:
+            text = _extract_music_text(item)
+            if text:
+                return text
     if not isinstance(value, dict):
         return ""
 
@@ -2177,6 +2181,27 @@ def _extract_music_text(value: Any) -> str:
     return ""
 
 
+def _collect_music_string_values(value: Any, key_name: str) -> List[str]:
+    values: List[str] = []
+    seen: Set[str] = set()
+
+    def visit(item: Any):
+        if isinstance(item, dict):
+            for key, child in item.items():
+                if key == key_name and isinstance(child, str) and child.strip():
+                    normalized = child.strip()
+                    if normalized not in seen:
+                        seen.add(normalized)
+                        values.append(normalized)
+                visit(child)
+        elif isinstance(item, list):
+            for child in item:
+                visit(child)
+
+    visit(value)
+    return values
+
+
 def extract_music_results(final_response: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize documented and observed Suno result shapes without losing raw data."""
     if not isinstance(final_response, dict):
@@ -2213,6 +2238,7 @@ def extract_music_results(final_response: Dict[str, Any]) -> Dict[str, Any]:
         "status": status,
         "result": result_data,
         "music": music,
+        "clip_ids": _collect_music_string_values(result_data, "clip_id"),
         "audio_urls": buckets["audio"],
         "video_urls": buckets["video"],
         "image_urls": buckets["image"],

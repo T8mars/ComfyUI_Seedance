@@ -250,8 +250,29 @@ ZHENZHEN_IMAGE_GK_V15_MODELS = [
 ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
 ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
 ZHENZHEN_IMAGE_GK_V2_MODEL = "zhenzhen-image-gk-v2"
-ZHENZHEN_IMAGE_GK_V2_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
+ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL = "zhenzhen-image-gk-v2-edit"
+ZHENZHEN_IMAGE_GK_V2_SIZES = [
+    "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9",
+]
+ZHENZHEN_IMAGE_GK_V2_EDIT_ASPECT_RATIOS = [
+    "auto",
+    "16:9",
+    "19.5:9",
+    "1:1",
+    "1:2",
+    "20:9",
+    "2:1",
+    "2:3",
+    "3:2",
+    "3:4",
+    "4:3",
+    "9:16",
+    "9:19.5",
+    "9:20",
+]
+ZHENZHEN_IMAGE_GK_V2_EDIT_RESOLUTIONS = ["1k", "2k"]
 ZHENZHEN_IMAGE_GK_V2_PROMPT_MAX_LENGTH = 20000
+MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES = 3
 WAN27_GLOBAL_T2I_MODEL = "wan-2.7-global-t2i"
 WAN27_GLOBAL_I2I_MODEL = "wan-2.7-global-i2i"
 WAN27_GLOBAL_I2I_PRO_MODEL = "wan-2.7-global-i2i-pro"
@@ -915,6 +936,76 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
     },
 }
 SUNO_OPERATIONS = list(SUNO_ACTION_SPECS)
+
+FLOWMUSIC_MODEL = "flowmusic"
+FLOWMUSIC_VERSIONS = ["default", "lyria-3.5"]
+FLOWMUSIC_FORMATS = ["mp3", "wav"]
+FLOWMUSIC_VIDEO_PRESETS = ["simple", "modern", "player"]
+FLOWMUSIC_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
+    "flowmusic-generation": {
+        "action": "",
+        "allowed_fields": (
+            "version", "sound_prompt", "lyrics", "title", "bpm", "length", "seed",
+        ),
+        "required_fields": (),
+        "result_family": "audio",
+    },
+    "flowmusic-lyrics": {
+        "action": "lyrics",
+        "allowed_fields": ("prompt",),
+        "required_fields": ("prompt",),
+        "result_family": "text",
+    },
+    "flowmusic-upload-audio": {
+        "action": "upload-audio",
+        "allowed_fields": ("audio_url",),
+        "required_fields": ("audio_url",),
+        "result_family": "audio",
+    },
+    "flowmusic-extend": {
+        "action": "extend",
+        "allowed_fields": (
+            "version", "clip_id", "extend_from_s", "extend_s", "instruction", "title", "seed",
+        ),
+        "required_fields": ("clip_id", "extend_from_s", "extend_s", "instruction"),
+        "result_family": "audio",
+    },
+    "flowmusic-replace": {
+        "action": "replace",
+        "allowed_fields": (
+            "version", "clip_id", "start_s", "end_s", "instruction", "title", "seed",
+        ),
+        "required_fields": ("clip_id", "start_s", "end_s", "instruction"),
+        "result_family": "audio",
+    },
+    "flowmusic-cover": {
+        "action": "cover",
+        "allowed_fields": (
+            "version", "clip_id", "instruction", "strength", "title", "seed",
+        ),
+        "required_fields": ("clip_id", "instruction", "strength"),
+        "result_family": "audio",
+    },
+    "flowmusic-stems": {
+        "action": "stems",
+        "allowed_fields": ("clip_id",),
+        "required_fields": ("clip_id",),
+        "result_family": "file",
+    },
+    "flowmusic-download-audio": {
+        "action": "download-audio",
+        "allowed_fields": ("clip_id", "format"),
+        "required_fields": ("clip_id", "format"),
+        "result_family": "audio",
+    },
+    "flowmusic-video-clip": {
+        "action": "video-clip",
+        "allowed_fields": ("clip_id", "preset"),
+        "required_fields": ("clip_id", "preset"),
+        "result_family": "video",
+    },
+}
+FLOWMUSIC_OPERATIONS = list(FLOWMUSIC_ACTION_SPECS)
 
 MIDJOURNEY_SPEEDS = ["relax", "fast", "turbo", "unset"]
 MIDJOURNEY_VERSIONS = [
@@ -6403,9 +6494,9 @@ class ZhenzhenImageGKV2(SeedanceImageNodeBase):
                 "n": ("INT", {
                     "default": 1,
                     "min": 1,
-                    "max": 10,
+                    "max": 12,
                     "step": 1,
-                    "tooltip": "Number of images requested, 1 to 10; the node downloads the primary result. | 请求 1 到 10 张，节点下载主结果。",
+                    "tooltip": "Number of images requested, 1 to 12; the node downloads the primary result. | 请求 1 到 12 张，节点下载主结果。",
                 }),
             },
             "optional": {
@@ -6428,8 +6519,8 @@ class ZhenzhenImageGKV2(SeedanceImageNodeBase):
             return f"prompt must not exceed {ZHENZHEN_IMAGE_GK_V2_PROMPT_MAX_LENGTH} characters | 提示词过长"
         if size is not None and size not in ZHENZHEN_IMAGE_GK_V2_SIZES:
             return f"unsupported Zhenzhen Image GK v2 size: {size}"
-        if n is not None and not 1 <= int(n) <= 10:
-            return "n must be between 1 and 10 | n 必须在 1 到 10 之间"
+        if n is not None and not 1 <= int(n) <= 12:
+            return "n must be between 1 and 12 | n 必须在 1 到 12 之间"
         return True
 
     @property
@@ -6479,6 +6570,229 @@ class ZhenzhenImageGKV2(SeedanceImageNodeBase):
         image = download_image(image_url, logger_prefix=self._log_prefix)
         self._update_progress(pbar, 100)
 
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response_str]},
+            "result": (image, image_url, task_id, response_str),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Image GK v2 editing
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageGKV2Edit(SeedanceImageNodeBase):
+    """Grok Imagine 2.0 editing with one to three reference images."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": (
+                "IMAGE",
+                {
+                    "tooltip": (
+                        f"Reference image {index} of {MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES}. | "
+                        f"参考图片 {index}，最多 {MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES} 张。"
+                    )
+                },
+            )
+            for index in range(1, MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES + 1)
+        }
+        optional["api_config"] = (
+            "SEEDANCE_CONFIG",
+            {
+                "tooltip": (
+                    "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."
+                )
+            },
+        )
+        optional["skip_error"] = (
+            "BOOLEAN",
+            {
+                "default": False,
+                "tooltip": (
+                    "On failure return a placeholder image instead of stopping. | "
+                    "失败时输出占位图片而不中断工作流。"
+                ),
+            },
+        )
+        return {
+            "required": {
+                "prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Image editing instruction. | 图像编辑指令。",
+                    },
+                ),
+                "aspect_ratio": (
+                    ZHENZHEN_IMAGE_GK_V2_EDIT_ASPECT_RATIOS,
+                    {
+                        "default": "auto",
+                        "tooltip": "Documented output aspect ratio. | 文档支持的输出比例。",
+                    },
+                ),
+                "resolution": (
+                    ZHENZHEN_IMAGE_GK_V2_EDIT_RESOLUTIONS,
+                    {
+                        "default": "1k",
+                        "tooltip": "Output resolution. | 输出分辨率。",
+                    },
+                ),
+                "n": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 10,
+                        "step": 1,
+                        "tooltip": "Number of requested images, 1 to 10. | 请求图片数量，1 到 10。",
+                    },
+                ),
+                "nsfw_check": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Enable the documented content check. | 启用文档中的内容检查。",
+                    },
+                ),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        prompt=None,
+        aspect_ratio=None,
+        resolution=None,
+        n=None,
+        strict=False,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Zhenzhen Image GK v2 Edit | 必须填写图像编辑指令"
+        if aspect_ratio not in ZHENZHEN_IMAGE_GK_V2_EDIT_ASPECT_RATIOS:
+            return f"unsupported aspect_ratio: {aspect_ratio}"
+        if resolution not in ZHENZHEN_IMAGE_GK_V2_EDIT_RESOLUTIONS:
+            return f"unsupported resolution: {resolution}"
+        if n is not None and not 1 <= int(n) <= 10:
+            return "n must be between 1 and 10 | n 必须在 1 到 10 之间"
+        if strict:
+            images = [
+                kwargs.get(f"image{index}")
+                for index in range(1, MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES + 1)
+                if kwargs.get(f"image{index}") is not None
+            ]
+            if not images:
+                return "1-3 reference images are required | 必须提供 1 到 3 张参考图片"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_gk_v2_edit"
+
+    @staticmethod
+    def _update_progress(pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _build_payload(
+        self,
+        prompt: str,
+        image_urls: List[str],
+        aspect_ratio: str,
+        resolution: str,
+        n: int,
+        nsfw_check: bool,
+    ) -> Dict[str, Any]:
+        if not 1 <= len(image_urls) <= MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES:
+            raise SeedanceAPIError("Zhenzhen Image GK v2 Edit requires 1-3 images")
+        return {
+            "model": ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL,
+            "prompt": str(prompt).strip(),
+            "images": list(image_urls),
+            "n": int(n),
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            "nsfw_check": bool(nsfw_check),
+        }
+
+    def _execute_inner(
+        self,
+        prompt: str,
+        aspect_ratio: str,
+        resolution: str,
+        n: int,
+        nsfw_check: bool,
+        api_config=None,
+        **kwargs,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            n=n,
+            strict=True,
+            **kwargs,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        images = [
+            kwargs[f"image{index}"]
+            for index in range(1, MAX_ZHENZHEN_IMAGE_GK_V2_EDIT_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        image_urls = []
+        for index, image in enumerate(images, 1):
+            image_urls.append(
+                upload_media(
+                    image_to_png_bytes(image),
+                    f"zhenzhen_image_gk_v2_edit_{index}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+            )
+            self._update_progress(pbar, index / len(images) * 15)
+
+        payload = self._build_payload(
+            prompt,
+            image_urls,
+            aspect_ratio,
+            resolution,
+            n,
+            nsfw_check,
+        )
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        image_url = extract_image_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
         response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
         return {
             "ui": {"text": [image_url, response_str]},
@@ -8790,6 +9104,556 @@ class SunoMusic:
 
 
 # ---------------------------------------------------------------------------
+# Flow Music generation and processing
+# ---------------------------------------------------------------------------
+
+class FlowMusic:
+    """All documented Flow Music actions through the dedicated music API."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = (
+        "AUDIO",
+        "AUDIO",
+        "VIDEO",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+        "STRING",
+    )
+    RETURN_NAMES = (
+        "audio1",
+        "audio2",
+        "video",
+        "text",
+        "clip_id",
+        "primary_url",
+        "result_urls",
+        "primary_path",
+        "result_paths",
+        "task_id",
+        "response",
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "operation": (
+                    FLOWMUSIC_OPERATIONS,
+                    {
+                        "default": "flowmusic-generation",
+                        "tooltip": "Select one documented Flow Music action. | 选择 Flow Music 操作。",
+                    },
+                ),
+                "version": (
+                    FLOWMUSIC_VERSIONS,
+                    {
+                        "default": "default",
+                        "tooltip": (
+                            "Lyria 3.5 is documented only for generation, extend, replace, and cover. | "
+                            "Lyria 3.5 仅用于生成、续写、替换和 Cover。"
+                        ),
+                    },
+                ),
+                "sound_prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Music style or sound description. | 音乐风格或声音描述。",
+                    },
+                ),
+                "lyrics": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Lyrics used by music generation. | 音乐生成使用的歌词。",
+                    },
+                ),
+                "prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Lyric-generation prompt, up to 3000 characters. | 歌词生成提示词，最多 3000 字符。",
+                    },
+                ),
+                "title": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Optional output title. | 可选输出标题。",
+                    },
+                ),
+                "bpm": (
+                    "INT",
+                    {
+                        "default": 120,
+                        "min": 1,
+                        "step": 1,
+                        "tooltip": "Beats per minute; the API requires at least 1. | 每分钟节拍数，至少为 1。",
+                    },
+                ),
+                "length": (
+                    "INT",
+                    {
+                        "default": 60,
+                        "min": 1,
+                        "max": 240,
+                        "step": 1,
+                        "tooltip": "Generated duration in seconds, 1 to 240. | 生成时长，1 到 240 秒。",
+                    },
+                ),
+                "clip_id": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Source clip_id from a completed Flow Music node. | 已完成 Flow Music 节点输出的 clip_id。",
+                    },
+                ),
+                "extend_from_s": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "step": 0.1,
+                        "tooltip": "Source position where extension begins. | 开始续写的源音频时间点。",
+                    },
+                ),
+                "extend_s": (
+                    "INT",
+                    {
+                        "default": 30,
+                        "min": 1,
+                        "max": 164,
+                        "step": 1,
+                        "tooltip": "Extension duration, at most 164 seconds. | 续写时长，最多 164 秒。",
+                    },
+                ),
+                "instruction": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Edit, extension, or cover instruction. | 编辑、续写或 Cover 指令。",
+                    },
+                ),
+                "start_s": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "step": 0.1,
+                        "tooltip": "Replacement range start. | 替换区间起点。",
+                    },
+                ),
+                "end_s": (
+                    "FLOAT",
+                    {
+                        "default": 10.0,
+                        "min": 0.0,
+                        "step": 0.1,
+                        "tooltip": "Replacement range end; must be greater than start_s. | 替换区间终点，必须大于起点。",
+                    },
+                ),
+                "strength": (
+                    "FLOAT",
+                    {
+                        "default": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.05,
+                        "tooltip": "Cover strength from 0 to 1. | Cover 编辑强度，0 到 1。",
+                    },
+                ),
+                "format": (
+                    FLOWMUSIC_FORMATS,
+                    {
+                        "default": "mp3",
+                        "tooltip": "Downloaded audio format. | 下载音频格式。",
+                    },
+                ),
+                "preset": (
+                    FLOWMUSIC_VIDEO_PRESETS,
+                    {
+                        "default": "modern",
+                        "tooltip": "Video rendering preset. | 音乐视频模板。",
+                    },
+                ),
+                "seed": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 0xffffffffffffffff,
+                        "step": 1,
+                        "tooltip": "Native Flow Music seed for supported generation actions. | Flow Music 原生随机种子。",
+                    },
+                ),
+            },
+            "optional": {
+                "audio": (
+                    "AUDIO",
+                    {
+                        "tooltip": "Local audio for flowmusic-upload-audio. | flowmusic-upload-audio 使用的本地音频。",
+                    },
+                ),
+                "audio_url": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Public audio URL; do not use with local audio. | 公网音频 URL，不能与本地音频同时使用。",
+                    },
+                ),
+                "api_config": (
+                    "SEEDANCE_CONFIG",
+                    {
+                        "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."
+                    },
+                ),
+                "skip_error": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Return placeholders instead of stopping the workflow. | 失败时返回占位结果，不中断工作流。",
+                    },
+                ),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, operation=None, version=None, strict=False, **kwargs):
+        if operation not in FLOWMUSIC_ACTION_SPECS:
+            return f"unsupported Flow Music operation: {operation}"
+        if version not in FLOWMUSIC_VERSIONS:
+            return f"unsupported Flow Music version: {version}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Flow_Music"
+
+    @staticmethod
+    def _text(value: Any) -> str:
+        return str(value or "").strip()
+
+    @staticmethod
+    def _update_progress(pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _resolve_audio_url(
+        self,
+        operation: str,
+        audio: Any,
+        audio_url: str,
+        config: Dict[str, Any],
+    ) -> str:
+        if operation != "flowmusic-upload-audio":
+            return ""
+        url = self._text(audio_url)
+        if audio is not None and url:
+            raise SeedanceAPIError(
+                "audio and audio_url cannot both be used | 本地音频和 URL 不能同时使用"
+            )
+        if audio is None and not url:
+            raise SeedanceAPIError(
+                "flowmusic-upload-audio requires local audio or audio_url | 必须提供本地音频或音频 URL"
+            )
+        if url:
+            if not url.startswith(("http://", "https://")):
+                raise SeedanceAPIError("audio_url must be an http(s) URL")
+            return url
+        return upload_media(
+            audio_to_wav_bytes(audio),
+            "flowmusic_upload.wav",
+            "audio/wav",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+
+    def _build_payload(self, operation: str, uploaded_audio_url: str = "", **kwargs):
+        if operation not in FLOWMUSIC_ACTION_SPECS:
+            raise SeedanceAPIError(f"unsupported Flow Music operation: {operation}")
+        spec = FLOWMUSIC_ACTION_SPECS[operation]
+        allowed = set(spec["allowed_fields"])
+        payload: Dict[str, Any] = {"model": FLOWMUSIC_MODEL}
+
+        if "version" in allowed:
+            version = self._text(kwargs.get("version")) or "default"
+            if version not in FLOWMUSIC_VERSIONS:
+                raise SeedanceAPIError(f"unsupported Flow Music version: {version}")
+            if version != "default":
+                payload["version"] = version
+
+        for field in (
+            "sound_prompt", "lyrics", "prompt", "title", "clip_id", "instruction",
+        ):
+            if field in allowed:
+                value = self._text(kwargs.get(field))
+                if value:
+                    payload[field] = value
+
+        if operation == "flowmusic-generation":
+            if not payload.get("sound_prompt") and not payload.get("lyrics"):
+                raise SeedanceAPIError(
+                    "sound_prompt and lyrics cannot both be empty | 风格提示词和歌词不能同时为空"
+                )
+            bpm = int(kwargs.get("bpm") or 0)
+            length = int(kwargs.get("length") or 0)
+            if bpm < 1:
+                raise SeedanceAPIError("bpm must be at least 1")
+            if not 1 <= length <= 240:
+                raise SeedanceAPIError("length must be between 1 and 240")
+            payload.update({"bpm": str(bpm), "length": length, "seed": int(kwargs.get("seed") or 0)})
+
+        if operation == "flowmusic-lyrics":
+            prompt = payload.get("prompt", "")
+            if not prompt:
+                raise SeedanceAPIError("flowmusic-lyrics requires prompt")
+            if len(prompt) > 3000:
+                raise SeedanceAPIError("flowmusic-lyrics prompt must not exceed 3000 characters")
+
+        if operation == "flowmusic-upload-audio":
+            if not uploaded_audio_url:
+                raise SeedanceAPIError("flowmusic-upload-audio requires audio_url")
+            payload["audio_url"] = uploaded_audio_url
+
+        if operation == "flowmusic-extend":
+            extend_from_s = float(kwargs.get("extend_from_s") or 0.0)
+            extend_s = int(kwargs.get("extend_s") or 0)
+            if extend_from_s < 0:
+                raise SeedanceAPIError("extend_from_s must not be negative")
+            if not 1 <= extend_s <= 164:
+                raise SeedanceAPIError("extend_s must be between 1 and 164")
+            payload.update({
+                "extend_from_s": extend_from_s,
+                "extend_s": extend_s,
+                "seed": int(kwargs.get("seed") or 0),
+            })
+
+        if operation == "flowmusic-replace":
+            start_s = float(kwargs.get("start_s") or 0.0)
+            end_s = float(kwargs.get("end_s") or 0.0)
+            if start_s < 0 or end_s <= start_s:
+                raise SeedanceAPIError("end_s must be greater than start_s")
+            payload.update({
+                "start_s": start_s,
+                "end_s": end_s,
+                "seed": int(kwargs.get("seed") or 0),
+            })
+
+        if operation == "flowmusic-cover":
+            strength = float(kwargs.get("strength"))
+            if not 0.0 <= strength <= 1.0:
+                raise SeedanceAPIError("strength must be between 0 and 1")
+            payload.update({
+                "strength": strength,
+                "seed": int(kwargs.get("seed") or 0),
+            })
+
+        if operation == "flowmusic-download-audio":
+            output_format = self._text(kwargs.get("format"))
+            if output_format not in FLOWMUSIC_FORMATS:
+                raise SeedanceAPIError(f"unsupported Flow Music format: {output_format}")
+            payload["format"] = output_format
+
+        if operation == "flowmusic-video-clip":
+            preset = self._text(kwargs.get("preset"))
+            if preset not in FLOWMUSIC_VIDEO_PRESETS:
+                raise SeedanceAPIError(f"unsupported Flow Music preset: {preset}")
+            payload["preset"] = preset
+
+        missing = [
+            field
+            for field in spec["required_fields"]
+            if field not in payload or payload[field] in (None, "", [])
+        ]
+        if missing:
+            raise SeedanceAPIError(
+                f"{operation} requires: {', '.join(missing)} | 缺少必填参数：{', '.join(missing)}"
+            )
+        return {
+            key: value
+            for key, value in payload.items()
+            if key == "model" or key in allowed
+        }
+
+    def _make_error_result(self, error_msg: str) -> Dict[str, Any]:
+        response_str = json.dumps({"error": error_msg}, ensure_ascii=False, indent=2)
+        silence = make_silent_audio(44100, 1.0)
+        return {
+            "ui": {"text": ["", "", "", "", response_str]},
+            "result": (
+                silence,
+                silence,
+                make_error_video(error_msg),
+                "",
+                "",
+                "",
+                "[]",
+                "",
+                "[]",
+                "",
+                response_str,
+            ),
+        }
+
+    def execute(self, operation: str, api_config=None, skip_error: bool = False, **kwargs):
+        try:
+            return self._execute_inner(operation, api_config=api_config, **kwargs)
+        except Exception as error:
+            if skip_error:
+                error_msg = f"{self._log_prefix}: {type(error).__name__}: {error}"
+                print(f"[{self._log_prefix}] skip_error=True: {type(error).__name__}")
+                return self._make_error_result(error_msg)
+            raise
+
+    def _execute_inner(self, operation: str, api_config=None, **kwargs):
+        validation = self.VALIDATE_INPUTS(
+            operation=operation,
+            version=kwargs.get("version"),
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        uploaded_audio_url = self._resolve_audio_url(
+            operation,
+            kwargs.get("audio"),
+            kwargs.get("audio_url", ""),
+            config,
+        )
+        self._update_progress(pbar, 15)
+        payload = self._build_payload(operation, uploaded_audio_url, **kwargs)
+        spec = FLOWMUSIC_ACTION_SPECS[operation]
+        task_id, submit_response = submit_music_action(
+            spec["action"],
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        if not task_id:
+            raise SeedanceAPIError(
+                f"{operation} returned no task id in its asynchronous submit response"
+            )
+        self._update_progress(pbar, 20)
+        final_response = poll_music_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 65
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 85)
+
+        extracted = extract_music_results(final_response)
+        artifacts = extracted.get("artifacts") or []
+        audio_objects: List[Any] = []
+        video = None
+        paths: List[str] = []
+        warnings: List[Dict[str, Any]] = []
+        successful_downloads = 0
+        artifact_count = max(1, len(artifacts))
+        for index, artifact in enumerate(artifacts, 1):
+            url = str(artifact.get("url") or "")
+            kind = str(artifact.get("kind") or "file")
+            if kind == "file" and spec["result_family"] in {"audio", "video"}:
+                kind = spec["result_family"]
+            path = ""
+            try:
+                if kind == "audio":
+                    output_format = (
+                        "wav"
+                        if operation == "flowmusic-download-audio" and kwargs.get("format") == "wav"
+                        else ("wav" if urlparse(url).path.lower().endswith(".wav") else "mp3")
+                    )
+                    audio_object, path = download_audio(
+                        url,
+                        output_format=output_format,
+                        sample_rate=44100,
+                        logger_prefix=self._log_prefix,
+                    )
+                    audio_objects.append(audio_object)
+                elif kind == "video" and video is None:
+                    video, path = download_video_with_path(
+                        url, logger_prefix=self._log_prefix
+                    )
+                else:
+                    path = download_file(
+                        url,
+                        filename_prefix=(
+                            "flowmusic_stems" if operation == "flowmusic-stems" else "flowmusic_file"
+                        ),
+                        default_extension=("zip" if operation == "flowmusic-stems" else "bin"),
+                        logger_prefix=self._log_prefix,
+                    )
+                successful_downloads += 1
+            except Exception as error:
+                warnings.append({
+                    "artifact_index": index,
+                    "kind": kind,
+                    "error": type(error).__name__,
+                })
+                print(
+                    f"[{self._log_prefix}] artifact {index}/{artifact_count} "
+                    f"download failed: {type(error).__name__}"
+                )
+            paths.append(path)
+            self._update_progress(pbar, 85 + min(10, index / artifact_count * 10))
+
+        if artifacts and successful_downloads == 0:
+            raise SeedanceAPIError(
+                "All Flow Music result artifacts failed to download | Flow Music 结果全部下载失败"
+            )
+
+        all_urls = [str(artifact.get("url") or "") for artifact in artifacts]
+        clip_ids = extracted.get("clip_ids") or []
+        text = extracted.get("text") or ""
+        if not text and spec["result_family"] == "text":
+            text = json.dumps(extracted.get("result"), ensure_ascii=False, indent=2)
+        response_payload = final_response
+        if warnings:
+            response_payload = dict(final_response)
+            response_payload["_seedance_local"] = {"download_warnings": warnings}
+        response_str = json.dumps(response_payload, ensure_ascii=False, indent=2)
+        primary_url = all_urls[0] if all_urls else ""
+        primary_path = paths[0] if paths else ""
+        result_clip_id = clip_ids[0] if clip_ids else ""
+        self._update_progress(pbar, 100)
+        return {
+            "ui": {"text": [text, result_clip_id, primary_url, primary_path, response_str]},
+            "result": (
+                audio_objects[0] if audio_objects else None,
+                audio_objects[1] if len(audio_objects) > 1 else None,
+                video,
+                text,
+                result_clip_id,
+                primary_url,
+                json.dumps(all_urls, ensure_ascii=False),
+                primary_path,
+                json.dumps(paths, ensure_ascii=False),
+                task_id,
+                response_str,
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Midjourney image and video actions
 # ---------------------------------------------------------------------------
 
@@ -9958,6 +10822,7 @@ NODE_CLASS_MAPPINGS = {
     "Qwen_Image_3_0": QwenImage30,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
+    "Zhenzhen_Image_GK_V2_Edit": ZhenzhenImageGKV2Edit,
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
@@ -9983,6 +10848,7 @@ NODE_CLASS_MAPPINGS = {
     "Mureka_BGM": MurekaBGM,
     "Whisper_Transcription": WhisperTranscription,
     "Suno_Music": SunoMusic,
+    "Flow_Music": FlowMusic,
     "Midjourney_Multi_Action": MidjourneyMultiAction,
 }
 
@@ -10076,6 +10942,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
+    "Zhenzhen_Image_GK_V2_Edit": "Zhenzhen Image GK v2 图像编辑（1-3 图）",
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
@@ -10101,5 +10968,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Mureka_BGM": "Mureka BGM 背景音乐（2 合 1）",
     "Whisper_Transcription": "Whisper 1 语音转写",
     "Suno_Music": "Suno 音乐生成与处理（31 合 1）",
+    "Flow_Music": "Flow Music 音乐生成与处理（9 合 1）",
     "Midjourney_Multi_Action": "Midjourney 图像与视频（16 合 1）",
 }
