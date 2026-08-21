@@ -71,6 +71,8 @@ class FrontendExtensionTests(unittest.TestCase):
             "Zhenzhen_Image_G2",
             "Qwen_Image_3_0",
             "Zhenzhen_Image_GK_V15",
+            "Zhenzhen_Image_GK_V2",
+            "Zhenzhen_Image_GK_V2_Edit",
             "Zhenzhen_Image_NB",
             "Zhenzhen_Video_G_Omni_Flash",
             "Zhenzhen_Video_GK_V15",
@@ -91,6 +93,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Doubao_Seed_Audio",
             "Whisper_Transcription",
             "Suno_Music",
+            "Flow_Music",
             "Midjourney_Multi_Action",
         }
         self.assertTrue(expected.issubset(node_names))
@@ -413,6 +416,7 @@ class FrontendExtensionTests(unittest.TestCase):
                 "zhenzhen_model_ui.js",
                 "hailuo_h3_model_ui.js",
                 "suno_action_ui.js",
+                "flowmusic_action_ui.js",
                 "midjourney_action_ui.js",
                 "qwen_minimax_model_ui.js",
             )

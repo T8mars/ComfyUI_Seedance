@@ -18,9 +18,17 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写与 Suno 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件提供视频、图片、音频、语音转写、Suno 音乐与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.6.0（2026-08-21）
+
+- 新增独立的 `Zhenzhen Image GK v2 图像编辑（1-3 图）` 节点，严格支持文档规定的 1 到 3 张参考图、`auto` 与固定画幅、`1k|2k`、`n=1..10` 和可选内容检查，并提供 30 路图片并发提交版本。
+- 新增 `Flow Music 音乐生成与处理（9 合 1）` 节点，覆盖音乐生成、歌词生成、音频上传、续写、片段替换、整曲改编、人声伴奏分离、音频下载和音乐视频。
+- Flow Music 按操作动态显示参数，支持本地音频上传、`clip_id` 节点连线、标准 seed 缓存、`skip_error`，并复用图片、音频、视频和通用文件的可靠下载链路。
+- 新增 10 份可直接加载的安全示例工作流；所有操作和 GK v2 图像编辑均完成真实节点调用验证，API Key、任务号、素材标识和运行结果保持空白。
+- 完整离线回归通过 350 项测试，165 份示例工作流通过 JSON 与敏感信息审计，12 个前端脚本通过语法检查，Comfy Registry 校验与完整打包通过。
 
 ## v0.5.27（2026-08-20）
 
@@ -366,13 +374,14 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
+- 支持 Flow Music 9 项音乐生成、歌词、上传、续写、替换、改编、分轨、下载和视频渲染操作
 - 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
 - 支持图片 30 路、视频 10 路独立并发提交与按槽位接收，原节点仍可单独运行
 - 图像编辑按节点支持最多 10 或 14 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、9 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型和 31 项 Suno 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -394,6 +403,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 | `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
 | `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
+| `Zhenzhen Image GK v2 文生图` | GK v2 文生图，支持 7 种固定比例和单次 1 到 12 张请求 | `prompt`、`size`、`n` |
+| `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
@@ -415,6 +426,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / 
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
 | `Suno 音乐生成与处理（31 合 1）` | 音乐生成、素材导入、续写、翻唱、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
+| `Flow Music 音乐生成与处理（9 合 1）` | 音乐生成、歌词、上传、续写、替换、改编、分轨、音频导出和视频渲染 | `operation` 和当前操作动态显示的输入 |
 | `Midjourney 图像与视频（16 合 1）` | 图片生成、融合、描述、编辑、二次操作、局部重绘和图生视频 | `operation` 和当前操作动态显示的输入 |
 | `并发提交｜...` | 使用对应原节点的完整参数异步提交图片或视频任务 | 与对应原节点相同 |
 | `并发接收图片（30 路）` | 接收最多 30 个图片 Future，并按输入槽位输出图片 | `future_1` ... `future_30`、`failure_mode` |
@@ -659,6 +671,14 @@ Suno 音乐生成与处理：
 4. 续写、翻唱、编辑、分轨和导出可把前一个 Suno 节点的 `task_id` 直接连接过来；翻唱、双曲混合、采样和三项添加动作还需填写 `prompt`，双曲混合连接两个任务。
 5. 按结果类型连接 `audio1`、`video` 或 `text`，其余结果可从 URL、路径和完整响应输出读取。
 
+Flow Music 音乐生成与处理：
+
+1. 添加 `Flow Music 音乐生成与处理（9 合 1）`，选择 `operation`，节点会自动收起无关控件。
+2. 音乐生成至少填写 `sound_prompt` 或 `lyrics`；歌词生成填写 `prompt`。
+3. 外部音频可连接本地 `AUDIO` 或填写公网 `audio_url`，上传完成后从 `clip_id` 输出连接续写、替换、改编、分轨、下载或视频操作。
+4. 生成、续写、替换和 Cover 可选 `lyria-3.5`；片段替换示例默认使用已完成真实验证的 `lyria-3.5`，其他操作不会发送该字段。
+5. 音频、视频、文本、分轨文件路径和新的 `clip_id` 均有独立输出。
+
 Midjourney 图片与视频：
 
 1. 添加 `Midjourney 图像与视频（16 合 1）`，选择 `operation`，节点会自动收起无关控件。
@@ -674,6 +694,7 @@ Midjourney 图片与视频：
 - `examples/seedance_image_to_video.json`
 - `examples/seedance_multimodal_video.json`
 - `examples/seedance-2.5-*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
+- `examples/flowmusic-*.json`（9 份，所有依赖源音乐的操作均通过节点连线传递 `clip_id`）
 - `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
 - `examples/海螺hailuo-h3*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
 - `examples/minmax-h3-context-ir-*.json`（3 份，覆盖 Text、Image、Multimodal）
@@ -1286,6 +1307,22 @@ Suno 音乐节点参数：
 | `audio_url1` ... `audio_url4` | 公网音频 URL，不能与同槽本地音频同时使用 |
 | `continue_at` / `start_s` / `end_s` / `duration_s` / `speed` | 续写与编辑操作的时间或速度参数 |
 | `api_config` / `skip_error` | 可选配置节点与批处理错误策略 |
+
+Flow Music 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `operation` | 9 项文档操作；选择后动态显示相关控件 |
+| `version` | `default` 或 `lyria-3.5`，仅生成、续写、替换和 Cover 时发送 |
+| `sound_prompt` / `lyrics` / `title` / `bpm` / `length` | 音乐生成参数；风格提示词和歌词至少填写一个，时长 1 到 240 秒 |
+| `prompt` | 歌词生成提示词，最多 3000 字符 |
+| `audio` / `audio_url` | 上传外部音频，二者只能使用一个 |
+| `clip_id` | 前置 Flow Music 产物标识，可直接通过节点连线传递 |
+| `extend_from_s` / `extend_s` | 续写起点与时长；续写时长最多 164 秒 |
+| `start_s` / `end_s` / `instruction` | 片段替换范围和编辑指令 |
+| `strength` | Cover 编辑强度，范围 0 到 1 |
+| `format` / `preset` | 音频导出格式 `mp3` / `wav`；视频模板 `simple` / `modern` / `player` |
+| `seed` / `api_config` / `skip_error` | 原生随机种子、可选配置节点与批处理错误策略 |
 
 Midjourney 节点参数：
 

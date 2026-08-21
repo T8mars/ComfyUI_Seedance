@@ -44,6 +44,69 @@ class LatestImageNodeTests(unittest.TestCase):
         self.assertEqual(submit.call_args.args[0]["model"], "zhenzhen-image-gk-v2")
         self.assertTrue(torch.equal(result["result"][0], IMAGE))
 
+    def test_gk_v2_current_size_and_count_contract(self):
+        inputs = nodes.ZhenzhenImageGKV2.INPUT_TYPES()["required"]
+        self.assertEqual(inputs["size"][0], [
+            "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9",
+        ])
+        self.assertEqual(inputs["n"][1]["max"], 12)
+
+    def test_gk_v2_edit_contract_and_execution(self):
+        node = nodes.ZhenzhenImageGKV2Edit()
+        urls = ["https://media.test/one.png", "https://media.test/two.png"]
+        self.assertEqual(
+            node._build_payload(
+                "turn this into a watercolor poster",
+                urls,
+                "auto",
+                "1k",
+                1,
+                False,
+            ),
+            {
+                "model": "zhenzhen-image-gk-v2-edit",
+                "prompt": "turn this into a watercolor poster",
+                "images": urls,
+                "n": 1,
+                "aspect_ratio": "auto",
+                "resolution": "1k",
+                "nsfw_check": False,
+            },
+        )
+
+        final = {"data": {"status": "SUCCESS", "result_url": "https://result.test/a.png"}}
+        with (
+            patch.object(nodes, "get_config", return_value=CONFIG),
+            patch.object(nodes, "upload_media", side_effect=urls) as upload,
+            patch.object(nodes, "submit_image_task", return_value="task-test") as submit,
+            patch.object(nodes, "poll_image_task", return_value=final),
+            patch.object(nodes, "extract_image_url", return_value="https://result.test/a.png"),
+            patch.object(nodes, "download_image", return_value=IMAGE),
+        ):
+            result = node.execute(
+                prompt="turn this into a watercolor poster",
+                aspect_ratio="auto",
+                resolution="1k",
+                n=1,
+                nsfw_check=False,
+                image1=IMAGE,
+                image3=IMAGE,
+            )
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(submit.call_args.args[0]["images"], urls)
+        self.assertNotIn("quality", submit.call_args.args[0])
+        self.assertTrue(torch.equal(result["result"][0], IMAGE))
+
+    def test_gk_v2_edit_requires_one_to_three_images_at_runtime(self):
+        result = nodes.ZhenzhenImageGKV2Edit.VALIDATE_INPUTS(
+            prompt="edit this",
+            aspect_ratio="auto",
+            resolution="1k",
+            n=1,
+            strict=True,
+        )
+        self.assertIn("1-3", result)
+
     def test_wan_contract_separates_t2i_and_i2i(self):
         node = nodes.Wan27GlobalImage()
         self.assertEqual(nodes.WAN27_GLOBAL_IMAGE_MODELS, [
@@ -225,6 +288,7 @@ class LatestModelRegistrationTests(unittest.TestCase):
     def test_nodes_and_image_concurrent_wrappers_are_registered(self):
         expected = {
             "Zhenzhen_Image_GK_V2": nodes.ZhenzhenImageGKV2,
+            "Zhenzhen_Image_GK_V2_Edit": nodes.ZhenzhenImageGKV2Edit,
             "Wan_2_7_Global_Image": nodes.Wan27GlobalImage,
             "Qwen3_TTS": nodes.Qwen3TTS,
             "Minimax_Audio": nodes.MinimaxAudio,
@@ -232,7 +296,11 @@ class LatestModelRegistrationTests(unittest.TestCase):
         }
         for key, node_class in expected.items():
             self.assertIs(nodes.NODE_CLASS_MAPPINGS[key], node_class)
-        for key in ("Zhenzhen_Image_GK_V2", "Wan_2_7_Global_Image"):
+        for key in (
+            "Zhenzhen_Image_GK_V2",
+            "Zhenzhen_Image_GK_V2_Edit",
+            "Wan_2_7_Global_Image",
+        ):
             wrapper = concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS[
                 f"SeedanceConcurrent_{key}_Submit"
             ]
@@ -257,7 +325,7 @@ class LatestModelRegistrationTests(unittest.TestCase):
 
     def test_every_new_model_has_a_safe_example_workflow(self):
         expected = set(
-            [nodes.ZHENZHEN_IMAGE_GK_V2_MODEL]
+            [nodes.ZHENZHEN_IMAGE_GK_V2_MODEL, nodes.ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL]
             + nodes.WAN27_GLOBAL_IMAGE_MODELS
             + nodes.QWEN3_TTS_MODELS
             + nodes.MINIMAX_AUDIO_MODELS
@@ -266,6 +334,7 @@ class LatestModelRegistrationTests(unittest.TestCase):
         found = {}
         new_node_types = {
             "Zhenzhen_Image_GK_V2",
+            "Zhenzhen_Image_GK_V2_Edit",
             "Wan_2_7_Global_Image",
             "Qwen3_TTS",
             "Minimax_Audio",
@@ -278,6 +347,8 @@ class LatestModelRegistrationTests(unittest.TestCase):
                     continue
                 if node["type"] == "Zhenzhen_Image_GK_V2":
                     model = nodes.ZHENZHEN_IMAGE_GK_V2_MODEL
+                elif node["type"] == "Zhenzhen_Image_GK_V2_Edit":
+                    model = nodes.ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL
                 else:
                     model = node["widgets_values"][0]
                 found[model] = (path, workflow, node)
@@ -294,6 +365,12 @@ class LatestModelRegistrationTests(unittest.TestCase):
                 self.assertNotRegex(raw, r"sk-[A-Za-z0-9]{12,}")
                 self.assertNotRegex(raw, r'"task_[A-Za-z0-9_-]{6,}"')
                 if model in nodes.WAN27_GLOBAL_I2I_MODELS:
+                    incoming = [
+                        link for link in workflow["links"]
+                        if link[3] == node["id"] and link[5] == "IMAGE"
+                    ]
+                    self.assertEqual(len(incoming), 1)
+                if model == nodes.ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL:
                     incoming = [
                         link for link in workflow["links"]
                         if link[3] == node["id"] and link[5] == "IMAGE"
