@@ -99,10 +99,21 @@ class Hunyuan3DTests(unittest.TestCase):
                 strict=True,
             ),
         )
-        self.assertIs(
+        self.assertIn(
+            "prompt is required",
             nodes.Hunyuan3DV31.VALIDATE_INPUTS(
                 model=nodes.HUNYUAN3D_IMAGE_MODEL,
                 prompt="",
+                face_count=10000,
+                generate_type="Geometry",
+                image1=object(),
+                strict=True,
+            ),
+        )
+        self.assertIs(
+            nodes.Hunyuan3DV31.VALIDATE_INPUTS(
+                model=nodes.HUNYUAN3D_IMAGE_MODEL,
+                prompt="a black cat bust",
                 face_count=10000,
                 generate_type="Geometry",
                 image1=object(),
@@ -114,7 +125,7 @@ class Hunyuan3DTests(unittest.TestCase):
             "contiguously",
             nodes.Hunyuan3DV31.VALIDATE_INPUTS(
                 model=nodes.HUNYUAN3D_IMAGE_MODEL,
-                prompt="",
+                prompt="a black cat bust",
                 face_count=10000,
                 generate_type="Normal",
                 image2=object(),

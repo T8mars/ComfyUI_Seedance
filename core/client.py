@@ -298,6 +298,35 @@ def _truncate(text: str, limit: int = 300) -> str:
     return text if len(text) <= limit else text[:limit] + f"...({len(text)} chars)"
 
 
+def _sanitize_payload_for_log(value: Any, key: str = "") -> Any:
+    """Return a log-safe payload copy without URLs or runtime identifiers."""
+    normalized_key = str(key).strip().lower()
+    if isinstance(value, dict):
+        return {
+            child_key: _sanitize_payload_for_log(child_value, child_key)
+            for child_key, child_value in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_payload_for_log(item, normalized_key) for item in value]
+    if value in (None, ""):
+        return value
+    if (
+        normalized_key in {"authorization", "api_key", "token"}
+        or normalized_key.endswith("_id")
+        or normalized_key.endswith("_token")
+    ):
+        return "<redacted-id>"
+    if isinstance(value, str):
+        text = value.strip()
+        if normalized_key == "url" or normalized_key.endswith(("_url", "_urls")):
+            return "<redacted-url>"
+        if text.startswith(("http://", "https://")):
+            return "<redacted-url>"
+        if text.startswith(("task_", "sk-")):
+            return "<redacted-id>"
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
@@ -528,7 +557,10 @@ def submit_task(
     """POST /v1/videos, return task id."""
     url = f"{config['base_url']}/v1/videos"
 
-    safe_payload = json.dumps(payload, ensure_ascii=False)
+    safe_payload = json.dumps(
+        _sanitize_payload_for_log(payload),
+        ensure_ascii=False,
+    )
     _log(logger_prefix, f"Submit -> POST /v1/videos model={payload.get('model')}")
     _log(logger_prefix, f"  Payload: {_truncate(safe_payload, 500)}")
 

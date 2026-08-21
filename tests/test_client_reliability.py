@@ -96,6 +96,45 @@ def submit_cases():
 
 
 class TaskCreationRetryTests(unittest.TestCase):
+    def test_video_submit_log_redacts_urls_and_runtime_identifiers(self):
+        payload = {
+            "model": "test-model",
+            "prompt": "preserve the scene",
+            "images": [
+                "https://cdn.example.test/input.png?private-marker=image",
+            ],
+            "metadata": {
+                "video_url": "https://cdn.example.test/input.mp4?private-marker=video",
+                "extend_from_task_id": "task_runtime_secret",
+                "content": [
+                    {
+                        "type": "audio_url",
+                        "audio_url": {
+                            "url": "https://cdn.example.test/input.mp3?private-marker=audio",
+                        },
+                    },
+                ],
+            },
+        }
+        session = FakeSession([FakeResponse(200, {"id": "task-result"})])
+        with (
+            patch.object(client, "_session", return_value=session),
+            patch("builtins.print") as print_mock,
+        ):
+            self.assertEqual(client.submit_task(payload, CONFIG), "task-result")
+
+        logged = "\n".join(
+            str(call.args[0]) for call in print_mock.call_args_list if call.args
+        )
+        self.assertIn("test-model", logged)
+        self.assertIn("preserve the scene", logged)
+        self.assertIn("<redacted-url>", logged)
+        self.assertIn("<redacted-id>", logged)
+        self.assertNotIn("cdn.example.test", logged)
+        self.assertNotIn("private-marker", logged)
+        self.assertNotIn("task_runtime_secret", logged)
+        self.assertEqual(session.post_calls[0][1]["json"], payload)
+
     def test_all_submit_families_do_not_replay_ambiguous_read_timeout(self):
         for name, submit in submit_cases().items():
             with self.subTest(name=name):

@@ -7078,7 +7078,7 @@ class Hunyuan3DV31:
                     {
                         "multiline": True,
                         "default": "",
-                        "tooltip": "Required for text-to-3D; optional guidance for image-to-3D. | 文生 3D 必填，图生 3D 可选。",
+                        "tooltip": "Required for both text-to-3D and image-to-3D. | 文生 3D 与图生 3D 均必须填写。",
                     },
                 ),
                 "face_count": (
@@ -7130,9 +7130,9 @@ class Hunyuan3DV31:
             index for index in range(1, 9)
             if kwargs.get(f"image{index}") is not None
         ]
+        if not str(prompt or "").strip():
+            return "prompt is required for Hunyuan 3D | 混元 3D 必须填写提示词"
         if model == HUNYUAN3D_TEXT_MODEL:
-            if not str(prompt or "").strip():
-                return "prompt is required for text-to-3D | 文生 3D 必须填写提示词"
             if image_slots:
                 return "text-to-3D does not accept images | 文生 3D 不能连接图片"
         elif model == HUNYUAN3D_IMAGE_MODEL:
