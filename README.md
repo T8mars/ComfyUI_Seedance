@@ -18,9 +18,18 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.7.0（2026-08-22）
+
+- 新增 `Zhenzhen Video G Omni Flash Lowprice（4 模式）` 节点，支持 4/6/8/10 秒文生视频、单首帧、1/3 张参考图和参考视频；分辨率支持 720p/1080p/4k，并提供 10 路视频并发提交版本。
+- 新增 `混元 3D v3.1` 二合一节点，支持文生 3D 与 1 到 8 张有序多视图图生 3D；结果直接输出 ComfyUI 原生 `FILE_3D_GLB`，可连接 `Preview3D` 和 `SaveGLB`。
+- 兼容混元真实响应同时返回 ZIP 与 GLB 的结构，自动选择真正的 `.glb` 文件并校验 GLB 文件头、版本和完整长度。
+- 新增 GK v2 智能分割与区域编辑节点，支持 `object_indices`、`boxes`、`selection_regions` 三类选择结构；区域编辑提供 30 路图片并发提交版本。
+- 新增按模式动态显示素材与参数的前端交互，以及 8 份文生/图生/参考视频、3D 预览保存、分割区域编辑示例工作流。
+- 完整离线回归通过 361 项测试，173 份示例工作流通过 JSON 与敏感信息审计，14 个前端脚本通过语法检查；真实 GLB 已通过 ComfyUI 原生预览与保存节点验证。
 
 ## v0.6.0（2026-08-21）
 

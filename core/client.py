@@ -11,6 +11,9 @@ Endpoints:
   POST {base_url}/v1/image/generations   submit image task
   GET  {base_url}/v1/image/generations/{task_id}
                                              poll image task
+  POST {base_url}/v1/3d/generations       submit Hunyuan 3D task
+  GET  {base_url}/v1/3d/generations/{task_id}
+                                             poll Hunyuan 3D task
   POST {base_url}/v1/audio/generations   submit audio task
   GET  {base_url}/v1/audio/generations/{task_id}
                                              poll audio task
@@ -1221,6 +1224,212 @@ def extract_image_urls(final_response: Dict[str, Any]) -> List[str]:
                         return urls
 
     return [extract_image_url(final_response)]
+
+
+def extract_image_operation_result(final_response: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract the documented result object from GK v2 utility operations."""
+    task_data = final_response.get("data") if isinstance(final_response, dict) else None
+    containers: List[Any] = [task_data]
+    if isinstance(task_data, dict):
+        containers.extend((task_data.get("data"), task_data.get("content")))
+        upstream_data = task_data.get("data")
+        if isinstance(upstream_data, dict):
+            containers.append(upstream_data.get("content"))
+
+    for container in containers:
+        if isinstance(container, dict):
+            result = container.get("result")
+            if isinstance(result, dict):
+                return result
+    raise SeedanceAPIError(
+        "Image utility task completed but no result object was returned"
+    )
+
+
+def extract_region_edit_url(final_response: Dict[str, Any]) -> str:
+    """Extract a region-edit image URL from standard or nested result shapes."""
+    try:
+        return extract_image_url(final_response)
+    except SeedanceAPIError:
+        result = extract_image_operation_result(final_response)
+        for key in ("image_url", "result_url", "url"):
+            value = result.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    raise SeedanceAPIError(
+        "Region edit completed but no image URL was returned"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Hunyuan 3D generation
+# ---------------------------------------------------------------------------
+
+_3D_RUNNING_STATUSES = {
+    "NOT_START", "SUBMITTED", "QUEUED", "IN_PROGRESS", "PENDING", "PROCESSING",
+}
+_3D_SUCCESS_STATUSES = {"SUCCESS", "SUCCEEDED", "COMPLETED"}
+_3D_FAILURE_STATUSES = {"FAILURE", "FAILED", "CANCELLED", "CANCELED"}
+
+
+def submit_3d_task(
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Hunyuan3D",
+) -> str:
+    """POST /v1/3d/generations and return the asynchronous task id."""
+    url = f"{config['base_url']}/v1/3d/generations"
+    _log(logger_prefix, f"Submit -> POST /v1/3d/generations model={payload.get('model')}")
+    response = _post_task_creation(
+        lambda: _session().post(
+            url,
+            headers=_headers(config["api_key"]),
+            json=payload,
+            timeout=config.get("timeout", 60),
+        ),
+        logger_prefix,
+        "3D submit",
+    )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
+    if response.status_code != 200:
+        raise SeedanceAPIError(
+            f"3D submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
+    task_id = None
+    if isinstance(data, dict):
+        task_id = data.get("task_id") or data.get("id")
+    if not task_id:
+        raise SeedanceAPIError("3D submit response did not contain a task id")
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
+
+
+def poll_3d_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Hunyuan3D",
+) -> Dict[str, Any]:
+    """Poll a Hunyuan 3D task until its documented terminal state."""
+    url = f"{config['base_url']}/v1/3d/generations/{task_id}"
+    poll_interval = config.get("poll_interval", 4.0)
+    max_poll_time = config.get("max_poll_time", 1800)
+    _log(logger_prefix, f"Poll 3D -> interval={poll_interval}s, max={max_poll_time}s")
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"3D task exceeded {max_poll_time}s and polling stopped [task_id: {task_id}]"
+            )
+        cooperative_sleep(poll_interval)
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as error:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"3D poll network error ({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): "
+                f"{type(error).__name__}",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError("3D polling failed after repeated network errors")
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"3D poll HTTP {response.status_code} "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    f"3D polling failed after repeated HTTP {response.status_code} responses"
+                )
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError("3D polling repeatedly returned invalid JSON")
+            continue
+
+        consecutive_failures = 0
+        task_data = response_data.get("data") if isinstance(response_data, dict) else None
+        status_source = task_data if isinstance(task_data, dict) else response_data
+        status = str(status_source.get("status") or "").strip().upper()
+        progress = _coerce_progress(status_source.get("progress"))
+        if status != last_status:
+            _log(
+                logger_prefix,
+                f"  3D poll: status={status}, progress={progress}, elapsed={int(elapsed)}s",
+            )
+            last_status = status
+        if on_progress and progress is not None:
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+        if status in _3D_SUCCESS_STATUSES:
+            _log(logger_prefix, f"  3D task completed in {int(elapsed)}s")
+            return response_data
+        if status in _3D_FAILURE_STATUSES:
+            reason = _extract_error_message(status_source, "3D generation failed")
+            raise SeedanceAPIError(f"3D task failed: {reason} [task_id: {task_id}]")
+        if status and status not in _3D_RUNNING_STATUSES:
+            _log(logger_prefix, f"  Unknown 3D status '{status}', continue polling...")
+
+
+def extract_3d_url(final_response: Dict[str, Any]) -> str:
+    """Extract the actual GLB URL from documented and observed result shapes."""
+    candidates: List[Tuple[int, int, str]] = []
+
+    def visit(value: Any, path: str = "root") -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                visit(child, f"{path}.{key}")
+            return
+        if isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, f"{path}[{index}]")
+            return
+        if not isinstance(value, str):
+            return
+        url = value.strip()
+        if not url.startswith(("http://", "https://")):
+            return
+        lower_path = urlparse(url).path.lower()
+        score = 0
+        if lower_path.endswith(".glb"):
+            score += 100
+        if ".file_urls[" in path:
+            score += 20
+        if path.endswith(".file_url"):
+            score += 10
+        if path.endswith(".result_url"):
+            score += 5
+        candidates.append((score, len(candidates), url))
+
+    visit(final_response)
+    if candidates:
+        return max(candidates, key=lambda item: (item[0], -item[1]))[2]
+    raise SeedanceAPIError("3D task completed but no GLB URL was returned")
 
 
 def _download_image_bytes(
@@ -2742,6 +2951,42 @@ def download_file(
     os.replace(download_path, path)
     _log(logger_prefix, f"  Downloaded result -> {path}")
     return path
+
+
+def download_glb(
+    url: str,
+    filename_prefix: str = "hunyuan3d",
+    logger_prefix: str = "Hunyuan3D",
+) -> str:
+    """Download and validate a GLB result for ComfyUI Preview3D/SaveGLB."""
+    path = download_file(
+        url,
+        filename_prefix=filename_prefix,
+        default_extension="glb",
+        logger_prefix=logger_prefix,
+    )
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            header = handle.read(12)
+        if len(header) != 12 or header[:4] != b"glTF":
+            raise SeedanceAPIError("Downloaded 3D result is not a GLB file")
+        version = int.from_bytes(header[4:8], "little")
+        declared_length = int.from_bytes(header[8:12], "little")
+        if version != 2 or declared_length != size:
+            raise SeedanceAPIError("Downloaded GLB header is invalid or incomplete")
+        if not path.lower().endswith(".glb"):
+            glb_path = f"{os.path.splitext(path)[0]}.glb"
+            os.replace(path, glb_path)
+            path = glb_path
+        return path
+    except Exception:
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except OSError:
+            pass
+        raise
 
 
 # ---------------------------------------------------------------------------

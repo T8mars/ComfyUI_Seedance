@@ -37,6 +37,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_GK_V2",
     "Zhenzhen_Image_GK_V2_Edit",
+    "Zhenzhen_Image_GK_V2_Region_Edit",
     "Wan_2_7_Global_Image",
     "Zhenzhen_Image_NB",
 )
@@ -47,6 +48,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Seedance_MultimodalVideo",
     "Seedance_2_5_Video",
     "Zhenzhen_Video_G_Omni_Flash",
+    "Zhenzhen_Video_G_Omni_Flash_Lowprice",
     "Zhenzhen_Video_GK_V15",
     "Zhenzhen_Video_V31",
     "HappyHorse_1_1_Video",

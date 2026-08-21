@@ -132,7 +132,7 @@ class FrontendExtensionTests(unittest.TestCase):
             for node in workflow.get("nodes", []):
                 node_type = str(node.get("type", ""))
                 if node_type.startswith(
-                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Minimax_", "Vidu_", "Zhenzhen_", "Qwen_", "Doubao_", "Whisper_", "Suno_", "Midjourney_")
+                    ("Seedance_", "Seedream_", "HappyHorse_", "Wan_", "Kling_", "Hailuo_", "Minimax_", "Vidu_", "Zhenzhen_", "Qwen_", "Doubao_", "Whisper_", "Suno_", "Midjourney_", "Hunyuan3D_")
                 ):
                     with self.subTest(workflow=workflow_path.name, node=node_type):
                         self.assertIn(node_type, mappings)

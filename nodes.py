@@ -2,7 +2,8 @@
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
 FlashVSR/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
 Qwen, Zhenzhen Image G/NB, MiniMax H3 Context IR prompt enhancement,
-Zhenzhen Video G/GK/V3.1, Doubao Seed Audio, and Whisper transcription APIs
+Zhenzhen Video G/GK/V3.1, Hunyuan 3D, GK v2 image tools, Doubao Seed Audio,
+and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
@@ -10,7 +11,8 @@ dedicated six-model Seedance 2.5 Standard node.
 FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FlashVSR, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
-use dedicated video nodes, Doubao Seed Audio uses its own audio node, and
+use dedicated video nodes, Hunyuan returns native ComfyUI GLB files, GK v2
+provides segmentation and region editing, Doubao Seed Audio uses its own audio node, and
 Whisper transcription uses a synchronous audio node.
 
 Execution flow per node: upload media -> build payload -> submit -> poll ->
@@ -29,6 +31,7 @@ from .core.client import (
     SeedanceAPIError,
     download_audio,
     download_file,
+    download_glb,
     download_image,
     download_image_with_mask,
     download_image_with_path,
@@ -37,14 +40,18 @@ from .core.client import (
     extract_audio_url,
     extract_audio_urls,
     extract_context_ir_text,
+    extract_3d_url,
     extract_image_url,
+    extract_image_operation_result,
     extract_image_urls,
     extract_midjourney_results,
     extract_music_results,
+    extract_region_edit_url,
     extract_legacy_video_url,
     extract_video_url,
     poll_audio_task,
     poll_context_ir_task,
+    poll_3d_task,
     poll_image_task,
     poll_legacy_video_task,
     poll_midjourney_task,
@@ -52,6 +59,7 @@ from .core.client import (
     poll_task,
     submit_audio_task,
     submit_context_ir_task,
+    submit_3d_task,
     submit_image_task,
     submit_legacy_video_task,
     submit_midjourney_action,
@@ -60,6 +68,7 @@ from .core.client import (
     transcribe_audio,
     upload_media,
 )
+from .core.geometry import file3d_from_path, placeholder_file3d
 from .core.media import (
     audio_to_wav_bytes,
     image_to_png_bytes,
@@ -251,6 +260,11 @@ ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
 ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
 ZHENZHEN_IMAGE_GK_V2_MODEL = "zhenzhen-image-gk-v2"
 ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL = "zhenzhen-image-gk-v2-edit"
+ZHENZHEN_IMAGE_GK_V2_SEGMENT_MODEL = "zhenzhen-image-gk-v2-segment"
+ZHENZHEN_IMAGE_GK_V2_REGION_EDIT_MODEL = "zhenzhen-image-gk-v2-region-edit"
+ZHENZHEN_IMAGE_GK_V2_REGION_SELECTION_MODES = [
+    "object_indices", "boxes", "selection_regions",
+]
 ZHENZHEN_IMAGE_GK_V2_SIZES = [
     "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9",
 ]
@@ -326,6 +340,7 @@ MAX_ZHENZHEN_IMAGE_NB_IMAGES = 14
 ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH = 1000
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
+ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL = "zhenzhen-video-g-omni-flash-lowprice"
 ZHENZHEN_VIDEO_GK_V15_MODEL = "zhenzhen-video-gk-v15"
 ZHENZHEN_VIDEO_V31_FAST_MODEL = "zhenzhen-video-v31-fast"
 ZHENZHEN_VIDEO_V31_QUALITY_MODEL = "zhenzhen-video-v31-quality"
@@ -339,6 +354,20 @@ ZHENZHEN_VIDEO_RESOLUTIONS = ["720p", "1080p"]
 ZHENZHEN_VIDEO_SECONDS = [str(s) for s in range(4, 16)]
 ZHENZHEN_VIDEO_GK_SECONDS = [str(s) for s in range(6, 31)]
 MAX_ZHENZHEN_VIDEO_IMAGES = 2
+ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODES = [
+    "text", "frame", "reference_images", "reference_video",
+]
+ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_SECONDS = ["4", "6", "8", "10"]
+ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RESOLUTIONS = ["720p", "1080p", "4k"]
+ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RATIOS = ["16:9", "9:16"]
+
+HUNYUAN3D_TEXT_MODEL = "hunyuan3d-v3.1-text-to-3d"
+HUNYUAN3D_IMAGE_MODEL = "hunyuan3d-v3.1-image-to-3d"
+HUNYUAN3D_MODELS = [HUNYUAN3D_TEXT_MODEL, HUNYUAN3D_IMAGE_MODEL]
+HUNYUAN3D_GENERATE_TYPES = ["Normal", "Geometry", "Sketch"]
+HUNYUAN3D_IMAGE_VIEWS = [
+    "front", "left", "right", "back", "top", "bottom", "front-left", "front-right",
+]
 ZHENZHEN_VIDEO_V31_RESOLUTIONS = ["720p", "1080p", "4k"]
 ZHENZHEN_VIDEO_V31_RATIOS = ["16:9", "9:16"]
 ZHENZHEN_VIDEO_V31_SECONDS = ["8"]
@@ -2455,6 +2484,200 @@ class ZhenzhenVideoGOmniFlash(ZhenzhenVideoGenerationBase):
     MODELS = [ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL]
     DEFAULT_MODEL = ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL
     LOG_PREFIX = "Zhenzhen_video_g_omni_flash"
+
+
+class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
+    """Documented text, frame, reference-image, and reference-video modes."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": (
+                "IMAGE",
+                {
+                    "tooltip": (
+                        f"Reference image {index}; frame mode uses image1, reference mode accepts 1 or 3 images. | "
+                        f"参考图片 {index}；首帧模式使用 image1，参考模式支持 1 或 3 张。"
+                    ),
+                },
+            )
+            for index in range(1, 4)
+        }
+        optional.update({
+            "input_video": (
+                "VIDEO",
+                {"tooltip": "Local reference video; use only in reference_video mode. | 本地参考视频，仅用于参考视频模式。"},
+            ),
+            "video_url": (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": "Public HTTP(S) reference video URL; use instead of input_video. | 公网参考视频直链，与本地视频二选一。",
+                },
+            ),
+            "api_config": (
+                "SEEDANCE_CONFIG",
+                {"tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."},
+            ),
+            "skip_error": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "tooltip": "On failure return a placeholder video instead of stopping. | 失败时输出占位视频而不中断工作流。",
+                },
+            ),
+        })
+        return {
+            "required": {
+                "mode": (
+                    ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODES,
+                    {
+                        "default": "text",
+                        "tooltip": "Text, first-frame, reference-image, or reference-video generation. | 文生、首帧、参考图或参考视频生成。",
+                    },
+                ),
+                "prompt": _prompt_input(required=True),
+                "seconds": (
+                    ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_SECONDS,
+                    {"default": "6", "tooltip": "Duration; omitted automatically for reference-video mode. | 时长；参考视频模式自动省略。"},
+                ),
+                "resolution": (
+                    ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RESOLUTIONS,
+                    {"default": "720p", "tooltip": "Output resolution. | 输出分辨率。"},
+                ),
+                "aspect_ratio": (
+                    ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RATIOS,
+                    {"default": "16:9", "tooltip": "Output aspect ratio. | 输出画幅。"},
+                ),
+                "nsfw_check": (
+                    "BOOLEAN",
+                    {"default": False, "tooltip": "Enable the documented content check. | 启用文档中的内容检查。"},
+                ),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        mode=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        aspect_ratio=None,
+        video_url=None,
+        strict=False,
+        **kwargs,
+    ):
+        if mode not in (None, *ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODES):
+            return f"unsupported mode: {mode}"
+        if seconds is not None and str(seconds) not in ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_SECONDS:
+            return "seconds must be 4, 6, 8, or 10 | 时长必须为 4、6、8 或 10 秒"
+        if resolution is not None and resolution not in ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RESOLUTIONS:
+            return f"unsupported resolution: {resolution}"
+        if aspect_ratio is not None and aspect_ratio not in ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_RATIOS:
+            return f"unsupported aspect_ratio: {aspect_ratio}"
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required | 必须填写提示词"
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters"
+        direct_url = str(video_url or "").strip()
+        if direct_url and urlparse(direct_url).scheme.lower() not in {"http", "https"}:
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) 公网直链"
+        if not strict:
+            return True
+
+        image_slots = [
+            index for index in range(1, 4)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        has_local_video = kwargs.get("input_video") is not None
+        if mode == "text":
+            if image_slots or has_local_video or direct_url:
+                return "text mode does not accept reference media | 文生模式不能连接参考素材"
+        elif mode == "frame":
+            if image_slots != [1] or has_local_video or direct_url:
+                return "frame mode requires exactly image1 | 首帧模式必须且只能连接 image1"
+        elif mode == "reference_images":
+            if len(image_slots) not in {1, 3} or image_slots != list(range(1, len(image_slots) + 1)):
+                return "reference_images mode requires contiguous image1 or image1..image3 | 参考图模式需要 image1 或连续三张图"
+            if has_local_video or direct_url:
+                return "reference_images mode does not accept video | 参考图模式不能连接视频"
+        elif mode == "reference_video":
+            if image_slots:
+                return "reference_video mode does not accept images | 参考视频模式不能连接图片"
+            if has_local_video == bool(direct_url):
+                return "reference_video mode requires exactly one of input_video or video_url | 参考视频模式必须在本地视频和直链中二选一"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_video_g_omni_flash_lowprice"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        mode = kwargs["mode"]
+        if mode in {"frame", "reference_images"}:
+            images = []
+            source_images = [
+                kwargs[f"image{index}"]
+                for index in range(1, 4)
+                if kwargs.get(f"image{index}") is not None
+            ]
+            for index, image in enumerate(source_images, 1):
+                images.append(upload_media(
+                    image_to_png_bytes(image),
+                    f"zhenzhen_omni_lowprice_reference_{index}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                ))
+                progress_cb(index / len(source_images))
+            return {"images": images}
+
+        if mode == "reference_video":
+            direct_url = str(kwargs.get("video_url") or "").strip()
+            if direct_url:
+                progress_cb(1.0)
+                return {"video_url": direct_url}
+            video_bytes, extension = video_to_bytes(kwargs["input_video"])
+            video_url = upload_media(
+                video_bytes,
+                f"zhenzhen_omni_lowprice_reference.{extension}",
+                "video/mp4",
+                config,
+                logger_prefix=self._log_prefix,
+            )
+            progress_cb(1.0)
+            return {"video_url": video_url}
+
+        progress_cb(1.0)
+        return {}
+
+    def build_payload(self, kwargs, media):
+        mode = kwargs["mode"]
+        payload: Dict[str, Any] = {
+            "model": ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL,
+            "prompt": str(kwargs["prompt"]).strip(),
+            "resolution": kwargs["resolution"],
+            "aspect_ratio": kwargs["aspect_ratio"],
+            "nsfw_check": bool(kwargs["nsfw_check"]),
+        }
+        if mode != "reference_video":
+            payload["seconds"] = str(kwargs["seconds"])
+        if mode == "frame":
+            payload["generation_type"] = "frame"
+            payload["images"] = list(media["images"])
+        elif mode == "reference_images":
+            payload["generation_type"] = "reference"
+            payload["images"] = list(media["images"])
+        elif mode == "reference_video":
+            payload["metadata"] = {"video_url": media["video_url"]}
+        return payload
 
 
 class ZhenzhenVideoGKV15(ZhenzhenVideoGenerationBase):
@@ -6801,6 +7024,472 @@ class ZhenzhenImageGKV2Edit(SeedanceImageNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Hunyuan 3D v3.1
+# ---------------------------------------------------------------------------
+
+class Hunyuan3DV31:
+    """Hunyuan text/image to GLB with native ComfyUI 3D output."""
+
+    CATEGORY = "Seedance/3D"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("FILE_3D_GLB", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("model_3d", "model_url", "local_path", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": (
+                "IMAGE",
+                {
+                    "tooltip": (
+                        f"{HUNYUAN3D_IMAGE_VIEWS[index - 1]} view ({index}/8). "
+                        "Connect views without gaps in the documented order. | "
+                        f"{HUNYUAN3D_IMAGE_VIEWS[index - 1]} 视图（{index}/8），请按文档顺序连续连接。"
+                    ),
+                },
+            )
+            for index in range(1, 9)
+        }
+        optional.update({
+            "api_config": (
+                "SEEDANCE_CONFIG",
+                {"tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."},
+            ),
+            "skip_error": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "tooltip": "On failure return a valid placeholder GLB instead of stopping. | 失败时输出有效占位 GLB 而不中断工作流。",
+                },
+            ),
+        })
+        return {
+            "required": {
+                "model": (
+                    HUNYUAN3D_MODELS,
+                    {
+                        "default": HUNYUAN3D_TEXT_MODEL,
+                        "tooltip": "Text-to-3D or ordered multi-view image-to-3D. | 文生 3D 或有序多视图图生 3D。",
+                    },
+                ),
+                "prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Required for text-to-3D; optional guidance for image-to-3D. | 文生 3D 必填，图生 3D 可选。",
+                    },
+                ),
+                "face_count": (
+                    "INT",
+                    {
+                        "default": 500000,
+                        "min": 10000,
+                        "max": 1500000,
+                        "step": 10000,
+                        "tooltip": "Target face count, 10,000 to 1,500,000. | 目标面数，10,000 到 1,500,000。",
+                    },
+                ),
+                "enable_pbr": (
+                    "BOOLEAN",
+                    {"default": False, "tooltip": "Generate PBR materials. | 生成 PBR 材质。"},
+                ),
+                "generate_type": (
+                    HUNYUAN3D_GENERATE_TYPES,
+                    {"default": "Normal", "tooltip": "Documented generation type. | 文档规定的生成类型。"},
+                ),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        face_count=None,
+        generate_type=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *HUNYUAN3D_MODELS):
+            return f"unsupported Hunyuan 3D model: {model}"
+        if face_count is not None:
+            try:
+                face_value = int(face_count)
+            except (TypeError, ValueError):
+                return "face_count must be an integer | face_count 必须是整数"
+            if not 10000 <= face_value <= 1500000:
+                return "face_count must be between 10000 and 1500000"
+        if generate_type not in (None, *HUNYUAN3D_GENERATE_TYPES):
+            return f"unsupported generate_type: {generate_type}"
+        if not strict:
+            return True
+        image_slots = [
+            index for index in range(1, 9)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        if model == HUNYUAN3D_TEXT_MODEL:
+            if not str(prompt or "").strip():
+                return "prompt is required for text-to-3D | 文生 3D 必须填写提示词"
+            if image_slots:
+                return "text-to-3D does not accept images | 文生 3D 不能连接图片"
+        elif model == HUNYUAN3D_IMAGE_MODEL:
+            if not image_slots:
+                return "image-to-3D requires 1 to 8 images | 图生 3D 需要 1 到 8 张图片"
+            if image_slots != list(range(1, len(image_slots) + 1)):
+                return "image views must be connected contiguously from image1 | 多视图必须从 image1 开始连续连接"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Hunyuan3D_v3_1"
+
+    @staticmethod
+    def _update_progress(pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _error_result(self, error: Exception):
+        message = f"{self._log_prefix}: {type(error).__name__}: {error}"
+        response = json.dumps({"error": message}, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": ["", response]},
+            "result": (placeholder_file3d(message), "", "", "", response),
+        }
+
+    def execute(self, **kwargs):
+        skip_error = bool(kwargs.pop("skip_error", False))
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as error:
+            if skip_error:
+                print(f"[{self._log_prefix}] skip_error=True, returning placeholder GLB: {type(error).__name__}")
+                return self._error_result(error)
+            raise
+
+    def _execute_inner(
+        self,
+        model: str,
+        prompt: str,
+        face_count: int,
+        enable_pbr: bool,
+        generate_type: str,
+        api_config=None,
+        **kwargs,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            face_count=face_count,
+            generate_type=generate_type,
+            strict=True,
+            **kwargs,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        image_urls: List[str] = []
+        images = [
+            kwargs[f"image{index}"]
+            for index in range(1, 9)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        for index, image in enumerate(images, 1):
+            image_urls.append(upload_media(
+                image_to_png_bytes(image),
+                f"hunyuan3d_{HUNYUAN3D_IMAGE_VIEWS[index - 1]}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            self._update_progress(pbar, index / len(images) * 15)
+        self._update_progress(pbar, 15)
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "face_count": int(face_count),
+            "enable_pbr": bool(enable_pbr),
+            "generate_type": generate_type,
+        }
+        prompt_text = str(prompt or "").strip()
+        if prompt_text:
+            payload["prompt"] = prompt_text
+        if image_urls:
+            payload["images"] = image_urls
+
+        task_id = submit_3d_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final_response = poll_3d_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        model_url = extract_3d_url(final_response)
+        local_path = download_glb(model_url, logger_prefix=self._log_prefix)
+        model_3d = file3d_from_path(local_path)
+        self._update_progress(pbar, 100)
+        response = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [model_url, local_path, response]},
+            "result": (model_3d, model_url, local_path, task_id, response),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Zhenzhen Image GK v2 segmentation and region editing
+# ---------------------------------------------------------------------------
+
+class ZhenzhenImageGKV2Segment:
+    """Segment a completed single-image GK v2 generation task."""
+
+    CATEGORY = "Seedance/Image Tools"
+    FUNCTION = "execute"
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image_id", "objects_json", "result_json", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "source_task_id": (
+                    "STRING",
+                    {
+                        "forceInput": True,
+                        "tooltip": "Task ID from a completed single-image generation. | 已完成单图生成任务的 task_id。",
+                    },
+                ),
+                "include_mask_rle": (
+                    "BOOLEAN",
+                    {"default": False, "tooltip": "Include mask RLE data in the segmentation result. | 在分割结果中包含掩码 RLE。"},
+                ),
+            },
+            "optional": {
+                "api_config": (
+                    "SEEDANCE_CONFIG",
+                    {"tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."},
+                ),
+                "skip_error": (
+                    "BOOLEAN",
+                    {"default": False, "tooltip": "Return empty structured outputs instead of stopping. | 失败时返回空结构而不中断工作流。"},
+                ),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, source_task_id=None, strict=False, **kwargs):
+        if strict and not str(source_task_id or "").strip():
+            return "source_task_id is required | 必须连接 source_task_id"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_gk_v2_segment"
+
+    def execute(self, source_task_id: str, include_mask_rle: bool, api_config=None, skip_error=False):
+        try:
+            validation = self.VALIDATE_INPUTS(source_task_id=source_task_id, strict=True)
+            if validation is not True:
+                raise SeedanceAPIError(validation)
+            config = get_config(api_config)
+            payload = {
+                "model": ZHENZHEN_IMAGE_GK_V2_SEGMENT_MODEL,
+                "operation": "segment",
+                "source_task_id": str(source_task_id).strip(),
+                "include_mask_rle": bool(include_mask_rle),
+            }
+            task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+            final_response = poll_image_task(task_id, config, logger_prefix=self._log_prefix)
+            result = extract_image_operation_result(final_response)
+            image_id = str(result.get("image_id") or "").strip()
+            if not image_id:
+                raise SeedanceAPIError("Segment task completed without image_id")
+            objects_json = json.dumps(result.get("objects") or [], ensure_ascii=False, indent=2)
+            result_json = json.dumps(result, ensure_ascii=False, indent=2)
+            response = json.dumps(final_response, ensure_ascii=False, indent=2)
+            return {
+                "ui": {"text": [objects_json, response]},
+                "result": (image_id, objects_json, result_json, task_id, response),
+            }
+        except Exception as error:
+            if not skip_error:
+                raise
+            message = f"{self._log_prefix}: {type(error).__name__}: {error}"
+            response = json.dumps({"error": message}, ensure_ascii=False, indent=2)
+            return {
+                "ui": {"text": ["[]", response]},
+                "result": ("", "[]", response, "", response),
+            }
+
+
+class ZhenzhenImageGKV2RegionEdit(SeedanceImageNodeBase):
+    """Edit selected objects, boxes, or regions from a segmentation result."""
+
+    CATEGORY = "Seedance/Image Tools"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_id": (
+                    "STRING",
+                    {
+                        "forceInput": True,
+                        "tooltip": "image_id returned by the GK v2 segment node. | GK v2 分割节点返回的 image_id。",
+                    },
+                ),
+                "prompt": (
+                    "STRING",
+                    {"multiline": True, "default": "", "tooltip": "Region editing instruction. | 区域编辑指令。"},
+                ),
+                "selection_mode": (
+                    ZHENZHEN_IMAGE_GK_V2_REGION_SELECTION_MODES,
+                    {"default": "object_indices", "tooltip": "How the target region is described. | 目标区域描述方式。"},
+                ),
+                "selection_json": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "[0]",
+                        "tooltip": "JSON list matching the selected mode. | 与选择方式匹配的 JSON 数组。",
+                    },
+                ),
+            },
+            "optional": {
+                "api_config": (
+                    "SEEDANCE_CONFIG",
+                    {"tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used."},
+                ),
+                "skip_error": (
+                    "BOOLEAN",
+                    {"default": False, "tooltip": "On failure return a placeholder image instead of stopping. | 失败时输出占位图片而不中断工作流。"},
+                ),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        image_id=None,
+        prompt=None,
+        selection_mode=None,
+        selection_json=None,
+        strict=False,
+        **kwargs,
+    ):
+        if selection_mode not in (None, *ZHENZHEN_IMAGE_GK_V2_REGION_SELECTION_MODES):
+            return f"unsupported selection_mode: {selection_mode}"
+        if not strict:
+            return True
+        if not str(image_id or "").strip():
+            return "image_id is required | 必须连接 image_id"
+        if not str(prompt or "").strip():
+            return "prompt is required | 必须填写区域编辑指令"
+        try:
+            cls._parse_selection(selection_mode, selection_json)
+        except SeedanceAPIError as error:
+            return str(error)
+        return True
+
+    @staticmethod
+    def _parse_selection(selection_mode: str, selection_json: str) -> List[Any]:
+        try:
+            value = json.loads(str(selection_json or ""))
+        except json.JSONDecodeError as error:
+            raise SeedanceAPIError(f"selection_json is invalid JSON: {error.msg}") from error
+        if not isinstance(value, list) or not value:
+            raise SeedanceAPIError("selection_json must be a non-empty JSON list | selection_json 必须是非空 JSON 数组")
+        if selection_mode == "object_indices":
+            if any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in value):
+                raise SeedanceAPIError("object_indices must contain non-negative integers")
+        elif selection_mode == "boxes":
+            if any(
+                not isinstance(item, list)
+                or not item
+                or any(isinstance(number, bool) or not isinstance(number, (int, float)) for number in item)
+                for item in value
+            ):
+                raise SeedanceAPIError("boxes must be a JSON list of numeric lists")
+        elif selection_mode == "selection_regions":
+            if any(not isinstance(item, dict) for item in value):
+                raise SeedanceAPIError("selection_regions must be a JSON list of objects")
+        return value
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_gk_v2_region_edit"
+
+    @staticmethod
+    def _update_progress(pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _execute_inner(
+        self,
+        image_id: str,
+        prompt: str,
+        selection_mode: str,
+        selection_json: str,
+        api_config=None,
+    ):
+        validation = self.VALIDATE_INPUTS(
+            image_id=image_id,
+            prompt=prompt,
+            selection_mode=selection_mode,
+            selection_json=selection_json,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        payload = {
+            "model": ZHENZHEN_IMAGE_GK_V2_REGION_EDIT_MODEL,
+            "operation": "region_edit",
+            "image_id": str(image_id).strip(),
+            "prompt": str(prompt).strip(),
+            selection_mode: self._parse_selection(selection_mode, selection_json),
+        }
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        task_id = submit_image_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        image_url = extract_region_edit_url(final_response)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        response = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [image_url, response]},
+            "result": (image, image_url, task_id, response),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Wan 2.7 global image generation and editing
 # ---------------------------------------------------------------------------
 
@@ -10823,9 +11512,13 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
     "Zhenzhen_Image_GK_V2_Edit": ZhenzhenImageGKV2Edit,
+    "Zhenzhen_Image_GK_V2_Segment": ZhenzhenImageGKV2Segment,
+    "Zhenzhen_Image_GK_V2_Region_Edit": ZhenzhenImageGKV2RegionEdit,
+    "Hunyuan3D_V3_1": Hunyuan3DV31,
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
+    "Zhenzhen_Video_G_Omni_Flash_Lowprice": ZhenzhenVideoGOmniFlashLowprice,
     "Zhenzhen_Video_GK_V15": ZhenzhenVideoGKV15,
     "Zhenzhen_Video_V31": ZhenzhenVideoV31,
     "HappyHorse_1_1_Video": HappyHorseVideo,
@@ -10943,9 +11636,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
     "Zhenzhen_Image_GK_V2_Edit": "Zhenzhen Image GK v2 图像编辑（1-3 图）",
+    "Zhenzhen_Image_GK_V2_Segment": "Zhenzhen Image GK v2 智能分割",
+    "Zhenzhen_Image_GK_V2_Region_Edit": "Zhenzhen Image GK v2 区域编辑",
+    "Hunyuan3D_V3_1": "混元 3D v3.1 生成（文生/多视图图生）",
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
+    "Zhenzhen_Video_G_Omni_Flash_Lowprice": "Zhenzhen Video G Omni Flash Lowprice（4 模式）",
     "Zhenzhen_Video_GK_V15": "Zhenzhen Video GK v1.5",
     "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
