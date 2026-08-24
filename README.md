@@ -1,5 +1,7 @@
 # ComfyUI_Seedance
 
+**语言：简体中文（默认） | [English](README_EN.md)**
+
 ## 入口导航
 
 | 入口 | 适合用户 | 说明 | 打开 |
@@ -21,6 +23,12 @@ My favorite girl Go YounJung
 Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.8.1（2026-08-25）
+
+- 新增完整英文说明文档 `README_EN.md`，覆盖安装、配置、节点目录、并发工作流、示例、环境变量和常见问题。
+- 中英文 README 顶部可互相切换；GitHub 与 Comfy Registry 继续默认显示中文 `README.md`。
+- 完整离线回归通过 376 项测试，177 份示例工作流通过 JSON 与敏感信息审计，15 个前端脚本通过语法检查。
 
 ## v0.8.0（2026-08-24）
 
