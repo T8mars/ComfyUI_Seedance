@@ -101,6 +101,100 @@ class VideoDownloadTests(unittest.TestCase):
         self.assertTrue(session.calls[0][1]["allow_redirects"])
         self.assertIn("video/", session.calls[0][1]["headers"]["Accept"])
 
+    def test_tencent_cos_fallback_preserves_signed_path_and_query(self):
+        source = (
+            "https://bucket-1250000000.cos.ap-hongkong.myqcloud.com/"
+            "output/video.mp4?q-signature=private-marker#fragment"
+        )
+        self.assertEqual(
+            client._tencent_cos_result_url_fallback(source),
+            (
+                "https://bucket-1250000000.cos.ap-hongkong.tencentcos.cn/"
+                "output/video.mp4?q-signature=private-marker#fragment"
+            ),
+        )
+        self.assertIsNone(
+            client._tencent_cos_result_url_fallback(
+                "https://cdn.example.test/output/video.mp4"
+            )
+        )
+
+    def test_video_ssl_error_uses_official_tencent_cos_domain(self):
+        source = (
+            "https://bucket-1250000000.cos.ap-hongkong.myqcloud.com/"
+            "output/video.mp4?q-signature=private-marker"
+        )
+        expected_fallback = client._tencent_cos_result_url_fallback(source)
+        calls = []
+
+        def download_result(**kwargs):
+            calls.append(kwargs["url"])
+            if kwargs["url"] == source:
+                raise requests.exceptions.SSLError("unexpected EOF")
+            Path(kwargs["path"]).write_bytes(MP4_BYTES)
+            return "video/mp4"
+
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(
+                    client,
+                    "_download_result_to_path_requests",
+                    side_effect=download_result,
+                ),
+                patch.object(
+                    client, "_download_result_to_path_with_curl"
+                ) as curl_download,
+                patch.object(client, "_reset_thread_session"),
+                patch.object(client, "cooperative_sleep") as sleep,
+                patch.dict(os.environ, {"SEEDANCE_OUTPUT_DIR": directory}),
+            ):
+                video, path = client.download_video_with_path(source)
+
+            self.assert_video_points_to_path(video, path)
+            self.assertEqual(Path(path).read_bytes(), MP4_BYTES)
+            self.assertEqual(calls, [source, expected_fallback])
+            curl_download.assert_not_called()
+            sleep.assert_not_called()
+
+    def test_image_ssl_error_uses_official_tencent_cos_domain(self):
+        source = (
+            "https://bucket-1250000000.cos.ap-hongkong.myqcloud.com/"
+            "output/image.png?q-signature=private-marker"
+        )
+        expected_fallback = client._tencent_cos_result_url_fallback(source)
+        calls = []
+
+        def download_image(url, _timeout, session=None):
+            del session
+            calls.append(url)
+            if url == source:
+                raise requests.exceptions.SSLError("unexpected EOF")
+            return b"decoded-image"
+
+        with (
+            patch.object(
+                client,
+                "_download_image_bytes",
+                side_effect=download_image,
+            ),
+            patch.object(client, "_download_image_bytes_with_curl") as curl_download,
+            patch.object(client, "_reset_thread_session"),
+            patch.object(client, "cooperative_sleep") as sleep,
+        ):
+            result = client._download_and_decode_image(
+                source,
+                lambda content: content,
+                60,
+                3,
+                "Test",
+                "Image",
+            )
+
+        self.assertEqual(result, b"decoded-image")
+        self.assertEqual(calls, [source, expected_fallback])
+        curl_download.assert_not_called()
+        sleep.assert_not_called()
+
     def test_failed_partial_download_is_removed_before_retry(self):
         failed = FakeResponse(
             [b"partial"],

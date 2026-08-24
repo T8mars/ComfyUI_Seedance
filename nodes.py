@@ -389,14 +389,38 @@ WAN30_I2V_MODEL = "wan-3.0-i2v"
 WAN30_R2V_MODEL = "wan-3.0-r2v"
 WAN30_GLOBAL_I2V_MODEL = "wan-3.0-global-i2v"
 WAN30_GLOBAL_R2V_MODEL = "wan-3.0-global-r2v"
-WAN30_I2V_MODELS = [WAN30_I2V_MODEL, WAN30_GLOBAL_I2V_MODEL]
-WAN30_R2V_MODELS = [WAN30_R2V_MODEL, WAN30_GLOBAL_R2V_MODEL]
-WAN30_GLOBAL_MODELS = [WAN30_GLOBAL_I2V_MODEL, WAN30_GLOBAL_R2V_MODEL]
+WAN30_PRIME_I2V_MODEL = "wan-3.0-prime-i2v"
+WAN30_PRIME_R2V_MODEL = "wan-3.0-prime-r2v"
+WAN30_GLOBAL_PRIME_I2V_MODEL = "wan-3.0-global-prime-i2v"
+WAN30_GLOBAL_PRIME_R2V_MODEL = "wan-3.0-global-prime-r2v"
+WAN30_I2V_MODELS = [
+    WAN30_I2V_MODEL,
+    WAN30_GLOBAL_I2V_MODEL,
+    WAN30_PRIME_I2V_MODEL,
+    WAN30_GLOBAL_PRIME_I2V_MODEL,
+]
+WAN30_R2V_MODELS = [
+    WAN30_R2V_MODEL,
+    WAN30_GLOBAL_R2V_MODEL,
+    WAN30_PRIME_R2V_MODEL,
+    WAN30_GLOBAL_PRIME_R2V_MODEL,
+]
+WAN30_GLOBAL_MODELS = [
+    WAN30_GLOBAL_I2V_MODEL,
+    WAN30_GLOBAL_R2V_MODEL,
+    WAN30_GLOBAL_PRIME_I2V_MODEL,
+    WAN30_GLOBAL_PRIME_R2V_MODEL,
+]
+WAN30_THINKING_MODELS = [WAN30_GLOBAL_I2V_MODEL, WAN30_GLOBAL_R2V_MODEL]
 WAN30_MODELS = [
     WAN30_I2V_MODEL,
     WAN30_R2V_MODEL,
     WAN30_GLOBAL_I2V_MODEL,
     WAN30_GLOBAL_R2V_MODEL,
+    WAN30_PRIME_I2V_MODEL,
+    WAN30_PRIME_R2V_MODEL,
+    WAN30_GLOBAL_PRIME_I2V_MODEL,
+    WAN30_GLOBAL_PRIME_R2V_MODEL,
 ]
 WAN30_SECONDS = ["auto", *[str(s) for s in range(2, 31)]]
 WAN30_RESOLUTIONS = ["480P", "720P", "1080P"]
@@ -2317,7 +2341,7 @@ class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
 # ---------------------------------------------------------------------------
 
 class Wan30Video(SeedanceVideoNodeBase):
-    """Wan 3.0 domestic/global I2V and R2V via /v1/videos."""
+    """Wan 3.0 standard/Prime domestic/global I2V and R2V via /v1/videos."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -2358,8 +2382,8 @@ class Wan30Video(SeedanceVideoNodeBase):
                 "model": (WAN30_MODELS, {
                     "default": WAN30_I2V_MODEL,
                     "tooltip": (
-                        "Wan 3.0 domestic/global image-to-video or multimodal reference-to-video. | "
-                        "Wan 3.0 国内/海外图生视频或多模态参考生视频。"
+                        "Wan 3.0 standard/Prime domestic/global image-to-video or multimodal "
+                        "reference-to-video. | Wan 3.0 标准版/Prime 国内/海外图生视频或多模态参考生视频。"
                     ),
                 }),
                 "prompt": ("STRING", {
@@ -2391,8 +2415,9 @@ class Wan30Video(SeedanceVideoNodeBase):
                 "enable_thinking": ("BOOLEAN", {
                     "default": False,
                     "tooltip": (
-                        "Overseas models only. Document or webpage references automatically enable it "
-                        "for Global R2V. | 仅海外模型使用；Global R2V 传文档或网页时会自动开启。"
+                        "Standard overseas models only; Prime models do not support this field. "
+                        "Document or webpage references automatically enable it for standard Global R2V. | "
+                        "仅标准海外模型使用，Prime 不支持；标准 Global R2V 传文档或网页时会自动开启。"
                     ),
                 }),
                 "file_url": ("STRING", {
@@ -2621,7 +2646,7 @@ class Wan30Video(SeedanceVideoNodeBase):
                     "image1 is required for Wan 3.0 I2V | Wan 3.0 图生视频必须连接 image1 首帧"
                 )
             payload["images"] = images[:2]
-            if model == WAN30_GLOBAL_I2V_MODEL:
+            if model in WAN30_THINKING_MODELS:
                 metadata["enable_thinking"] = bool(kwargs.get("enable_thinking", False))
             return payload
 
@@ -2644,7 +2669,7 @@ class Wan30Video(SeedanceVideoNodeBase):
             metadata["file_url"] = file_url
         if link_url:
             metadata["link_url"] = link_url
-        if model == WAN30_GLOBAL_R2V_MODEL:
+        if model in WAN30_THINKING_MODELS:
             metadata["enable_thinking"] = bool(
                 kwargs.get("enable_thinking", False) or file_url or link_url
             )
@@ -12008,7 +12033,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
-    "Wan_3_0_Video": "Wan 3.0 图生/参考生视频（4 合 1）",
+    "Wan_3_0_Video": "Wan 3.0 图生/参考生视频（8 合 1）",
     "Kling_Video": "Kling 视频生成",
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",

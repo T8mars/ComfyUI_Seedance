@@ -1,4 +1,4 @@
-"""Generate safe Wan 3.0 I2V and R2V example workflows."""
+"""Generate safe Wan 3.0 standard/Prime I2V and R2V example workflows."""
 
 from __future__ import annotations
 
@@ -97,7 +97,7 @@ def _save_video(node_id: int, source_id: int, link_id: int, filename: str, order
     )
 
 
-def _i2v_workflow(model: str, filename: str, global_model: bool):
+def _i2v_workflow(model: str, filename: str, enable_thinking: bool):
     generator_id = 4
     config_link = 3
     output_link = 4
@@ -121,7 +121,7 @@ def _i2v_workflow(model: str, filename: str, global_model: bool):
                 "480P",
                 "adaptive",
                 True,
-                global_model,
+                enable_thinking,
                 "",
                 "",
                 1,
@@ -141,7 +141,12 @@ def _i2v_workflow(model: str, filename: str, global_model: bool):
     _workflow(filename, nodes, links)
 
 
-def _r2v_workflow(model: str, filename: str, global_model: bool):
+def _r2v_workflow(
+    model: str,
+    filename: str,
+    enable_thinking: bool,
+    include_video_audio: bool = True,
+):
     generator_id = 5
     config_link = 4
     output_link = 5
@@ -149,66 +154,87 @@ def _r2v_workflow(model: str, filename: str, global_model: bool):
     nodes = [
         config,
         _load_image(2, 1, (40, 40), "选择参考图.png", "选择参考图", 1),
-        _node(
-            3,
-            "LoadVideo",
-            (40, 390),
-            (300, 120),
-            2,
-            [],
-            [{"name": "VIDEO", "type": "VIDEO", "links": [2]}],
-            ["选择参考视频.mp4"],
-            "选择参考视频",
-        ),
-        _node(
-            4,
-            "LoadAudio",
-            (40, 550),
-            (300, 120),
-            3,
-            [],
-            [{"name": "AUDIO", "type": "AUDIO", "links": [3]}],
-            ["选择参考音频.wav", None, ""],
-            "选择参考音频",
-        ),
-        _node(
-            generator_id,
-            "Wan_3_0_Video",
-            (430, 100),
-            (520, 770),
-            4,
-            _media_inputs(
-                image_links={1: 1},
-                video_links={1: 2},
-                audio_links={1: 3},
-                config_link=config_link,
-            ),
-            _video_outputs(output_link),
-            [
-                model,
-                "Image 1 中的主体进入 Video 1 的场景，动作节奏跟随 Audio 1，保持人物特征和镜头连续性",
-                "2",
-                "480P",
-                "adaptive",
-                True,
-                global_model,
-                "",
-                "",
-                1,
-                "fixed",
-                False,
-            ],
-            f"{model} 多模态参考生视频",
-        ),
-        _save_video(6, generator_id, output_link, filename, 5),
     ]
+    if include_video_audio:
+        nodes.extend(
+            (
+                _node(
+                    3,
+                    "LoadVideo",
+                    (40, 390),
+                    (300, 120),
+                    2,
+                    [],
+                    [{"name": "VIDEO", "type": "VIDEO", "links": [2]}],
+                    ["选择参考视频.mp4"],
+                    "选择参考视频",
+                ),
+                _node(
+                    4,
+                    "LoadAudio",
+                    (40, 550),
+                    (300, 120),
+                    3,
+                    [],
+                    [{"name": "AUDIO", "type": "AUDIO", "links": [3]}],
+                    ["选择参考音频.wav", None, ""],
+                    "选择参考音频",
+                ),
+            )
+        )
+    nodes.extend(
+        (
+            _node(
+                generator_id,
+                "Wan_3_0_Video",
+                (430, 100),
+                (520, 770),
+                4,
+                _media_inputs(
+                    image_links={1: 1},
+                    video_links={1: 2} if include_video_audio else None,
+                    audio_links={1: 3} if include_video_audio else None,
+                    config_link=config_link,
+                ),
+                _video_outputs(output_link),
+                [
+                    model,
+                    (
+                        "Image 1 中的主体进入 Video 1 的场景，动作节奏跟随 Audio 1，"
+                        "保持人物特征和镜头连续性"
+                        if include_video_audio
+                        else "以 Image 1 为主体，保持人物特征，生成自然连贯的细微动作"
+                    ),
+                    "2",
+                    "480P",
+                    "adaptive",
+                    True,
+                    enable_thinking,
+                    "",
+                    "",
+                    1,
+                    "fixed",
+                    False,
+                ],
+                (
+                    f"{model} 多模态参考生视频"
+                    if include_video_audio
+                    else f"{model} 参考图生视频"
+                ),
+            ),
+            _save_video(6, generator_id, output_link, filename, 5),
+        )
+    )
     links = [
         [1, 2, 0, generator_id, 0, "IMAGE"],
-        [2, 3, 0, generator_id, 10, "VIDEO"],
-        [3, 4, 0, generator_id, 15, "AUDIO"],
         config_edge,
         [output_link, generator_id, 0, 6, 0, "VIDEO"],
     ]
+    if include_video_audio:
+        links[1:1] = [
+            [2, 3, 0, generator_id, 10, "VIDEO"],
+            [3, 4, 0, generator_id, 15, "AUDIO"],
+        ]
     _workflow(filename, nodes, links)
 
 
@@ -224,6 +250,28 @@ def main():
         "wan-3.0-global-r2v",
         "wan-3.0-global-r2v海外多模态参考生视频.json",
         True,
+    )
+    _i2v_workflow(
+        "wan-3.0-prime-i2v",
+        "wan-3.0-prime-i2v高速首尾帧图生视频.json",
+        False,
+    )
+    _r2v_workflow(
+        "wan-3.0-prime-r2v",
+        "wan-3.0-prime-r2v高速参考图生视频.json",
+        False,
+        include_video_audio=False,
+    )
+    _i2v_workflow(
+        "wan-3.0-global-prime-i2v",
+        "wan-3.0-global-prime-i2v海外高速首尾帧图生视频.json",
+        False,
+    )
+    _r2v_workflow(
+        "wan-3.0-global-prime-r2v",
+        "wan-3.0-global-prime-r2v海外高速参考图生视频.json",
+        False,
+        include_video_audio=False,
     )
 
 

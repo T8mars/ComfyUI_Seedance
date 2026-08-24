@@ -17,6 +17,10 @@ class Wan30VideoTests(unittest.TestCase):
             "wan-3.0-r2v",
             "wan-3.0-global-i2v",
             "wan-3.0-global-r2v",
+            "wan-3.0-prime-i2v",
+            "wan-3.0-prime-r2v",
+            "wan-3.0-global-prime-i2v",
+            "wan-3.0-global-prime-r2v",
         ])
         self.assertEqual(nodes.WAN30_SECONDS[0], "auto")
         self.assertEqual(nodes.WAN30_SECONDS[1:], [str(value) for value in range(2, 31)])
@@ -84,6 +88,24 @@ class Wan30VideoTests(unittest.TestCase):
         self.assertTrue(payload["metadata"]["enable_thinking"])
         self.assertNotIn("prompt", payload)
 
+    def test_global_prime_i2v_omits_unsupported_enable_thinking(self):
+        payload = nodes.Wan30Video().build_payload(
+            {
+                "model": nodes.WAN30_GLOBAL_PRIME_I2V_MODEL,
+                "prompt": "",
+                "seconds": "2",
+                "resolution": "480P",
+                "ratio": "adaptive",
+                "generate_audio": True,
+                "enable_thinking": True,
+                "file_url": "",
+                "link_url": "",
+                "seed": 0,
+            },
+            {"images": ["https://cdn.test/first.png"]},
+        )
+        self.assertNotIn("enable_thinking", payload["metadata"])
+
     def test_r2v_payload_forwards_all_documented_material_groups(self):
         payload = nodes.Wan30Video().build_payload(
             {
@@ -131,6 +153,28 @@ class Wan30VideoTests(unittest.TestCase):
             "https://example.test/reference",
         )
         self.assertTrue(payload["metadata"]["enable_thinking"])
+
+    def test_global_prime_r2v_forwards_link_without_thinking(self):
+        payload = nodes.Wan30Video().build_payload(
+            {
+                "model": nodes.WAN30_GLOBAL_PRIME_R2V_MODEL,
+                "prompt": "Use the referenced webpage as context",
+                "seconds": "2",
+                "resolution": "480P",
+                "ratio": "adaptive",
+                "generate_audio": False,
+                "enable_thinking": True,
+                "file_url": "",
+                "link_url": "https://example.test/reference",
+                "seed": 1,
+            },
+            {},
+        )
+        self.assertEqual(
+            payload["metadata"]["link_url"],
+            "https://example.test/reference",
+        )
+        self.assertNotIn("enable_thinking", payload["metadata"])
 
     def test_validation_matches_model_specific_contracts(self):
         valid_i2v = nodes.Wan30Video.VALIDATE_INPUTS(
@@ -251,7 +295,7 @@ class Wan30VideoTests(unittest.TestCase):
         ]
         self.assertIs(wrapper.ORIGINAL_NODE_CLASS, nodes.Wan30Video)
 
-    def test_four_safe_workflows_cover_models_and_material_modes(self):
+    def test_eight_safe_workflows_cover_models_and_material_modes(self):
         expected_slots = (
             [f"image{index}" for index in range(1, 11)]
             + [f"video{index}" for index in range(1, 6)]
@@ -293,6 +337,8 @@ class Wan30VideoTests(unittest.TestCase):
                 }
                 if model.endswith("-i2v"):
                     self.assertEqual(media_slots, {(0, "IMAGE"), (1, "IMAGE")})
+                elif "-prime-r2v" in model:
+                    self.assertEqual(media_slots, {(0, "IMAGE")})
                 else:
                     self.assertEqual(
                         media_slots,

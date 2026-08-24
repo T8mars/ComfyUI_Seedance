@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.9.0（2026-08-25）
+
+- Wan 3.0 节点由 4 合 1 扩展为 8 合 1，新增国内/海外 Prime I2V 与 R2V 四个模型，并保持已有工作流兼容。
+- 按模型严格区分思考参数：仅标准海外模型发送 `enable_thinking`，Prime 海外模型不会发送该参数。
+- 新增 4 份 Prime 示例工作流，并增强腾讯 COS 生成结果下载兼容性；图片、视频、音频和通用文件共享可靠下载恢复链路。
+- 四个 Prime 模型均完成 2 秒、480P 的真实节点全链路验证；完整离线回归通过 381 项测试，181 份示例工作流通过 JSON 与敏感信息审计，15 个前端脚本通过语法检查。
+
 ## v0.8.1（2026-08-25）
 
 - 新增完整英文说明文档 `README_EN.md`，覆盖安装、配置、节点目录、并发工作流、示例、环境变量和常见问题。
@@ -411,7 +418,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、4 个 Wan 3.0 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -441,7 +448,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Video V3.1` | Fast / Quality / Lite 视频生成；Lite 仅文生视频 | `model`、`prompt`、固定 8 秒、分辨率、比例、按模型可选参考图 |
 | `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
 | `Wan 2.7 Spicy 图生视频` | `wan-2.7-spicy-i2v` 图生视频 | `first_image`、`prompt`、时长、分辨率、可选音频 URL |
-| `Wan 3.0 图生/参考生视频（4 合 1）` | 国内/海外 I2V 与 R2V 四模型统一调用 | I2V 首尾帧；R2V 最多 10 图、5 视频、5 音频及可选文件/网页 URL |
+| `Wan 3.0 图生/参考生视频（8 合 1）` | 国内/海外标准版与 Prime I2V/R2V 八模型统一调用 | I2V 首尾帧；R2V 最多 10 图、5 视频、5 音频及可选文件/网页 URL |
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
@@ -614,7 +621,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Seedance 2.5 Standard 视频生成（6 合 1）`：在国内/海外文生、图生与多模态六个模型间切换
    - `HappyHorse 1.1 视频生成`：在 `happyhorse-1.1-t2v`、`happyhorse-1.1-i2v` 和 `happyhorse-1.1-r2v` 间切换
    - `Wan 2.7 Spicy 图生视频`：连接首帧图，使用 `wan-2.7-spicy-i2v`
-   - `Wan 3.0 图生/参考生视频（4 合 1）`：在国内/海外 I2V 与 R2V 间切换，按模式连接首尾帧或多模态参考素材
+   - `Wan 3.0 图生/参考生视频（8 合 1）`：在国内/海外标准版与 Prime I2V/R2V 间切换，按模式连接首尾帧或多模态参考素材
    - `Kling 视频生成`：在 Kling 文生、图生/首尾帧和 O3 参考生视频模型间切换
    - `Kling O3 视频编辑`：连接 `input_video` 或填写公网 MP4 `video_url`
    - `Hailuo 2.3 视频生成`：在 Hailuo 文生视频、图生视频和 fast 图生视频模型间切换
@@ -726,7 +733,7 @@ Midjourney 图片与视频：
 - `examples/seedance_image_to_video.json`
 - `examples/seedance_multimodal_video.json`
 - `examples/seedance-2.5-*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
-- `examples/wan-3.0-*.json`（4 份，覆盖国内/海外 I2V 与 R2V）
+- `examples/wan-3.0-*.json`（8 份，覆盖国内/海外标准版与 Prime I2V/R2V）
 - `examples/flowmusic-*.json`（9 份，所有依赖源音乐的操作均通过节点连线传递 `clip_id`）
 - `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
 - `examples/海螺hailuo-h3*.json`（6 份，覆盖国内/海外 T2V、I2V、Multi）
@@ -892,10 +899,12 @@ Wan 3.0 节点使用 `/v1/videos` 视频端点：
 
 | 模型 | 用途 | 素材 |
 | --- | --- | --- |
-| `wan-3.0-i2v` / `wan-3.0-global-i2v` | 国内/海外图生视频 | `image1` 必填首帧，`image2` 可选尾帧 |
-| `wan-3.0-r2v` / `wan-3.0-global-r2v` | 国内/海外参考生视频 | 最多 10 张图、5 个视频、5 段音频；可选 `file_url` 或 `link_url`，二者不可同时使用 |
+| `wan-3.0-i2v` / `wan-3.0-global-i2v` | 标准版国内/海外图生视频 | `image1` 必填首帧，`image2` 可选尾帧 |
+| `wan-3.0-r2v` / `wan-3.0-global-r2v` | 标准版国内/海外参考生视频 | 最多 10 张图、5 个视频、5 段音频；可选 `file_url` 或 `link_url`，二者不可同时使用 |
+| `wan-3.0-prime-i2v` / `wan-3.0-global-prime-i2v` | Prime 国内/海外高速图生视频 | `image1` 必填首帧，`image2` 可选尾帧 |
+| `wan-3.0-prime-r2v` / `wan-3.0-global-prime-r2v` | Prime 国内/海外高速参考生视频 | 最多 10 张图、5 个视频、5 段音频；可选 `file_url` 或 `link_url`，二者不可同时使用 |
 
-四个模型均支持 2 到 30 秒或 `auto`、`480P` / `720P` / `1080P`、6 种画幅、生成音频开关及原生 seed。R2V 的 `prompt` 必填；海外模型显示 `enable_thinking`，海外 R2V 使用文件或网页参考时会自动开启思考。节点按所选模式动态显示有效素材槽，并提供视频并发提交版本。
+八个模型均支持 2 到 30 秒或 `auto`、`480P` / `720P` / `1080P`、6 种画幅、生成音频开关及原生 seed。R2V 的 `prompt` 必填；仅标准海外模型显示 `enable_thinking`，标准海外 R2V 使用文件或网页参考时会自动开启，Prime 海外模型不发送该参数。节点按所选模式动态显示有效素材槽，并提供视频并发提交版本。
 
 Kling 视频节点使用 `/v1/videos` 视频端点：
 
@@ -1141,13 +1150,13 @@ Wan 3.0 节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `model` | 国内/海外 `wan-3.0` I2V 或 R2V 四模型 |
+| `model` | 国内/海外标准版与 Prime `wan-3.0` I2V/R2V 八模型 |
 | `prompt` | I2V 可选；R2V 必填，最多 20000 字符 |
 | `seconds` | `auto` 或 2 到 30 秒 |
 | `resolution` | `480P`、`720P` 或 `1080P` |
 | `ratio` | `adaptive`、`16:9`、`4:3`、`1:1`、`3:4` 或 `9:16` |
 | `generate_audio` | 是否生成音频 |
-| `enable_thinking` | 海外模型的思考开关；海外 R2V 使用文件/网页参考时自动开启 |
+| `enable_thinking` | 仅标准海外模型使用；标准海外 R2V 使用文件/网页参考时自动开启，Prime 不发送该参数 |
 | `image1` / `image2` | I2V 首帧必填、尾帧可选；R2V 中作为参考图1和图2 |
 | `image3` ... `image10` | 仅 R2V 使用的其余参考图 |
 | `video1` ... `video5` | 仅 R2V 使用的参考视频 |

@@ -3326,6 +3326,27 @@ def _remove_result_path(path: str) -> None:
             pass
 
 
+def _tencent_cos_result_url_fallback(url: str) -> Optional[str]:
+    """Return Tencent COS's official new-domain equivalent when applicable."""
+    parsed = urlparse(str(url or ""))
+    hostname = (parsed.hostname or "").lower()
+    old_suffix = ".myqcloud.com"
+    if (
+        parsed.scheme.lower() != "https"
+        or not hostname.endswith(old_suffix)
+        or ".cos." not in hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        return None
+
+    replacement_host = hostname[:-len(old_suffix)] + ".tencentcos.cn"
+    netloc = replacement_host
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
+
+
 def _download_to_path_with_recovery(
     url: str,
     path: str,
@@ -3342,6 +3363,7 @@ def _download_to_path_with_recovery(
     attempts = max(1, int(max_retries))
     last_error: Optional[Exception] = None
     curl_attempted = False
+    cos_fallback_url = _tencent_cos_result_url_fallback(url)
 
     for attempt in range(attempts):
         if attempt > 0:
@@ -3374,6 +3396,37 @@ def _download_to_path_with_recovery(
                 continue
 
             _reset_thread_session()
+            if cos_fallback_url:
+                _log(
+                    logger_prefix,
+                    f"Retrying {item_name.lower()} through Tencent COS's "
+                    "official new domain...",
+                )
+                try:
+                    content_type = _download_result_to_path_requests(
+                        url=cos_fallback_url,
+                        path=path,
+                        timeout=timeout,
+                        connect_timeout=connect_timeout,
+                        read_timeout=read_timeout,
+                        headers=headers,
+                        max_bytes=max_bytes,
+                    )
+                    validation = validator(path) if validator is not None else None
+                    _log(logger_prefix, "  Tencent COS domain fallback succeeded")
+                    return content_type, validation
+                except Exception as cos_error:
+                    last_error = cos_error
+                    _remove_result_path(path)
+                    _reset_thread_session()
+                    _log(
+                        logger_prefix,
+                        "Tencent COS domain fallback failed: "
+                        f"{type(cos_error).__name__}",
+                    )
+                    if isinstance(cos_error, _ResultDownloadLimitError):
+                        break
+
             if _should_retry_without_proxy(error):
                 _log(
                     logger_prefix,
@@ -3457,6 +3510,7 @@ def _download_and_decode_image(
     attempts = max(1, int(max_retries))
     last_error: Optional[Exception] = None
     curl_attempted = False
+    cos_fallback_url = _tencent_cos_result_url_fallback(url)
 
     for attempt in range(attempts):
         if attempt > 0:
@@ -3478,6 +3532,28 @@ def _download_and_decode_image(
                 continue
 
             _reset_thread_session()
+            if cos_fallback_url:
+                _log(
+                    logger_prefix,
+                    "Retrying image download through Tencent COS's official new domain...",
+                )
+                try:
+                    result = decoder(
+                        _download_image_bytes(cos_fallback_url, timeout)
+                    )
+                    _log(logger_prefix, "  Tencent COS domain fallback succeeded")
+                    return result
+                except Exception as cos_error:
+                    last_error = cos_error
+                    _reset_thread_session()
+                    _log(
+                        logger_prefix,
+                        "Tencent COS domain fallback failed: "
+                        f"{type(cos_error).__name__}",
+                    )
+                    if isinstance(cos_error, _ResultDownloadLimitError):
+                        break
+
             if _should_retry_without_proxy(error):
                 _log(
                     logger_prefix,

@@ -8,6 +8,10 @@ import {
 
 const WAN30_NODE_NAME = "Wan_3_0_Video";
 const WAN30_DEFAULT_MODEL = "wan-3.0-i2v";
+const THINKING_MODELS = new Set([
+    "wan-3.0-global-i2v",
+    "wan-3.0-global-r2v",
+]);
 const IMAGE_INPUT = /^image([1-9]|10)$/;
 const VIDEO_INPUT = /^video([1-5])$/;
 const AUDIO_INPUT = /^audio([1-5])$/;
@@ -54,14 +58,14 @@ function inputAllowed(model, input, limits) {
 function refreshWan30Node(node) {
     const model = String(widgetByName(node, "model")?.value ?? WAN30_DEFAULT_MODEL);
     const isR2V = model.endsWith("-r2v");
-    const isGlobal = model.includes("-global-");
+    const supportsThinking = THINKING_MODELS.has(model);
     const limits = {
         images: nextVisibleSlot(node, IMAGE_INPUT, 10),
         videos: nextVisibleSlot(node, VIDEO_INPUT, 5),
         audios: nextVisibleSlot(node, AUDIO_INPUT, 5),
     };
 
-    setWidgetVisible(widgetByName(node, "enable_thinking"), isGlobal);
+    setWidgetVisible(widgetByName(node, "enable_thinking"), supportsThinking);
     setWidgetVisible(widgetByName(node, "file_url"), isR2V);
     setWidgetVisible(widgetByName(node, "link_url"), isR2V);
 

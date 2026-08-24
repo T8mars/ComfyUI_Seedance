@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.9.0 - 2026-08-25
+
+- Expanded the Wan 3.0 node from four to eight models with domestic/global Prime I2V and R2V variants while preserving existing workflows.
+- Restricted `enable_thinking` to the documented standard global models; Prime global requests omit it.
+- Added four Prime example workflows and resilient Tencent COS result-domain recovery shared by image, video, audio, and generic file downloads.
+- Completed real 2-second, 480P node-path checks for all four Prime models. Passed 381 offline tests, audited 181 workflows, and validated all 15 frontend scripts.
+
 ### v0.8.1 - 2026-08-25
 
 - Added this complete English README.
@@ -92,7 +99,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Seedance_ImageToVideo` | Seedance first-frame and optional last-frame video |
 | `Seedance_MultimodalVideo` | Seedance image/video/audio reference generation |
 | `Seedance_2_5_Video` | Six Seedance 2.5 domestic/global T2V, I2V, and Multi models |
-| `Wan_3_0_Video` | Four Wan 3.0 domestic/global I2V and R2V models |
+| `Wan_3_0_Video` | Eight Wan 3.0 standard/Prime domestic/global I2V and R2V models |
 | `Wan_2_7_Spicy_I2V` | Wan 2.7 Spicy image-to-video |
 | `HappyHorse_1_1_Video` | HappyHorse T2V, I2V, and reference video |
 | `Kling_Video` | Kling T2V, I2V, start/end, and O3 reference video |
@@ -222,7 +229,7 @@ This file is ignored by Git.
 - I2V models require `image1` as the first frame and accept `image2` as an optional last frame.
 - R2V models require a prompt and accept up to 10 images, 5 videos, and 5 audio inputs.
 - R2V may also use either `file_url` or `link_url`, but not both.
-- Global models expose `enable_thinking`. Global R2V enables it automatically when a file or web reference is supplied.
+- Only standard global models expose `enable_thinking`; standard Global R2V enables it automatically for file or web references. Prime global models omit it.
 - Supported duration values are `auto` or 2-30 seconds. Resolutions are `480P`, `720P`, and `1080P`.
 
 ### Concurrent Image and Video Generation
@@ -295,7 +302,7 @@ Specialized nodes may expose multiple images, videos, audio tracks, masks, text,
 The [`examples`](examples) directory contains safe workflows with empty API key fields and no saved runtime results. It includes:
 
 - Seedance 2.0 and Seedance 2.5 T2V/I2V/Multi workflows.
-- Four Wan 3.0 domestic/global I2V/R2V workflows.
+- Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - FLUX 3, Hailuo H3, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
 - Seedream, Qwen Image, Zhenzhen Image, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.
