@@ -53,6 +53,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Zhenzhen_Video_V31",
     "HappyHorse_1_1_Video",
     "Wan_2_7_Spicy_I2V",
+    "Wan_3_0_Video",
     "Kling_Video",
     "Kling_Edit_Video",
     "Hailuo_2_3_Video",

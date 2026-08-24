@@ -385,6 +385,27 @@ WAN27_SPICY_I2V_MODEL = "wan-2.7-spicy-i2v"
 WAN27_SPICY_RESOLUTIONS = ["720p", "1080p"]
 WAN27_SPICY_SECONDS = [str(s) for s in range(2, 16)]
 
+WAN30_I2V_MODEL = "wan-3.0-i2v"
+WAN30_R2V_MODEL = "wan-3.0-r2v"
+WAN30_GLOBAL_I2V_MODEL = "wan-3.0-global-i2v"
+WAN30_GLOBAL_R2V_MODEL = "wan-3.0-global-r2v"
+WAN30_I2V_MODELS = [WAN30_I2V_MODEL, WAN30_GLOBAL_I2V_MODEL]
+WAN30_R2V_MODELS = [WAN30_R2V_MODEL, WAN30_GLOBAL_R2V_MODEL]
+WAN30_GLOBAL_MODELS = [WAN30_GLOBAL_I2V_MODEL, WAN30_GLOBAL_R2V_MODEL]
+WAN30_MODELS = [
+    WAN30_I2V_MODEL,
+    WAN30_R2V_MODEL,
+    WAN30_GLOBAL_I2V_MODEL,
+    WAN30_GLOBAL_R2V_MODEL,
+]
+WAN30_SECONDS = ["auto", *[str(s) for s in range(2, 31)]]
+WAN30_RESOLUTIONS = ["480P", "720P", "1080P"]
+WAN30_RATIOS = ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16"]
+WAN30_PROMPT_MAX_LENGTH = 20000
+MAX_WAN30_IMAGES = 10
+MAX_WAN30_VIDEOS = 5
+MAX_WAN30_AUDIOS = 5
+
 KLING_T2V_MODELS = [
     "kling-v3.0-std-t2v",
     "kling-v3.0-pro-t2v",
@@ -2288,6 +2309,345 @@ class Wan27SpicyImageToVideo(SeedanceVideoNodeBase):
         prompt = str(kwargs.get("prompt") or "").strip()
         if prompt:
             payload["prompt"] = prompt
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# Wan 3.0 image/reference-to-video
+# ---------------------------------------------------------------------------
+
+class Wan30Video(SeedanceVideoNodeBase):
+    """Wan 3.0 domestic/global I2V and R2V via /v1/videos."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {}
+        for index in range(1, MAX_WAN30_IMAGES + 1):
+            optional[f"image{index}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Wan 3.0 image {index}. I2V uses image1 as the required first frame "
+                    f"and image2 as the optional last frame; R2V accepts up to 10 images. | "
+                    f"Wan 3.0 图片 {index}；I2V 使用 image1 必填首帧、image2 可选尾帧；"
+                    "R2V 最多支持 10 张参考图。"
+                ),
+            })
+        for index in range(1, MAX_WAN30_VIDEOS + 1):
+            optional[f"video{index}"] = ("VIDEO", {
+                "tooltip": (
+                    f"Wan 3.0 R2V reference video {index}, up to 5 videos. | "
+                    f"Wan 3.0 R2V 参考视频 {index}，最多 5 个。"
+                ),
+            })
+        for index in range(1, MAX_WAN30_AUDIOS + 1):
+            optional[f"audio{index}"] = ("AUDIO", {
+                "tooltip": (
+                    f"Wan 3.0 R2V reference audio {index}, up to 5 audios. | "
+                    f"Wan 3.0 R2V 参考音频 {index}，最多 5 个。"
+                ),
+            })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "On failure return a placeholder error video instead of stopping the workflow. | 失败时输出占位错误视频。",
+        })
+
+        return {
+            "required": {
+                "model": (WAN30_MODELS, {
+                    "default": WAN30_I2V_MODEL,
+                    "tooltip": (
+                        "Wan 3.0 domestic/global image-to-video or multimodal reference-to-video. | "
+                        "Wan 3.0 国内/海外图生视频或多模态参考生视频。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Up to 20000 characters. Required for R2V and optional for I2V. "
+                        "R2V can refer to Image 1, Video 1, and Audio 1 in upload order. | "
+                        "最多 20000 字符；R2V 必填、I2V 可选。R2V 可按上传顺序引用 Image 1、"
+                        "Video 1、Audio 1。"
+                    ),
+                }),
+                "seconds": (WAN30_SECONDS, {
+                    "default": "2",
+                    "tooltip": "Output duration: auto or 2 to 30 seconds. | 输出时长：智能时长或 2 到 30 秒。",
+                }),
+                "resolution": (WAN30_RESOLUTIONS, {
+                    "default": "480P",
+                    "tooltip": "Wan 3.0 output resolution: 480P, 720P, or 1080P. | Wan 3.0 输出分辨率。",
+                }),
+                "ratio": (WAN30_RATIOS, {
+                    "default": "adaptive",
+                    "tooltip": "Documented Wan 3.0 output aspect ratio. | 文档支持的 Wan 3.0 输出画幅。",
+                }),
+                "generate_audio": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Generate an output audio track. | 生成输出音轨。",
+                }),
+                "enable_thinking": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Overseas models only. Document or webpage references automatically enable it "
+                        "for Global R2V. | 仅海外模型使用；Global R2V 传文档或网页时会自动开启。"
+                    ),
+                }),
+                "file_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "R2V optional public document URL, mutually exclusive with link_url. | "
+                        "R2V 可选公网文档 URL，与 link_url 互斥。"
+                    ),
+                }),
+                "link_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "R2V optional public webpage URL, mutually exclusive with file_url. | "
+                        "R2V 可选公网网页 URL，与 file_url 互斥。"
+                    ),
+                }),
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 2147483647,
+                    "step": 1,
+                    "tooltip": "Wan 3.0 random seed, 0 to 2147483647. | Wan 3.0 随机种子。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        file_url=None,
+        link_url=None,
+        seed=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *WAN30_MODELS):
+            return f"unsupported Wan 3.0 model: {model}"
+        if seconds is not None and str(seconds) not in WAN30_SECONDS:
+            return "Wan 3.0 seconds must be auto or 2 to 30 | Wan 3.0 时长必须是 auto 或 2 到 30 秒"
+        if resolution is not None and resolution not in WAN30_RESOLUTIONS:
+            return "Wan 3.0 resolution must be 480P, 720P, or 1080P | Wan 3.0 分辨率必须是 480P、720P 或 1080P"
+        if ratio is not None and ratio not in WAN30_RATIOS:
+            return f"unsupported Wan 3.0 ratio: {ratio}"
+
+        prompt_text = str(prompt or "").strip()
+        if len(prompt_text) > WAN30_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt exceeds {WAN30_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)})"
+            )
+        if strict and model in WAN30_R2V_MODELS and not prompt_text:
+            return "prompt is required for Wan 3.0 R2V | Wan 3.0 参考生视频必须填写提示词"
+
+        file_url_text = str(file_url or "").strip()
+        link_url_text = str(link_url or "").strip()
+        if file_url_text and link_url_text:
+            return "file_url and link_url are mutually exclusive | file_url 与 link_url 不能同时填写"
+        for name, value in (("file_url", file_url_text), ("link_url", link_url_text)):
+            if value and not value.startswith(("http://", "https://")):
+                return f"{name} must be an http(s) URL | {name} 必须是 http(s) URL"
+            if len(value) > 2048:
+                return f"{name} must not exceed 2048 characters | {name} 不能超过 2048 字符"
+
+        if seed is not None:
+            try:
+                seed_value = int(seed)
+            except (TypeError, ValueError):
+                return "seed must be an integer | seed 必须是整数"
+            if not 0 <= seed_value <= 2147483647:
+                return "seed must be 0 to 2147483647 | seed 必须在 0 到 2147483647 之间"
+
+        if strict and model in WAN30_I2V_MODELS:
+            if kwargs.get("image1") is None:
+                return "image1 is required for Wan 3.0 I2V | Wan 3.0 图生视频必须连接 image1 首帧"
+            unsupported = [
+                name
+                for name in (
+                    *[f"image{index}" for index in range(3, MAX_WAN30_IMAGES + 1)],
+                    *[f"video{index}" for index in range(1, MAX_WAN30_VIDEOS + 1)],
+                    *[f"audio{index}" for index in range(1, MAX_WAN30_AUDIOS + 1)],
+                )
+                if kwargs.get(name) is not None
+            ]
+            if unsupported or file_url_text or link_url_text:
+                return "Wan 3.0 I2V accepts only image1 and optional image2 | Wan 3.0 图生视频只接受 image1 和可选 image2"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Wan_3_0_video"
+
+    def _gather_slots(
+        self,
+        kwargs: Dict[str, Any],
+        base_name: str,
+        count: int,
+    ) -> List[Tuple[int, Any]]:
+        slots = [
+            (index, kwargs.get(f"{base_name}{index}"))
+            for index in range(1, count + 1)
+            if kwargs.get(f"{base_name}{index}") is not None
+        ]
+        connected = [index for index, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: {base_name} slots {connected} have gaps; "
+                f"they will be compacted to {base_name} order 1..{len(connected)}."
+            )
+        return slots
+
+    def collect_media(self, kwargs, config, progress_cb):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        model = kwargs.get("model")
+        image_limit = 2 if model in WAN30_I2V_MODELS else MAX_WAN30_IMAGES
+        image_slots = self._gather_slots(kwargs, "image", image_limit)
+        video_slots = (
+            self._gather_slots(kwargs, "video", MAX_WAN30_VIDEOS)
+            if model in WAN30_R2V_MODELS
+            else []
+        )
+        audio_slots = (
+            self._gather_slots(kwargs, "audio", MAX_WAN30_AUDIOS)
+            if model in WAN30_R2V_MODELS
+            else []
+        )
+        total = len(image_slots) + len(video_slots) + len(audio_slots)
+        if total == 0:
+            progress_cb(1.0)
+            return {"images": [], "video_urls": [], "audio_urls": []}
+
+        video_mime = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+        }
+        done = 0
+        image_urls: List[str] = []
+        video_urls: List[str] = []
+        audio_urls: List[str] = []
+
+        for slot, image in image_slots:
+            image_urls.append(upload_media(
+                image_to_png_bytes(image),
+                f"wan30_image_{slot}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        for slot, video in video_slots:
+            video_bytes, extension = video_to_bytes(video)
+            video_urls.append(upload_media(
+                video_bytes,
+                f"wan30_video_{slot}.{extension}",
+                video_mime.get(extension, "video/mp4"),
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        for slot, audio in audio_slots:
+            audio_urls.append(upload_media(
+                audio_to_wav_bytes(audio),
+                f"wan30_audio_{slot}.wav",
+                "audio/wav",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            done += 1
+            progress_cb(done / total)
+
+        return {
+            "images": image_urls,
+            "video_urls": video_urls,
+            "audio_urls": audio_urls,
+        }
+
+    def build_payload(self, kwargs, media):
+        model = kwargs["model"]
+        prompt = str(kwargs.get("prompt") or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            seconds=kwargs.get("seconds"),
+            resolution=kwargs.get("resolution"),
+            ratio=kwargs.get("ratio"),
+            file_url=kwargs.get("file_url"),
+            link_url=kwargs.get("link_url"),
+            seed=kwargs.get("seed"),
+            strict=False,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        metadata: Dict[str, Any] = {
+            "resolution": kwargs["resolution"],
+            "ratio": kwargs["ratio"],
+            "generate_audio": bool(kwargs.get("generate_audio", True)),
+            "seed": int(kwargs.get("seed", 0)),
+        }
+        payload: Dict[str, Any] = {
+            "model": model,
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+        if prompt:
+            payload["prompt"] = prompt
+
+        images = list(media.get("images") or [])
+        if model in WAN30_I2V_MODELS:
+            if not images:
+                raise SeedanceAPIError(
+                    "image1 is required for Wan 3.0 I2V | Wan 3.0 图生视频必须连接 image1 首帧"
+                )
+            payload["images"] = images[:2]
+            if model == WAN30_GLOBAL_I2V_MODEL:
+                metadata["enable_thinking"] = bool(kwargs.get("enable_thinking", False))
+            return payload
+
+        if not prompt:
+            raise SeedanceAPIError(
+                "prompt is required for Wan 3.0 R2V | Wan 3.0 参考生视频必须填写提示词"
+            )
+        if images:
+            payload["images"] = images[:MAX_WAN30_IMAGES]
+        video_urls = list(media.get("video_urls") or [])
+        if video_urls:
+            metadata["video_url"] = video_urls[:MAX_WAN30_VIDEOS]
+        audio_urls = list(media.get("audio_urls") or [])
+        if audio_urls:
+            metadata["audio_url"] = audio_urls[:MAX_WAN30_AUDIOS]
+
+        file_url = str(kwargs.get("file_url") or "").strip()
+        link_url = str(kwargs.get("link_url") or "").strip()
+        if file_url:
+            metadata["file_url"] = file_url
+        if link_url:
+            metadata["link_url"] = link_url
+        if model == WAN30_GLOBAL_R2V_MODEL:
+            metadata["enable_thinking"] = bool(
+                kwargs.get("enable_thinking", False) or file_url or link_url
+            )
         return payload
 
 
@@ -11523,6 +11883,7 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Video_V31": ZhenzhenVideoV31,
     "HappyHorse_1_1_Video": HappyHorseVideo,
     "Wan_2_7_Spicy_I2V": Wan27SpicyImageToVideo,
+    "Wan_3_0_Video": Wan30Video,
     "Kling_Video": KlingVideo,
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
@@ -11647,6 +12008,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",
     "Wan_2_7_Spicy_I2V": "Wan 2.7 Spicy 图生视频",
+    "Wan_3_0_Video": "Wan 3.0 图生/参考生视频（4 合 1）",
     "Kling_Video": "Kling 视频生成",
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",

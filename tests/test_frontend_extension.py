@@ -79,6 +79,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Zhenzhen_Video_V31",
             "HappyHorse_1_1_Video",
             "Wan_2_7_Spicy_I2V",
+            "Wan_3_0_Video",
             "Kling_Video",
             "Kling_Edit_Video",
             "Hailuo_2_3_Video",
@@ -119,6 +120,27 @@ class FrontendExtensionTests(unittest.TestCase):
             'input.pos = [10, slotStart + (index + 0.7) * 20]',
             'resizeSeedanceNode(node, 440, visibleInputs.length)',
             'scheduleSeedance25Refresh(this)',
+            'originalOnConnectionsChange',
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_wan30_model_ui_uses_shared_dynamic_helpers_and_concurrent_aliases(self):
+        source = (
+            PLUGIN_ROOT / "web" / "js" / "wan30_model_ui.js"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            'const WAN30_NODE_NAME = "Wan_3_0_Video"',
+            'from "./dynamic_widget_ui.js"',
+            'originalSeedanceNodeName(nodeData.name)',
+            'model.endsWith("-i2v")',
+            'model.endsWith("-r2v")',
+            'model.includes("-global-")',
+            'setWidgetVisible(widgetByName(node, "enable_thinking"), isGlobal)',
+            'setWidgetVisible(widgetByName(node, "file_url"), isR2V)',
+            'setInputVisible(node, input, inputAllowed(model, input, limits))',
+            'scheduleWan30Refresh(this)',
             'originalOnConnectionsChange',
         )
         for fragment in required_fragments:
