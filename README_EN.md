@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.10.0 - 2026-08-30
+
+- Added an independent `Zhenzhen Video G Omni 1.1 Flash Lowprice (4 modes)` node with its exact model ID while preserving the original Omni Flash Lowprice node and saved workflows.
+- Supports text, first-frame, one/three-image reference, and reference-video generation with 4/6/8/10 seconds, 720p/1080p/4k, 16:9/9:16, dynamic media inputs, `skip_error`, standard seed controls, and 10-way video submission.
+- Added four credential-free example workflows covering every generation mode.
+- Completed a real 4-second, 720p text-to-video node-path check. Passed 382 offline tests, audited 185 workflows, and validated all 15 frontend scripts.
+
 ### v0.9.0 - 2026-08-25
 
 - Expanded the Wan 3.0 node from four to eight models with domestic/global Prime I2V and R2V variants while preserving existing workflows.
@@ -113,6 +120,8 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Vidu_Q3_Video` | Vidu Q3 T2V, I2V, start/end, and reference video |
 | `Vidu_Q3_ShortPlay` | Vidu Q3 short-play generation |
 | `Zhenzhen_Video_G_Omni_Flash` | Zhenzhen Video G Omni Flash |
+| `Zhenzhen_Video_G_Omni_Flash_Lowprice` | Omni Flash Lowprice text, first-frame, reference-image, and reference-video generation |
+| `Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice` | Omni 1.1 Flash Lowprice text, first-frame, reference-image, and reference-video generation |
 | `Zhenzhen_Video_GK_V15` | Zhenzhen Video GK v1.5 |
 | `Zhenzhen_Video_V31` | Zhenzhen Video V3.1 Fast, Quality, and Lite |
 | `FashVSR_Video_Upscale` | FlashVSR 480P video upscaling |
@@ -303,6 +312,7 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 
 - Seedance 2.0 and Seedance 2.5 T2V/I2V/Multi workflows.
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
+- Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
 - FLUX 3, Hailuo H3, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
 - Seedream, Qwen Image, Zhenzhen Image, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.

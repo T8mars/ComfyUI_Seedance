@@ -341,6 +341,9 @@ ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH = 1000
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
 ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL = "zhenzhen-video-g-omni-flash-lowprice"
+ZHENZHEN_VIDEO_G_OMNI_11_FLASH_LOWPRICE_MODEL = (
+    "zhenzhen-video-g-omni-1.1-flash-lowprice"
+)
 ZHENZHEN_VIDEO_GK_V15_MODEL = "zhenzhen-video-gk-v15"
 ZHENZHEN_VIDEO_V31_FAST_MODEL = "zhenzhen-video-v31-fast"
 ZHENZHEN_VIDEO_V31_QUALITY_MODEL = "zhenzhen-video-v31-quality"
@@ -2874,6 +2877,10 @@ class ZhenzhenVideoGOmniFlash(ZhenzhenVideoGenerationBase):
 class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
     """Documented text, frame, reference-image, and reference-video modes."""
 
+    MODEL = ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL
+    LOG_PREFIX = "Zhenzhen_video_g_omni_flash_lowprice"
+    MEDIA_STEM = "zhenzhen_omni_lowprice"
+
     @classmethod
     def INPUT_TYPES(cls):
         optional: Dict[str, tuple] = {
@@ -2998,7 +3005,7 @@ class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
 
     @property
     def _log_prefix(self) -> str:
-        return "Zhenzhen_video_g_omni_flash_lowprice"
+        return self.LOG_PREFIX
 
     def collect_media(self, kwargs, config, progress_cb):
         validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
@@ -3016,7 +3023,7 @@ class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
             for index, image in enumerate(source_images, 1):
                 images.append(upload_media(
                     image_to_png_bytes(image),
-                    f"zhenzhen_omni_lowprice_reference_{index}.png",
+                    f"{self.MEDIA_STEM}_reference_{index}.png",
                     "image/png",
                     config,
                     logger_prefix=self._log_prefix,
@@ -3032,7 +3039,7 @@ class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
             video_bytes, extension = video_to_bytes(kwargs["input_video"])
             video_url = upload_media(
                 video_bytes,
-                f"zhenzhen_omni_lowprice_reference.{extension}",
+                f"{self.MEDIA_STEM}_reference.{extension}",
                 "video/mp4",
                 config,
                 logger_prefix=self._log_prefix,
@@ -3046,7 +3053,7 @@ class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
     def build_payload(self, kwargs, media):
         mode = kwargs["mode"]
         payload: Dict[str, Any] = {
-            "model": ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL,
+            "model": self.MODEL,
             "prompt": str(kwargs["prompt"]).strip(),
             "resolution": kwargs["resolution"],
             "aspect_ratio": kwargs["aspect_ratio"],
@@ -3063,6 +3070,14 @@ class ZhenzhenVideoGOmniFlashLowprice(SeedanceVideoNodeBase):
         elif mode == "reference_video":
             payload["metadata"] = {"video_url": media["video_url"]}
         return payload
+
+
+class ZhenzhenVideoGOmni11FlashLowprice(ZhenzhenVideoGOmniFlashLowprice):
+    """zhenzhen-video-g-omni-1.1-flash-lowprice via /v1/videos."""
+
+    MODEL = ZHENZHEN_VIDEO_G_OMNI_11_FLASH_LOWPRICE_MODEL
+    LOG_PREFIX = "Zhenzhen_video_g_omni_1_1_flash_lowprice"
+    MEDIA_STEM = "zhenzhen_omni_1_1_lowprice"
 
 
 class ZhenzhenVideoGKV15(ZhenzhenVideoGenerationBase):
@@ -11904,6 +11919,7 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": ZhenzhenVideoGOmniFlashLowprice,
+    "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": ZhenzhenVideoGOmni11FlashLowprice,
     "Zhenzhen_Video_GK_V15": ZhenzhenVideoGKV15,
     "Zhenzhen_Video_V31": ZhenzhenVideoV31,
     "HappyHorse_1_1_Video": HappyHorseVideo,
@@ -12029,6 +12045,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": "Zhenzhen Video G Omni Flash Lowprice（4 模式）",
+    "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": "Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）",
     "Zhenzhen_Video_GK_V15": "Zhenzhen Video GK v1.5",
     "Zhenzhen_Video_V31": "Zhenzhen Video V3.1",
     "HappyHorse_1_1_Video": "HappyHorse 1.1 视频生成",

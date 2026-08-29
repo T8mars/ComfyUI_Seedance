@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.10.0（2026-08-30）
+
+- 新增独立的 `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` 节点，使用精确模型 ID，并保持原 Omni Flash Lowprice 节点与已有工作流不变。
+- 支持文生视频、首帧生视频、1/3 图参考生视频和参考视频生成；提供 4/6/8/10 秒、720p/1080p/4k、16:9/9:16、动态素材输入、`skip_error`、标准随机种子及 10 路视频并发提交。
+- 新增四份不含凭据和运行结果的示例工作流，覆盖全部四种生成模式。
+- 完成 4 秒、720p 文生视频真实节点全链路验证；完整离线回归通过 382 项测试，185 份示例工作流通过 JSON 与敏感信息审计，15 个前端脚本通过语法检查。
+
 ## v0.9.0（2026-08-25）
 
 - Wan 3.0 节点由 4 合 1 扩展为 8 合 1，新增国内/海外 Prime I2V 与 R2V 四个模型，并保持已有工作流兼容。
@@ -444,6 +451,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
+| `Zhenzhen Video G Omni Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
+| `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-1.1-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video V3.1` | Fast / Quality / Lite 视频生成；Lite 仅文生视频 | `model`、`prompt`、固定 8 秒、分辨率、比例、按模型可选参考图 |
 | `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
@@ -629,6 +638,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Vidu Q3 视频生成`：在 Vidu 文生、图生、首尾帧和参考生视频模型间切换
    - `Vidu Q3 短剧成片`：填写短剧脚本内容、`script_name`，并连接至少 1 张参考资产图
    - `Zhenzhen Video G Omni Flash`：使用 `zhenzhen-video-g-omni-flash`
+   - `Zhenzhen Video G Omni Flash Lowprice（4 模式）`：使用 `zhenzhen-video-g-omni-flash-lowprice`
+   - `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）`：使用 `zhenzhen-video-g-omni-1.1-flash-lowprice`
    - `Zhenzhen Video GK v1.5`：使用 `zhenzhen-video-gk-v15`
    - `Zhenzhen Video V3.1`：在 `zhenzhen-video-v31-fast`、`zhenzhen-video-v31-quality` 和仅文生视频的 `zhenzhen-video-v31-lite` 间切换
    - `FlashVSR 480P 视频超分`：连接一段 480P、3 到 15 秒的 `input_video`，或填写公网 `video_url`
@@ -751,6 +762,8 @@ Midjourney 图片与视频：
 - `examples/zhenzhen-image-nb-*.json`（8 份，4 个模型各含文生图和图像编辑）
 - `examples/zhenzhen-video-g-omni-flash文生视频.json`
 - `examples/zhenzhen-video-g-omni-flash图生视频.json`
+- `examples/zhenzhen-video-g-omni-flash-lowprice*.json`（4 份，覆盖文生、首帧、参考图和参考视频）
+- `examples/zhenzhen-video-g-omni-1.1-flash-lowprice*.json`（4 份，覆盖文生、首帧、参考图和参考视频）
 - `examples/zhenzhen-video-gk-v15文生视频.json`
 - `examples/zhenzhen-video-gk-v15图生视频.json`
 - `examples/zhenzhen-video-v31-fast文生视频.json`
@@ -861,6 +874,8 @@ Zhenzhen Video 节点使用 `/v1/videos` 视频端点：
 | 节点 | 模型 | 素材 |
 | --- | --- | --- |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` | 可选 `image1` / `image2` |
+| `Zhenzhen Video G Omni Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-flash-lowprice` | 文生无素材；首帧使用 `image1`；参考图使用 1 或 3 张连续图片；参考视频使用本地视频或公网直链 |
+| `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-1.1-flash-lowprice` | 文生无素材；首帧使用 `image1`；参考图使用 1 或 3 张连续图片；参考视频使用本地视频或公网直链 |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` | 可选 `image1` / `image2` |
 | `Zhenzhen Video V3.1` | `zhenzhen-video-v31-fast` / `zhenzhen-video-v31-quality` / `zhenzhen-video-v31-lite` | Fast 最多 3 图；Quality 最多 2 图；Lite 禁止图片 |
 

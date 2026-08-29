@@ -55,6 +55,30 @@ class OmniFlashLowpriceTests(unittest.TestCase):
             "video_url": "https://example.invalid/reference.mp4",
         })
 
+    def test_omni_11_uses_the_same_contract_with_its_own_model_id(self):
+        common = {
+            "mode": "text",
+            "prompt": "a paper airplane glides across a quiet studio",
+            "seconds": "4",
+            "resolution": "720p",
+            "aspect_ratio": "16:9",
+            "nsfw_check": False,
+        }
+        original = nodes.ZhenzhenVideoGOmniFlashLowprice().build_payload(
+            common, {}
+        )
+        omni_11 = nodes.ZhenzhenVideoGOmni11FlashLowprice().build_payload(
+            common, {}
+        )
+        self.assertEqual(
+            omni_11["model"],
+            nodes.ZHENZHEN_VIDEO_G_OMNI_11_FLASH_LOWPRICE_MODEL,
+        )
+        self.assertEqual(
+            {key: value for key, value in omni_11.items() if key != "model"},
+            {key: value for key, value in original.items() if key != "model"},
+        )
+
     def test_strict_mode_validation_rejects_ambiguous_media(self):
         base = {
             "prompt": "a valid prompt",
@@ -249,6 +273,7 @@ class RegistrationAndFrontendTests(unittest.TestCase):
     def test_new_nodes_and_concurrent_wrappers_are_registered(self):
         expected = {
             "Zhenzhen_Video_G_Omni_Flash_Lowprice",
+            "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice",
             "Hunyuan3D_V3_1",
             "Zhenzhen_Image_GK_V2_Segment",
             "Zhenzhen_Image_GK_V2_Region_Edit",
@@ -256,6 +281,10 @@ class RegistrationAndFrontendTests(unittest.TestCase):
         self.assertTrue(expected.issubset(nodes.NODE_CLASS_MAPPINGS))
         self.assertIn(
             "SeedanceConcurrent_Zhenzhen_Video_G_Omni_Flash_Lowprice_Submit",
+            concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS,
+        )
+        self.assertIn(
+            "SeedanceConcurrent_Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice_Submit",
             concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS,
         )
         self.assertIn(
@@ -270,6 +299,7 @@ class RegistrationAndFrontendTests(unittest.TestCase):
         self.assertIn("setSeedanceInputVisible", omni)
         self.assertIn("setSeedanceWidgetVisible", omni)
         self.assertIn("originalSeedanceNodeName(nodeData.name)", omni)
+        self.assertIn("LOWPRICE_11_NODE", omni)
         self.assertIn('from "./dynamic_widget_ui.js"', region)
         self.assertIn("MODE_DEFAULTS", region)
 
@@ -279,6 +309,10 @@ class RegistrationAndFrontendTests(unittest.TestCase):
             "zhenzhen-video-g-omni-flash-lowprice首帧生视频.json",
             "zhenzhen-video-g-omni-flash-lowprice三图参考生视频.json",
             "zhenzhen-video-g-omni-flash-lowprice参考视频生成.json",
+            "zhenzhen-video-g-omni-1.1-flash-lowprice文生视频.json",
+            "zhenzhen-video-g-omni-1.1-flash-lowprice首帧生视频.json",
+            "zhenzhen-video-g-omni-1.1-flash-lowprice三图参考生视频.json",
+            "zhenzhen-video-g-omni-1.1-flash-lowprice参考视频生成.json",
             "hunyuan3d-v3.1-text-to-3d文生3D.json",
             "hunyuan3d-v3.1-image-to-3d图生3D.json",
             "zhenzhen-image-gk-v2-segment智能分割.json",

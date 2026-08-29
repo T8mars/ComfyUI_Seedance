@@ -7,6 +7,8 @@ import {
 } from "./dynamic_widget_ui.js";
 
 const LOWPRICE_NODE = "Zhenzhen_Video_G_Omni_Flash_Lowprice";
+const LOWPRICE_11_NODE = "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice";
+const LOWPRICE_NODES = new Set([LOWPRICE_NODE, LOWPRICE_11_NODE]);
 const HUNYUAN_NODE = "Hunyuan3D_V3_1";
 
 function widgetByName(node, name) {
@@ -59,11 +61,12 @@ app.registerExtension({
     name: "ComfyUI_Seedance.OmniHunyuanUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const originalName = originalSeedanceNodeName(nodeData.name);
-        if (![LOWPRICE_NODE, HUNYUAN_NODE].includes(originalName)) {
+        if (!LOWPRICE_NODES.has(originalName) && originalName !== HUNYUAN_NODE) {
             return;
         }
-        const refresh = originalName === LOWPRICE_NODE ? refreshLowprice : refreshHunyuan;
-        const selector = originalName === LOWPRICE_NODE ? "mode" : "model";
+        const isLowprice = LOWPRICE_NODES.has(originalName);
+        const refresh = isLowprice ? refreshLowprice : refreshHunyuan;
+        const selector = isLowprice ? "mode" : "model";
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

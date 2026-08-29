@@ -49,6 +49,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Seedance_2_5_Video",
     "Zhenzhen_Video_G_Omni_Flash",
     "Zhenzhen_Video_G_Omni_Flash_Lowprice",
+    "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice",
     "Zhenzhen_Video_GK_V15",
     "Zhenzhen_Video_V31",
     "HappyHorse_1_1_Video",

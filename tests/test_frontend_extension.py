@@ -75,6 +75,7 @@ class FrontendExtensionTests(unittest.TestCase):
             "Zhenzhen_Image_GK_V2_Edit",
             "Zhenzhen_Image_NB",
             "Zhenzhen_Video_G_Omni_Flash",
+            "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice",
             "Zhenzhen_Video_GK_V15",
             "Zhenzhen_Video_V31",
             "HappyHorse_1_1_Video",
