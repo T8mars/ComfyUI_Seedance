@@ -516,6 +516,16 @@ MAX_HAILUO_H3_IMAGES = 9
 MAX_HAILUO_H3_VIDEOS = 3
 MAX_HAILUO_H3_AUDIOS = 3
 
+HAILUO_H3_MAX_T2V_MODEL = "hailuo-h3-max-t2v"
+HAILUO_H3_MAX_I2V_MODEL = "hailuo-h3-max-i2v"
+HAILUO_H3_MAX_MODELS = [
+    HAILUO_H3_MAX_T2V_MODEL,
+    HAILUO_H3_MAX_I2V_MODEL,
+]
+HAILUO_H3_MAX_SECONDS = [str(value) for value in range(5, 16)]
+HAILUO_H3_MAX_RESOLUTIONS = ["480P", "768P"]
+HAILUO_H3_MAX_RATIOS = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
+
 MINMAX_H3_CONTEXT_IR_TEXT_MODEL = "minmax-h3-context-ir-text"
 MINMAX_H3_CONTEXT_IR_IMAGE_MODEL = "minmax-h3-context-ir-image"
 MINMAX_H3_CONTEXT_IR_MULTIMODAL_MODEL = "minmax-h3-context-ir-multimodal"
@@ -3859,6 +3869,156 @@ class HailuoH3Video(SeedanceVideoNodeBase):
                 metadata["video_url"] = video_urls[:MAX_HAILUO_H3_VIDEOS]
             if audio_urls:
                 metadata["audio_url"] = audio_urls[:MAX_HAILUO_H3_AUDIOS]
+        return payload
+
+
+# ---------------------------------------------------------------------------
+# Hailuo H3 Max video
+# ---------------------------------------------------------------------------
+
+class HailuoH3MaxVideo(SeedanceVideoNodeBase):
+    """Hailuo H3 Max text-to-video and first/last-frame image-to-video."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (HAILUO_H3_MAX_MODELS, {
+                    "default": HAILUO_H3_MAX_T2V_MODEL,
+                    "tooltip": (
+                        "H3 Max text-to-video or first/last-frame image-to-video. | "
+                        "H3 Max 文生视频或首尾帧图生视频。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required for both H3 Max models, 1 to 20480 characters. | "
+                        "两个 H3 Max 模型均必填，长度 1 到 20480 个字符。"
+                    ),
+                }),
+                "seconds": (HAILUO_H3_MAX_SECONDS, {
+                    "default": "5",
+                    "tooltip": "H3 Max supports 5 to 15 seconds. | H3 Max 支持 5 到 15 秒。",
+                }),
+                "resolution": (HAILUO_H3_MAX_RESOLUTIONS, {
+                    "default": "480P",
+                    "tooltip": "H3 Max output resolution: 480P or 768P. | H3 Max 输出分辨率支持 480P 或 768P。",
+                }),
+                "ratio": (HAILUO_H3_MAX_RATIOS, {
+                    "default": "16:9",
+                    "tooltip": (
+                        "Required by H3 Max T2V; H3 Max I2V follows the input frame and "
+                        "does not send this field. | H3 Max 文生视频必填；图生视频跟随输入帧，"
+                        "不会发送此字段。"
+                    ),
+                }),
+            },
+            "optional": {
+                "image1": ("IMAGE", {
+                    "tooltip": "Required first frame for H3 Max I2V. | H3 Max 图生视频必填首帧。",
+                }),
+                "image2": ("IMAGE", {
+                    "tooltip": "Optional last frame for H3 Max I2V. | H3 Max 图生视频可选尾帧。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "On failure return a placeholder error video instead of stopping "
+                        "the workflow. | 失败时输出占位错误视频并继续工作流。"
+                    ),
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        seconds=None,
+        resolution=None,
+        ratio=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *HAILUO_H3_MAX_MODELS):
+            return f"unsupported Hailuo H3 Max model: {model}"
+        if seconds is not None and str(seconds) not in HAILUO_H3_MAX_SECONDS:
+            return "Hailuo H3 Max seconds must be 5 to 15 | Hailuo H3 Max 时长必须为 5 到 15 秒"
+        if resolution is not None and resolution not in HAILUO_H3_MAX_RESOLUTIONS:
+            return "Hailuo H3 Max resolution must be 480P or 768P | Hailuo H3 Max 分辨率必须为 480P 或 768P"
+        if ratio is not None and ratio not in HAILUO_H3_MAX_RATIOS:
+            return f"unsupported Hailuo H3 Max ratio: {ratio}"
+
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > PROMPT_MAX_LENGTH:
+            return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
+        if strict and not prompt_text.strip():
+            return "prompt is required for Hailuo H3 Max | Hailuo H3 Max 必须填写提示词"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Hailuo_H3_Max_video"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        if kwargs["model"] == HAILUO_H3_MAX_T2V_MODEL:
+            progress_cb(1.0)
+            return {}
+
+        if kwargs.get("image1") is None:
+            raise SeedanceAPIError(
+                "image1 is required for Hailuo H3 Max I2V | Hailuo H3 Max 图生视频必须连接 image1 首帧"
+            )
+
+        image_urls: List[str] = []
+        image_values = [kwargs.get("image1"), kwargs.get("image2")]
+        connected_images = [image for image in image_values if image is not None]
+        total = len(connected_images)
+        for index, image in enumerate(connected_images, start=1):
+            image_urls.append(upload_media(
+                image_to_png_bytes(image),
+                f"hailuo_h3_max_frame_{index}.png",
+                "image/png",
+                config,
+                logger_prefix=self._log_prefix,
+            ))
+            progress_cb(index / total)
+        return {"images": image_urls}
+
+    def build_payload(self, kwargs, media):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        model = kwargs["model"]
+        metadata: Dict[str, Any] = {"resolution": kwargs["resolution"]}
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": str(kwargs["prompt"]).strip(),
+            "seconds": str(kwargs["seconds"]),
+            "metadata": metadata,
+        }
+
+        if model == HAILUO_H3_MAX_T2V_MODEL:
+            metadata["ratio"] = kwargs["ratio"]
+            return payload
+
+        images = media.get("images") or []
+        if not images:
+            raise SeedanceAPIError(
+                "image1 is required for Hailuo H3 Max I2V | Hailuo H3 Max 图生视频必须连接 image1 首帧"
+            )
+        payload["images"] = images[:2]
         return payload
 
 
@@ -11929,6 +12089,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_Edit_Video": KlingEditVideo,
     "Hailuo_2_3_Video": Hailuo23Video,
     "Hailuo_H3_Video": HailuoH3Video,
+    "Hailuo_H3_Max_Video": HailuoH3MaxVideo,
     "Minimax_H3_Context_IR": MinimaxH3ContextIR,
     "Flux_3_Video": Flux3Video,
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
@@ -12055,6 +12216,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
+    "Hailuo_H3_Max_Video": "Hailuo H3 Max 视频生成（2 合 1）",
     "Minimax_H3_Context_IR": "MiniMax H3 Context IR 提示词增强（3 合 1）",
     "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",

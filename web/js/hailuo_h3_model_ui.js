@@ -7,6 +7,11 @@ import {
 } from "./dynamic_widget_ui.js";
 
 const HAILUO_H3_NODE_NAME = "Hailuo_H3_Video";
+const HAILUO_H3_MAX_NODE_NAME = "Hailuo_H3_Max_Video";
+const HAILUO_H3_NODE_NAMES = new Set([
+    HAILUO_H3_NODE_NAME,
+    HAILUO_H3_MAX_NODE_NAME,
+]);
 const T2V_MODEL = "hailuo-h3-t2v";
 const HAILUO_MEDIA_INPUT = /^(image[1-9]|video[1-3]|audio[1-3])$/;
 
@@ -67,7 +72,7 @@ function wrapModelRefresh(node) {
 app.registerExtension({
     name: "ComfyUI_Seedance.HailuoH3ModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (originalSeedanceNodeName(nodeData.name) !== HAILUO_H3_NODE_NAME) {
+        if (!HAILUO_H3_NODE_NAMES.has(originalSeedanceNodeName(nodeData.name))) {
             return;
         }
 

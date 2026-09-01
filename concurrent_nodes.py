@@ -59,6 +59,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Kling_Edit_Video",
     "Hailuo_2_3_Video",
     "Hailuo_H3_Video",
+    "Hailuo_H3_Max_Video",
     "Flux_3_Video",
     "Minimax_H3_OW_Video",
     "Minimax_H3_OW_Fast_Video",

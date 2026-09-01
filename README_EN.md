@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.11.0 - 2026-09-01
+
+- Added an independent `Hailuo H3 Max Video (2-in-1)` node for `hailuo-h3-max-t2v` and `hailuo-h3-max-i2v` without changing the existing Hailuo H3 node or saved workflows.
+- Kept model contracts separate: T2V sends a fixed aspect ratio, while I2V accepts a required first frame and optional last frame without sending a ratio; both support 5 to 15 seconds and 480P/768P.
+- Added standard seed caching, `skip_error`, dynamic media controls, optional 10-way video submission, and two credential-free example workflows.
+- Completed real 5-second, 480P upload, submit, poll, download, and MP4 validation for both models. The complete offline suite passed 390 tests.
+
 ### v0.10.0 - 2026-08-30
 
 - Added an independent `Zhenzhen Video G Omni 1.1 Flash Lowprice (4 modes)` node with its exact model ID while preserving the original Omni Flash Lowprice node and saved workflows.
@@ -68,7 +75,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - FLUX 3 Video
 - HappyHorse 1.1
 - Kling 3.0 and Kling O3
-- Hailuo 2.3 and Hailuo H3
+- Hailuo 2.3, Hailuo H3, and Hailuo H3 Max
 - MiniMax H3 OW and H3 OW Fast
 - Vidu Q3
 - Zhenzhen Video G, GK, and V3.1
@@ -113,6 +120,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Kling_Edit_Video` | Kling O3 video editing |
 | `Hailuo_2_3_Video` | Hailuo 2.3 T2V and I2V |
 | `Hailuo_H3_Video` | Hailuo H3 domestic/global T2V, I2V, and Multi |
+| `Hailuo_H3_Max_Video` | Hailuo H3 Max T2V and first/optional-last-frame I2V |
 | `Flux_3_Video` | FLUX 3 domestic/global T2V, I2V, V2V, and draft enhancement |
 | `Minimax_H3_OW_Video` | MiniMax H3 OW T2V, I2V, and R2V |
 | `Minimax_H3_OW_Fast_Video` | MiniMax H3 OW Fast video and audio-driven modes |
@@ -313,7 +321,7 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 - Seedance 2.0 and Seedance 2.5 T2V/I2V/Multi workflows.
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
-- FLUX 3, Hailuo H3, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
+- FLUX 3, Hailuo H3/H3 Max, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
 - Seedream, Qwen Image, Zhenzhen Image, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.
 - Doubao, Qwen3 TTS, MiniMax Audio, Mureka, Whisper, Suno, and Flow Music workflows.
