@@ -518,12 +518,33 @@ MAX_HAILUO_H3_AUDIOS = 3
 
 HAILUO_H3_MAX_T2V_MODEL = "hailuo-h3-max-t2v"
 HAILUO_H3_MAX_I2V_MODEL = "hailuo-h3-max-i2v"
+HAILUO_H3_MAX_TURBO_T2V_MODEL = "hailuo-h3-max-turbo-t2v"
+HAILUO_H3_MAX_TURBO_I2V_MODEL = "hailuo-h3-max-turbo-i2v"
+HAILUO_H3_MAX_T2V_MODELS = [
+    HAILUO_H3_MAX_T2V_MODEL,
+    HAILUO_H3_MAX_TURBO_T2V_MODEL,
+]
+HAILUO_H3_MAX_I2V_MODELS = [
+    HAILUO_H3_MAX_I2V_MODEL,
+    HAILUO_H3_MAX_TURBO_I2V_MODEL,
+]
+HAILUO_H3_MAX_TURBO_MODELS = [
+    HAILUO_H3_MAX_TURBO_T2V_MODEL,
+    HAILUO_H3_MAX_TURBO_I2V_MODEL,
+]
 HAILUO_H3_MAX_MODELS = [
     HAILUO_H3_MAX_T2V_MODEL,
     HAILUO_H3_MAX_I2V_MODEL,
+    HAILUO_H3_MAX_TURBO_T2V_MODEL,
+    HAILUO_H3_MAX_TURBO_I2V_MODEL,
 ]
 HAILUO_H3_MAX_SECONDS = [str(value) for value in range(5, 16)]
-HAILUO_H3_MAX_RESOLUTIONS = ["480P", "768P"]
+HAILUO_H3_MAX_STANDARD_RESOLUTIONS = ["480P", "768P"]
+HAILUO_H3_MAX_TURBO_RESOLUTIONS = ["480p", "768p"]
+HAILUO_H3_MAX_RESOLUTIONS = [
+    *HAILUO_H3_MAX_STANDARD_RESOLUTIONS,
+    *HAILUO_H3_MAX_TURBO_RESOLUTIONS,
+]
 HAILUO_H3_MAX_RATIOS = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
 
 MINMAX_H3_CONTEXT_IR_TEXT_MODEL = "minmax-h3-context-ir-text"
@@ -3877,7 +3898,7 @@ class HailuoH3Video(SeedanceVideoNodeBase):
 # ---------------------------------------------------------------------------
 
 class HailuoH3MaxVideo(SeedanceVideoNodeBase):
-    """Hailuo H3 Max text-to-video and first/last-frame image-to-video."""
+    """Hailuo H3 Max/Max Turbo text-to-video and frame-based image-to-video."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -3886,16 +3907,16 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
                 "model": (HAILUO_H3_MAX_MODELS, {
                     "default": HAILUO_H3_MAX_T2V_MODEL,
                     "tooltip": (
-                        "H3 Max text-to-video or first/last-frame image-to-video. | "
-                        "H3 Max 文生视频或首尾帧图生视频。"
+                        "H3 Max/Max Turbo text-to-video or first/last-frame image-to-video. | "
+                        "H3 Max/Max Turbo 文生视频或首尾帧图生视频。"
                     ),
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "",
                     "tooltip": (
-                        "Required for both H3 Max models, 1 to 20480 characters. | "
-                        "两个 H3 Max 模型均必填，长度 1 到 20480 个字符。"
+                        "Required for every H3 Max model, 1 to 20480 characters. | "
+                        "所有 H3 Max 模型均必填，长度 1 到 20480 个字符。"
                     ),
                 }),
                 "seconds": (HAILUO_H3_MAX_SECONDS, {
@@ -3904,7 +3925,11 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
                 }),
                 "resolution": (HAILUO_H3_MAX_RESOLUTIONS, {
                     "default": "480P",
-                    "tooltip": "H3 Max output resolution: 480P or 768P. | H3 Max 输出分辨率支持 480P 或 768P。",
+                    "tooltip": (
+                        "H3 Max uses uppercase 480P/768P; Max Turbo uses lowercase "
+                        "480p/768p. | H3 Max 使用大写 480P/768P；Max Turbo 使用小写 "
+                        "480p/768p。"
+                    ),
                 }),
                 "ratio": (HAILUO_H3_MAX_RATIOS, {
                     "default": "16:9",
@@ -3950,8 +3975,17 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
             return f"unsupported Hailuo H3 Max model: {model}"
         if seconds is not None and str(seconds) not in HAILUO_H3_MAX_SECONDS:
             return "Hailuo H3 Max seconds must be 5 to 15 | Hailuo H3 Max 时长必须为 5 到 15 秒"
-        if resolution is not None and resolution not in HAILUO_H3_MAX_RESOLUTIONS:
-            return "Hailuo H3 Max resolution must be 480P or 768P | Hailuo H3 Max 分辨率必须为 480P 或 768P"
+        if resolution is not None:
+            allowed_resolutions = (
+                HAILUO_H3_MAX_TURBO_RESOLUTIONS
+                if model in HAILUO_H3_MAX_TURBO_MODELS
+                else HAILUO_H3_MAX_STANDARD_RESOLUTIONS
+            )
+            if resolution not in allowed_resolutions:
+                return (
+                    f"Hailuo H3 Max resolution for {model or 'this model'} must be "
+                    f"{' or '.join(allowed_resolutions)}"
+                )
         if ratio is not None and ratio not in HAILUO_H3_MAX_RATIOS:
             return f"unsupported Hailuo H3 Max ratio: {ratio}"
 
@@ -3971,7 +4005,7 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
         if validation is not True:
             raise SeedanceAPIError(validation)
 
-        if kwargs["model"] == HAILUO_H3_MAX_T2V_MODEL:
+        if kwargs["model"] in HAILUO_H3_MAX_T2V_MODELS:
             progress_cb(1.0)
             return {}
 
@@ -4009,7 +4043,7 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
             "metadata": metadata,
         }
 
-        if model == HAILUO_H3_MAX_T2V_MODEL:
+        if model in HAILUO_H3_MAX_T2V_MODELS:
             metadata["ratio"] = kwargs["ratio"]
             return payload
 
@@ -12216,7 +12250,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_Edit_Video": "Kling O3 视频编辑",
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
-    "Hailuo_H3_Max_Video": "Hailuo H3 Max 视频生成（2 合 1）",
+    "Hailuo_H3_Max_Video": "Hailuo H3 Max 视频生成（4 合 1）",
     "Minimax_H3_Context_IR": "MiniMax H3 Context IR 提示词增强（3 合 1）",
     "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",

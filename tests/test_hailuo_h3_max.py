@@ -15,12 +15,17 @@ class HailuoH3MaxTests(unittest.TestCase):
         self.assertEqual(nodes.HAILUO_H3_MAX_MODELS, [
             "hailuo-h3-max-t2v",
             "hailuo-h3-max-i2v",
+            "hailuo-h3-max-turbo-t2v",
+            "hailuo-h3-max-turbo-i2v",
         ])
         self.assertEqual(
             nodes.HAILUO_H3_MAX_SECONDS,
             [str(value) for value in range(5, 16)],
         )
-        self.assertEqual(nodes.HAILUO_H3_MAX_RESOLUTIONS, ["480P", "768P"])
+        self.assertEqual(
+            nodes.HAILUO_H3_MAX_RESOLUTIONS,
+            ["480P", "768P", "480p", "768p"],
+        )
         self.assertEqual(
             nodes.HAILUO_H3_MAX_RATIOS,
             ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
@@ -77,6 +82,37 @@ class HailuoH3MaxTests(unittest.TestCase):
         self.assertEqual(payload["metadata"], {"resolution": "768P"})
         self.assertNotIn("ratio", payload["metadata"])
 
+    def test_turbo_payloads_use_lowercase_resolution_and_model_specific_media(self):
+        t2v_payload = nodes.HailuoH3MaxVideo().build_payload(
+            {
+                "model": nodes.HAILUO_H3_MAX_TURBO_T2V_MODEL,
+                "prompt": "A paper airplane glides through a sunlit studio",
+                "seconds": "5",
+                "resolution": "480p",
+                "ratio": "16:9",
+            },
+            {},
+        )
+        self.assertEqual(t2v_payload, {
+            "model": "hailuo-h3-max-turbo-t2v",
+            "prompt": "A paper airplane glides through a sunlit studio",
+            "seconds": "5",
+            "metadata": {"resolution": "480p", "ratio": "16:9"},
+        })
+
+        i2v_payload = nodes.HailuoH3MaxVideo().build_payload(
+            {
+                "model": nodes.HAILUO_H3_MAX_TURBO_I2V_MODEL,
+                "prompt": "The subject turns naturally toward the camera",
+                "seconds": "5",
+                "resolution": "768p",
+                "ratio": "9:16",
+            },
+            {"images": ["https://cdn.test/first.png"]},
+        )
+        self.assertEqual(i2v_payload["metadata"], {"resolution": "768p"})
+        self.assertEqual(i2v_payload["images"], ["https://cdn.test/first.png"])
+
     def test_validation_enforces_model_specific_enums_and_prompt(self):
         self.assertIs(
             nodes.HailuoH3MaxVideo.VALIDATE_INPUTS(
@@ -112,6 +148,28 @@ class HailuoH3MaxTests(unittest.TestCase):
                 seconds="5",
                 resolution="480P",
                 ratio="16:9",
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.HailuoH3MaxVideo.VALIDATE_INPUTS(
+                model=nodes.HAILUO_H3_MAX_TURBO_T2V_MODEL,
+                prompt="valid",
+                seconds="5",
+                resolution="480p",
+                ratio="16:9",
+                strict=True,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.HailuoH3MaxVideo.VALIDATE_INPUTS(
+                model=nodes.HAILUO_H3_MAX_TURBO_T2V_MODEL,
+                prompt="valid",
+                seconds="5",
+                resolution="480P",
+                ratio="16:9",
+                strict=True,
             ),
             True,
         )
@@ -184,11 +242,16 @@ class HailuoH3MaxTests(unittest.TestCase):
         self.assertIn('const HAILUO_H3_MAX_NODE_NAME = "Hailuo_H3_Max_Video"', frontend)
         self.assertIn("!model.endsWith(\"-i2v\")", frontend)
         self.assertIn('name === "image1" || name === "image2"', frontend)
+        self.assertIn('model.includes("-max-turbo-")', frontend)
+        self.assertIn('["480p", "768p"]', frontend)
+        self.assertIn("node.seedanceHailuoH3NodeName", frontend)
 
-    def test_workflows_cover_both_models_without_secrets(self):
+    def test_workflows_cover_all_models_without_secrets(self):
         expected = {
             "hailuo-h3-max-t2v": "海螺hailuo-h3-max文生视频.json",
             "hailuo-h3-max-i2v": "海螺hailuo-h3-max图生视频首尾帧.json",
+            "hailuo-h3-max-turbo-t2v": "海螺hailuo-h3-max-turbo文生视频.json",
+            "hailuo-h3-max-turbo-i2v": "海螺hailuo-h3-max-turbo图生视频首尾帧.json",
         }
         found = {}
         for path in (PLUGIN_ROOT / "examples").glob("*hailuo-h3-max*.json"):

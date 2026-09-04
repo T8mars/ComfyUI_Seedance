@@ -14,6 +14,8 @@ const HAILUO_H3_NODE_NAMES = new Set([
 ]);
 const T2V_MODEL = "hailuo-h3-t2v";
 const HAILUO_MEDIA_INPUT = /^(image[1-9]|video[1-3]|audio[1-3])$/;
+const HAILUO_H3_MAX_STANDARD_RESOLUTIONS = ["480P", "768P"];
+const HAILUO_H3_MAX_TURBO_RESOLUTIONS = ["480p", "768p"];
 
 function widgetByName(node, name) {
     return node.widgets?.find((widget) => widget.name === name);
@@ -32,8 +34,29 @@ function inputAllowed(model, name) {
     return false;
 }
 
+function refreshHailuoH3MaxResolution(node, model) {
+    if (node.seedanceHailuoH3NodeName !== HAILUO_H3_MAX_NODE_NAME) {
+        return;
+    }
+    const widget = widgetByName(node, "resolution");
+    if (!widget) {
+        return;
+    }
+    const isTurbo = model.includes("-max-turbo-");
+    const values = isTurbo
+        ? HAILUO_H3_MAX_TURBO_RESOLUTIONS
+        : HAILUO_H3_MAX_STANDARD_RESOLUTIONS;
+    const normalized = isTurbo
+        ? String(widget.value ?? values[0]).toLowerCase()
+        : String(widget.value ?? values[0]).toUpperCase();
+    widget.options ??= {};
+    widget.options.values = [...values];
+    widget.value = values.includes(normalized) ? normalized : values[0];
+}
+
 function refreshHailuoH3Node(node) {
     const model = String(widgetByName(node, "model")?.value ?? T2V_MODEL);
+    refreshHailuoH3MaxResolution(node, model);
     setWidgetVisible(widgetByName(node, "ratio"), !model.endsWith("-i2v"));
 
     for (const input of node.inputs ?? []) {
@@ -72,9 +95,11 @@ function wrapModelRefresh(node) {
 app.registerExtension({
     name: "ComfyUI_Seedance.HailuoH3ModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (!HAILUO_H3_NODE_NAMES.has(originalSeedanceNodeName(nodeData.name))) {
+        const originalNodeName = originalSeedanceNodeName(nodeData.name);
+        if (!HAILUO_H3_NODE_NAMES.has(originalNodeName)) {
             return;
         }
+        nodeType.prototype.seedanceHailuoH3NodeName = originalNodeName;
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

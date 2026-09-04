@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.12.0 - 2026-09-04
+
+- Expanded the Hailuo H3 Max node to four models with `hailuo-h3-max-turbo-t2v` and `hailuo-h3-max-turbo-i2v`, while preserving its registration name and existing workflows.
+- Enforced model-specific resolution casing: original H3 Max uses `480P/768P`, while Max Turbo uses `480p/768p`; the frontend automatically selects a valid value when switching models.
+- Added two credential-free Turbo workflows for text-to-video and required-first/optional-last-frame image-to-video.
+- Completed real 5-second, 480p upload, submit, poll, download, and MP4 validation for both Turbo models. The complete offline suite passed 391 tests.
+
 ### v0.11.0 - 2026-09-01
 
 - Added an independent `Hailuo H3 Max Video (2-in-1)` node for `hailuo-h3-max-t2v` and `hailuo-h3-max-i2v` without changing the existing Hailuo H3 node or saved workflows.
@@ -120,7 +127,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Kling_Edit_Video` | Kling O3 video editing |
 | `Hailuo_2_3_Video` | Hailuo 2.3 T2V and I2V |
 | `Hailuo_H3_Video` | Hailuo H3 domestic/global T2V, I2V, and Multi |
-| `Hailuo_H3_Max_Video` | Hailuo H3 Max T2V and first/optional-last-frame I2V |
+| `Hailuo_H3_Max_Video` | Four Hailuo H3 Max/Max Turbo T2V and first/optional-last-frame I2V models |
 | `Flux_3_Video` | FLUX 3 domestic/global T2V, I2V, V2V, and draft enhancement |
 | `Minimax_H3_OW_Video` | MiniMax H3 OW T2V, I2V, and R2V |
 | `Minimax_H3_OW_Fast_Video` | MiniMax H3 OW Fast video and audio-driven modes |
