@@ -20,9 +20,16 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.13.0（2026-09-06）
+
+- 新增独立的 `MiniMax-H3 V2 多模态视频生成` 节点，严格使用模型 `MiniMax-H3` 和 V2 提交、查询及结果协议，不改变已有 MiniMax H3 OW 节点和工作流。
+- 支持文生视频、首尾帧、多模态参考和驱动音频模式；可接入最多 9 张参考图、3 段参考视频、3 段参考音频，并提供 10 路视频并发提交版本。
+- 新节点支持 480P/768P、标准随机种子缓存、`skip_error`、动态素材控件和可靠媒体下载，新增四份不含凭据的示例工作流。
+- 完成 4 秒、480P 文生视频真实上传、提交、轮询、下载和 MP4 校验；完整离线回归通过 402 项测试。
 
 ## v0.12.0（2026-09-04）
 
@@ -422,6 +429,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 支持 Hailuo 2.3 文生视频、图生视频和 fast 图生视频
 - 支持 Hailuo H3 文生视频、首尾帧图生视频和多模态参考生视频
 - 支持独立的 Hailuo H3 Max / Max Turbo 文生视频和首尾帧图生视频节点
+- 支持独立的 MiniMax-H3 V2 多模态视频节点：文生、首尾帧、9 图、3 视频、3 参考音频及单路驱动音频
 - 支持 MiniMax H3 Context IR 文本、首尾帧和图/视频/音频多模态视频提示词增强
 - 支持 FLUX 3 Video 国内/海外文生、最多 10 图关键帧图生、视频编辑和草稿增强
 - 支持 MiniMax H3 OW Fast 文生、单首帧图生、最多 9 图参考生和单图单音频驱动视频
@@ -440,7 +448,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -478,6 +486,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
 | `Hailuo H3 视频生成` | Hailuo H3 国内/海外文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、768P/2K、按模型使用图片/视频/音频 |
 | `Hailuo H3 Max 视频生成（4 合 1）` | Hailuo H3 Max / Max Turbo 文生视频与首尾帧图生视频 | `model`、必填 `prompt`、5 到 15 秒、按模型选择 480P/768P 或 480p/768p、I2V 首尾帧 |
+| `MiniMax-H3 多模态视频生成` | MiniMax V2 文生、首尾帧、多模态参考及音频驱动视频 | 必填 `prompt`、4 到 15 秒（驱动音频可到 60 秒）、480P/768P、固定/自适应比例、9 图/3 视频/3 参考音频/1 驱动音频 |
 | `FLUX 3 视频生成与草稿增强（8 合 1）` | FLUX 3 国内/海外 T2V、I2V、V2V 与 Draft Enhance | `model`、`prompt`、5 到 20 秒、HD/FHD、最多 10 图或一个视频、`draft_cache` |
 | `MiniMax H3 Context IR 提示词增强（3 合 1）` | 通过文本、首尾帧或图/视频/音频素材增强视频提示词 | `model`、`prompt`、4 到 15 秒、按模型使用比例和参考素材 |
 | `MiniMax H3 OW 视频生成（3 合 1）` | MiniMax H3 OW 文生、图生和参考图生视频 | `model`、`prompt`、5/10/15 秒、480p/720p、可选参考图 |
@@ -978,6 +987,10 @@ Hailuo H3 分辨率支持 `768P` 或 `2K`，时长支持 5 到 15 秒。T2V 与 
 | `hailuo-h3-max-turbo-i2v` | Turbo 首尾帧图生视频 | `prompt` 与 `image1` 必填，`image2` 可选；5 到 15 秒；480p/768p；不发送比例 |
 
 H3 Max 与 Max Turbo 的 T2V 比例均支持 `21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`。切换模型时节点会自动匹配大写或小写分辨率值；节点支持标准随机种子缓存、`skip_error` 和可选 10 路视频并发提交。
+
+独立的 MiniMax-H3 节点使用 MiniMax V2 协议：提交 `POST /v2/video_generation`，轮询 `GET /v2/query/video_generation/{task_id}`，成功后从 `task.content.url` 下载视频。模型名固定为区分大小写的 `MiniMax-H3`。
+
+节点要求非空提示词并支持 480P/768P。普通生成支持 4 到 15 秒，连接独立 `drive_audio` 后支持 4 到 60 秒；可组合首帧、尾帧、最多 9 张参考图、3 个参考视频（每路可设起始秒）、3 条参考音频及 1 条驱动音频。纯文生必须使用固定比例；`adaptive`/`auto` 仅在关键帧请求中可用；`api_default` 用于让参考或关键帧请求省略比例。音频控制严格区分 `lock_source`、`remix_source`、`reference_only` 与 `native`。节点同时提供 `skip_error`、仅用于 ComfyUI 缓存的标准 seed，以及 10 路视频并发提交版本。
 
 MiniMax H3 Context IR 节点只增强视频提示词，不生成视频。节点使用 `POST /v1/video/generations` 提交、`GET /v1/video/generations/{id}` 轮询，并从 `result_text` 输出增强结果：
 

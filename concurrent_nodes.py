@@ -60,6 +60,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Hailuo_2_3_Video",
     "Hailuo_H3_Video",
     "Hailuo_H3_Max_Video",
+    "Minimax_H3_V2_Video",
     "Flux_3_Video",
     "Minimax_H3_OW_Video",
     "Minimax_H3_OW_Fast_Video",

@@ -48,6 +48,7 @@ from .core.client import (
     extract_music_results,
     extract_region_edit_url,
     extract_legacy_video_url,
+    extract_minimax_h3_v2_video_url,
     extract_video_url,
     poll_audio_task,
     poll_context_ir_task,
@@ -55,6 +56,7 @@ from .core.client import (
     poll_image_task,
     poll_legacy_video_task,
     poll_midjourney_task,
+    poll_minimax_h3_v2_task,
     poll_music_task,
     poll_task,
     submit_audio_task,
@@ -63,6 +65,7 @@ from .core.client import (
     submit_image_task,
     submit_legacy_video_task,
     submit_midjourney_action,
+    submit_minimax_h3_v2_task,
     submit_music_action,
     submit_task,
     transcribe_audio,
@@ -546,6 +549,22 @@ HAILUO_H3_MAX_RESOLUTIONS = [
     *HAILUO_H3_MAX_TURBO_RESOLUTIONS,
 ]
 HAILUO_H3_MAX_RATIOS = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
+
+MINIMAX_H3_V2_MODEL = "MiniMax-H3"
+MINIMAX_H3_V2_RESOLUTIONS = ["480P", "768P"]
+MINIMAX_H3_V2_FIXED_RATIOS = [
+    "16:9", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "21:9",
+]
+MINIMAX_H3_V2_RATIOS = [
+    *MINIMAX_H3_V2_FIXED_RATIOS, "adaptive", "auto", "api_default",
+]
+MINIMAX_H3_V2_AUDIO_MODES = [
+    "api_default", "lock_source", "remix_source", "reference_only", "native",
+]
+MINIMAX_H3_V2_PROMPT_MAX_LENGTH = 10000
+MAX_MINIMAX_H3_V2_IMAGES = 9
+MAX_MINIMAX_H3_V2_VIDEOS = 3
+MAX_MINIMAX_H3_V2_AUDIOS = 3
 
 MINMAX_H3_CONTEXT_IR_TEXT_MODEL = "minmax-h3-context-ir-text"
 MINMAX_H3_CONTEXT_IR_IMAGE_MODEL = "minmax-h3-context-ir-image"
@@ -4055,6 +4074,486 @@ class HailuoH3MaxVideo(SeedanceVideoNodeBase):
         payload["images"] = images[:2]
         return payload
 
+
+# ---------------------------------------------------------------------------
+# MiniMax H3 V2 video generation
+# ---------------------------------------------------------------------------
+
+class MinimaxH3V2Video(SeedanceVideoNodeBase):
+    """MiniMax-H3 text, keyframe, reference, and audio-driven video."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            "first_frame": ("IMAGE", {
+                "tooltip": "Optional first keyframe. | 可选首帧关键帧。",
+            }),
+            "last_frame": ("IMAGE", {
+                "tooltip": "Optional last keyframe. | 可选尾帧关键帧。",
+            }),
+        }
+        for i in range(1, MAX_MINIMAX_H3_V2_IMAGES + 1):
+            optional[f"image{i}"] = ("IMAGE", {
+                "tooltip": (
+                    f"Reference image {i}, up to 9. | 参考图片 {i}，最多 9 张。"
+                ),
+            })
+        for i in range(1, MAX_MINIMAX_H3_V2_VIDEOS + 1):
+            optional[f"video{i}"] = ("VIDEO", {
+                "tooltip": (
+                    f"Reference video {i}, up to 3. Use the matching start-time "
+                    f"control below. | 参考视频 {i}，最多 3 个；起始秒数使用对应控件。"
+                ),
+            })
+        for i in range(1, MAX_MINIMAX_H3_V2_AUDIOS + 1):
+            optional[f"audio{i}"] = ("AUDIO", {
+                "tooltip": (
+                    f"Reference audio {i}, up to 3. | 参考音频 {i}，最多 3 条。"
+                ),
+            })
+        optional["drive_audio"] = ("AUDIO", {
+            "tooltip": (
+                "Optional drive audio, separate from the three reference audios. "
+                "It enables 4-60 second generation. | 可选驱动音频，不占 3 条参考"
+                "音频名额；连接后可生成 4 到 60 秒。"
+            ),
+        })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": (
+                "On failure return a placeholder error video instead of stopping the "
+                "workflow. | 失败时输出占位错误视频并继续工作流。"
+            ),
+        })
+
+        return {
+            "required": {
+                "model": ([MINIMAX_H3_V2_MODEL], {
+                    "default": MINIMAX_H3_V2_MODEL,
+                    "tooltip": (
+                        "Exact case-sensitive MiniMax V2 model name. | MiniMax V2 "
+                        "模型名区分大小写。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": (
+                        "Required non-empty text, up to 10000 characters. | 必填非空"
+                        "文本，最多 10000 字符。"
+                    ),
+                }),
+                "duration": ("INT", {
+                    "default": 4, "min": 4, "max": 60, "step": 1,
+                    "tooltip": (
+                        "4-15 seconds normally; 4-60 only with drive_audio. | 普通"
+                        "生成 4 到 15 秒；连接 drive_audio 后可到 60 秒。"
+                    ),
+                }),
+                "resolution": (MINIMAX_H3_V2_RESOLUTIONS, {
+                    "default": "480P",
+                    "tooltip": "Documented output resolution: 480P or 768P. | 输出分辨率。",
+                }),
+                "ratio": (MINIMAX_H3_V2_RATIOS, {
+                    "default": "16:9",
+                    "tooltip": (
+                        "Pure text requires a fixed ratio. adaptive/auto require a "
+                        "keyframe; api_default omits the field for reference/keyframe "
+                        "requests. | 纯文本必须固定比例；adaptive/auto 仅用于关键帧；"
+                        "api_default 在参考或关键帧请求中省略比例。"
+                    ),
+                }),
+                "audio_mode": (MINIMAX_H3_V2_AUDIO_MODES, {
+                    "default": "api_default",
+                    "tooltip": (
+                        "Audio-control mode. Non-native drive modes require drive_audio. | "
+                        "音频控制模式；非 native 驱动模式必须连接 drive_audio。"
+                    ),
+                }),
+                "denoise_strength": ("FLOAT", {
+                    "default": 0.35, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": (
+                        "Audio denoise strength; lock_source is fixed to 0. | 音频降噪"
+                        "强度；lock_source 固定为 0。"
+                    ),
+                }),
+                "add_drive_as_reference": (["api_default", "true", "false"], {
+                    "default": "api_default",
+                    "tooltip": (
+                        "Whether drive audio also acts as a reference. | 是否同时把驱动"
+                        "音频作为参考音频。"
+                    ),
+                }),
+                "video1_start_seconds": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 3600.0, "step": 0.1,
+                    "tooltip": "Start offset for video1. | video1 起始秒数。",
+                }),
+                "video2_start_seconds": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 3600.0, "step": 0.1,
+                    "tooltip": "Start offset for video2. | video2 起始秒数。",
+                }),
+                "video3_start_seconds": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 3600.0, "step": 0.1,
+                    "tooltip": "Start offset for video3. | video3 起始秒数。",
+                }),
+            },
+            "optional": optional,
+        }
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        duration=None,
+        resolution=None,
+        ratio=None,
+        audio_mode=None,
+        denoise_strength=None,
+        add_drive_as_reference=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, MINIMAX_H3_V2_MODEL):
+            return f"unsupported MiniMax H3 V2 model: {model}"
+
+        prompt_text = str(prompt or "")
+        if len(prompt_text) > MINIMAX_H3_V2_PROMPT_MAX_LENGTH:
+            return (
+                f"prompt exceeds {MINIMAX_H3_V2_PROMPT_MAX_LENGTH} characters "
+                f"({len(prompt_text)})"
+            )
+        if strict and not prompt_text.strip():
+            return "prompt is required for MiniMax-H3 | MiniMax-H3 必须填写提示词"
+
+        if duration is not None:
+            try:
+                duration_value = int(duration)
+            except (TypeError, ValueError):
+                return "duration must be an integer | duration 必须是整数"
+            if duration_value < 4 or duration_value > 60:
+                return "duration must be 4 to 60 | duration 必须为 4 到 60 秒"
+            if strict and duration_value > 15 and kwargs.get("drive_audio") is None:
+                return (
+                    "duration above 15 requires drive_audio | 超过 15 秒必须连接 "
+                    "drive_audio"
+                )
+
+        if resolution is not None and str(resolution).upper() not in MINIMAX_H3_V2_RESOLUTIONS:
+            return "resolution must be 480P or 768P | 分辨率必须为 480P 或 768P"
+        if ratio is not None and ratio not in MINIMAX_H3_V2_RATIOS:
+            return f"unsupported MiniMax-H3 ratio: {ratio}"
+        if audio_mode is not None and audio_mode not in MINIMAX_H3_V2_AUDIO_MODES:
+            return f"unsupported MiniMax-H3 audio_mode: {audio_mode}"
+        if add_drive_as_reference is not None and add_drive_as_reference not in (
+            "api_default", "true", "false",
+        ):
+            return "add_drive_as_reference must be api_default, true, or false"
+        if denoise_strength is not None:
+            try:
+                denoise_value = float(denoise_strength)
+            except (TypeError, ValueError):
+                return "denoise_strength must be a number"
+            if denoise_value < 0.0 or denoise_value > 1.0:
+                return "denoise_strength must be between 0 and 1"
+
+        if not strict:
+            return True
+
+        has_keyframe = any(
+            kwargs.get(name) is not None for name in ("first_frame", "last_frame")
+        )
+        has_reference = any(
+            kwargs.get(f"image{i}") is not None
+            for i in range(1, MAX_MINIMAX_H3_V2_IMAGES + 1)
+        ) or any(
+            kwargs.get(f"video{i}") is not None
+            for i in range(1, MAX_MINIMAX_H3_V2_VIDEOS + 1)
+        ) or any(
+            kwargs.get(f"audio{i}") is not None
+            for i in range(1, MAX_MINIMAX_H3_V2_AUDIOS + 1)
+        )
+        has_drive = kwargs.get("drive_audio") is not None
+        is_pure_text = not (has_keyframe or has_reference or has_drive)
+
+        if ratio == "api_default" and is_pure_text:
+            return (
+                "pure text generation requires a fixed ratio | 纯文本生成必须选择固定比例"
+            )
+        if ratio in ("adaptive", "auto") and not has_keyframe:
+            return (
+                "adaptive/auto ratio requires first_frame or last_frame | "
+                "adaptive/auto 比例必须连接首帧或尾帧"
+            )
+
+        selected_mode = str(audio_mode or "api_default")
+        selected_add = str(add_drive_as_reference or "api_default")
+        if not has_drive and selected_mode in (
+            "lock_source", "remix_source", "reference_only",
+        ):
+            return f"audio_mode={selected_mode} requires drive_audio"
+        if not has_drive and selected_add != "api_default":
+            return "add_drive_as_reference requires drive_audio"
+        if selected_mode == "reference_only" and selected_add == "false":
+            return "reference_only does not allow add_drive_as_reference=false"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Minimax_H3_V2_video"
+
+    def _gather_slots(
+        self,
+        kwargs: Dict[str, Any],
+        base_name: str,
+        count: int,
+    ) -> List[Tuple[int, Any]]:
+        slots = [
+            (i, kwargs.get(f"{base_name}{i}"))
+            for i in range(1, count + 1)
+            if kwargs.get(f"{base_name}{i}") is not None
+        ]
+        connected = [i for i, _ in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: {base_name} slots {connected} have "
+                f"gaps; they will be compacted in connected order."
+            )
+        return slots
+    def collect_media(self, kwargs, config, progress_cb):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        jobs: List[Tuple[str, int, Any]] = []
+        if kwargs.get("first_frame") is not None:
+            jobs.append(("first_frame", 0, kwargs["first_frame"]))
+        if kwargs.get("last_frame") is not None:
+            jobs.append(("last_frame", 0, kwargs["last_frame"]))
+        jobs.extend(
+            ("reference_image", slot, value)
+            for slot, value in self._gather_slots(
+                kwargs, "image", MAX_MINIMAX_H3_V2_IMAGES
+            )
+        )
+        jobs.extend(
+            ("reference_video", slot, value)
+            for slot, value in self._gather_slots(
+                kwargs, "video", MAX_MINIMAX_H3_V2_VIDEOS
+            )
+        )
+        jobs.extend(
+            ("reference_audio", slot, value)
+            for slot, value in self._gather_slots(
+                kwargs, "audio", MAX_MINIMAX_H3_V2_AUDIOS
+            )
+        )
+        if kwargs.get("drive_audio") is not None:
+            jobs.append(("drive_audio", 0, kwargs["drive_audio"]))
+
+        if not jobs:
+            progress_cb(1.0)
+            return {
+                "first_frame": None,
+                "last_frame": None,
+                "reference_images": [],
+                "reference_videos": [],
+                "reference_audios": [],
+                "drive_audio": None,
+            }
+
+        result: Dict[str, Any] = {
+            "first_frame": None,
+            "last_frame": None,
+            "reference_images": [],
+            "reference_videos": [],
+            "reference_audios": [],
+            "drive_audio": None,
+        }
+        video_mime = {
+            "mp4": "video/mp4",
+            "avi": "video/x-msvideo",
+            "mov": "video/quicktime",
+            "mkv": "video/x-matroska",
+            "webm": "video/webm",
+        }
+
+        for index, (role, slot, value) in enumerate(jobs, start=1):
+            if role in ("first_frame", "last_frame", "reference_image"):
+                filename = (
+                    f"minimax_h3_{role}.png" if not slot
+                    else f"minimax_h3_image_{slot}.png"
+                )
+                media_url = upload_media(
+                    image_to_png_bytes(value),
+                    filename,
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+            elif role == "reference_video":
+                video_bytes, extension = video_to_bytes(value)
+                media_url = upload_media(
+                    video_bytes,
+                    f"minimax_h3_video_{slot}.{extension}",
+                    video_mime.get(extension, "video/mp4"),
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+            else:
+                filename = (
+                    "minimax_h3_drive_audio.wav" if role == "drive_audio"
+                    else f"minimax_h3_audio_{slot}.wav"
+                )
+                media_url = upload_media(
+                    audio_to_wav_bytes(value),
+                    filename,
+                    "audio/wav",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+
+            if role in ("first_frame", "last_frame", "drive_audio"):
+                result[role] = media_url
+            elif role == "reference_image":
+                result["reference_images"].append((slot, media_url))
+            elif role == "reference_video":
+                result["reference_videos"].append((slot, media_url))
+            else:
+                result["reference_audios"].append((slot, media_url))
+            progress_cb(index / len(jobs))
+
+        return result
+
+    @staticmethod
+    def _url_content(media_type: str, role: str, media_url: str) -> Dict[str, Any]:
+        return {
+            "type": media_type,
+            media_type: {"url": media_url},
+            "role": role,
+        }
+    def build_payload(self, kwargs, media):
+        validation = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        content: List[Dict[str, Any]] = [{
+            "type": "text",
+            "text": str(kwargs["prompt"]).strip(),
+        }]
+        if media.get("first_frame"):
+            content.append(self._url_content(
+                "image_url", "first_frame", media["first_frame"]
+            ))
+        if media.get("last_frame"):
+            content.append(self._url_content(
+                "image_url", "last_frame", media["last_frame"]
+            ))
+        for _slot, media_url in media.get("reference_images") or []:
+            content.append(self._url_content(
+                "image_url", "reference_image", media_url
+            ))
+        for slot, media_url in media.get("reference_videos") or []:
+            item = self._url_content("video_url", "reference_video", media_url)
+            start_seconds = float(kwargs.get(f"video{slot}_start_seconds", 0.0))
+            if start_seconds > 0:
+                item["start_time_seconds"] = start_seconds
+            content.append(item)
+        for _slot, media_url in media.get("reference_audios") or []:
+            content.append(self._url_content(
+                "audio_url", "reference_audio", media_url
+            ))
+        if media.get("drive_audio"):
+            content.append(self._url_content(
+                "audio_url", "drive_audio", media["drive_audio"]
+            ))
+
+        payload: Dict[str, Any] = {
+            "model": MINIMAX_H3_V2_MODEL,
+            "content": content,
+            "resolution": str(kwargs["resolution"]).upper(),
+            "duration": int(kwargs["duration"]),
+        }
+        ratio = str(kwargs.get("ratio") or "16:9")
+        if ratio != "api_default":
+            payload["ratio"] = ratio
+
+        mode_choice = str(kwargs.get("audio_mode") or "api_default")
+        add_choice = str(
+            kwargs.get("add_drive_as_reference") or "api_default"
+        )
+        has_drive = bool(media.get("drive_audio"))
+        if mode_choice != "api_default" or add_choice != "api_default":
+            effective_mode = mode_choice
+            if effective_mode == "api_default":
+                effective_mode = "lock_source" if has_drive else "native"
+            audio_control: Dict[str, Any] = {"mode": effective_mode}
+            audio_control["denoise_strength"] = (
+                0.0 if effective_mode == "lock_source"
+                else float(kwargs.get("denoise_strength", 0.35))
+            )
+            if add_choice != "api_default":
+                audio_control["add_drive_as_reference"] = add_choice == "true"
+            payload["audio_control"] = audio_control
+        return payload
+
+    def _execute_inner(self, **kwargs):
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        try:
+            media = self.collect_media(
+                kwargs,
+                config,
+                lambda frac: self._update_progress(
+                    pbar,
+                    frac * self.PROGRESS_UPLOAD_END,
+                ),
+            )
+        except SeedanceAPIError:
+            raise
+        except Exception as error:
+            raise RuntimeError(
+                f"[{self._log_prefix}] Media upload failed: {error}"
+            ) from error
+        self._update_progress(pbar, self.PROGRESS_UPLOAD_END)
+
+        payload = self.build_payload(kwargs, media)
+        task_id = submit_minimax_h3_v2_task(
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+
+        poll_span = self.PROGRESS_POLL_END - self.PROGRESS_SUBMIT_END
+
+        def on_progress(progress: int):
+            self._update_progress(
+                pbar,
+                self.PROGRESS_SUBMIT_END + progress / 100.0 * poll_span,
+            )
+
+        final_response = poll_minimax_h3_v2_task(
+            task_id,
+            config,
+            on_progress=on_progress,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+
+        video_url = extract_minimax_h3_v2_video_url(final_response)
+        video = download_video(video_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(
+            video,
+            video_url,
+            task_id,
+            final_response,
+        )
 
 # ---------------------------------------------------------------------------
 # MiniMax H3 Context IR prompt enhancement
@@ -12124,6 +12623,7 @@ NODE_CLASS_MAPPINGS = {
     "Hailuo_2_3_Video": Hailuo23Video,
     "Hailuo_H3_Video": HailuoH3Video,
     "Hailuo_H3_Max_Video": HailuoH3MaxVideo,
+    "Minimax_H3_V2_Video": MinimaxH3V2Video,
     "Minimax_H3_Context_IR": MinimaxH3ContextIR,
     "Flux_3_Video": Flux3Video,
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
@@ -12251,6 +12751,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Hailuo_2_3_Video": "Hailuo 2.3 视频生成",
     "Hailuo_H3_Video": "Hailuo H3 视频生成",
     "Hailuo_H3_Max_Video": "Hailuo H3 Max 视频生成（4 合 1）",
+    "Minimax_H3_V2_Video": "MiniMax-H3 多模态视频生成",
     "Minimax_H3_Context_IR": "MiniMax H3 Context IR 提示词增强（3 合 1）",
     "Flux_3_Video": "FLUX 3 视频生成与草稿增强（8 合 1）",
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",

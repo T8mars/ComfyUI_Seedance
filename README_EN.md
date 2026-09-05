@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.13.0 - 2026-09-06
+
+- Added an independent `MiniMax-H3 V2 Multimodal Video` node using the exact `MiniMax-H3` model and V2 submit, query, and result contracts without changing existing MiniMax H3 OW nodes or workflows.
+- Supports text-to-video, first/last-frame, multimodal-reference, and drive-audio modes with up to nine reference images, three reference videos, three reference audio clips, and optional 10-way video submission.
+- Added 480P/768P controls, standard seed caching, `skip_error`, dynamic media widgets, resilient downloads, and four credential-free example workflows.
+- Completed a real 4-second, 480P text-to-video upload, submit, poll, download, and MP4 validation. The complete offline suite passed 402 tests.
+
 ### v0.12.0 - 2026-09-04
 
 - Expanded the Hailuo H3 Max node to four models with `hailuo-h3-max-turbo-t2v` and `hailuo-h3-max-turbo-i2v`, while preserving its registration name and existing workflows.
@@ -83,6 +90,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - HappyHorse 1.1
 - Kling 3.0 and Kling O3
 - Hailuo 2.3, Hailuo H3, and Hailuo H3 Max
+- MiniMax-H3 V2 multimodal video generation
 - MiniMax H3 OW and H3 OW Fast
 - Vidu Q3
 - Zhenzhen Video G, GK, and V3.1
@@ -128,6 +136,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Hailuo_2_3_Video` | Hailuo 2.3 T2V and I2V |
 | `Hailuo_H3_Video` | Hailuo H3 domestic/global T2V, I2V, and Multi |
 | `Hailuo_H3_Max_Video` | Four Hailuo H3 Max/Max Turbo T2V and first/optional-last-frame I2V models |
+| `Minimax_H3_V2_Video` | MiniMax-H3 V2 text, keyframe, multimodal-reference, and drive-audio video generation |
 | `Flux_3_Video` | FLUX 3 domestic/global T2V, I2V, V2V, and draft enhancement |
 | `Minimax_H3_OW_Video` | MiniMax H3 OW T2V, I2V, and R2V |
 | `Minimax_H3_OW_Fast_Video` | MiniMax H3 OW Fast video and audio-driven modes |
@@ -193,6 +202,12 @@ python -m pip install -r custom_nodes/ComfyUI_Seedance/requirements.txt
 ```
 
 Portable ComfyUI installations should use their bundled Python interpreter. Restart ComfyUI after installation.
+
+## MiniMax-H3 V2
+
+The independent `Minimax_H3_V2_Video` node uses `POST /v2/video_generation`, polls `GET /v2/query/video_generation/{task_id}`, and downloads the successful `task.content.url`. The case-sensitive model name is fixed to `MiniMax-H3`.
+
+It accepts required text, 480P/768P output, fixed or keyframe-adaptive ratios, optional first/last frames, up to nine reference images, three reference videos with per-video start offsets, three reference audios, and one separate drive audio. Normal requests support 4-15 seconds; drive-audio requests support 4-60 seconds. The node also provides `skip_error`, a cache-only ComfyUI seed, a 10-way video submit wrapper, and four credential-free example workflows.
 
 ## API Key Setup
 

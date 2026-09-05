@@ -475,6 +475,7 @@ def _post_task_creation(
     request: Callable[[], Any],
     logger_prefix: str,
     operation: str,
+    recover_task_header: Optional[str] = None,
 ) -> Any:
     """Run a non-idempotent POST without duplicating ambiguous submissions."""
     last_error: Optional[Exception] = None
@@ -526,6 +527,19 @@ def _post_task_creation(
             )
             cooperative_sleep(wait)
             continue
+
+        if recover_task_header and (
+            response.status_code == 408 or response.status_code >= 500
+        ):
+            headers = getattr(response, "headers", None) or {}
+            recovered_task_id = str(headers.get(recover_task_header, "") or "").strip()
+            if recovered_task_id:
+                _log(
+                    logger_prefix,
+                    f"{operation} returned HTTP {response.status_code} with a "
+                    f"recoverable {recover_task_header}; continuing by polling it.",
+                )
+                return response
 
         if response.status_code >= 500:
             try:
@@ -590,6 +604,72 @@ def submit_task(
         task_id = data.get("id") or data.get("task_id")
     if not task_id:
         raise SeedanceAPIError(f"No task id in submit response: {_truncate(response.text, 300)}")
+
+    _log(logger_prefix, "  Submit accepted")
+    return str(task_id)
+
+
+def submit_minimax_h3_v2_task(
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    logger_prefix: str = "Minimax_H3_V2",
+) -> str:
+    """POST /v2/video_generation and return the MiniMax V2 task id.
+
+    MiniMax V2 may return X-Task-Id with an ambiguous HTTP 408/5xx response.
+    In that case the request is never replayed; the returned task is polled
+    instead so a successful upstream submission is not duplicated.
+    """
+    url = f"{config['base_url']}/v2/video_generation"
+    safe_payload = json.dumps(
+        _sanitize_payload_for_log(payload),
+        ensure_ascii=False,
+    )
+    _log(
+        logger_prefix,
+        f"Submit -> POST /v2/video_generation model={payload.get('model')}",
+    )
+    _log(logger_prefix, f"  Payload: {_truncate(safe_payload, 500)}")
+
+    response = _post_task_creation(
+        lambda: _session().post(
+            url,
+            headers=_headers(config["api_key"]),
+            json=payload,
+            timeout=config.get("timeout", 60),
+        ),
+        logger_prefix,
+        "MiniMax H3 submit",
+        recover_task_header="X-Task-Id",
+    )
+    try:
+        data = response.json() if response.text else {}
+    except ValueError:
+        data = {}
+
+    task_id = None
+    if isinstance(data, dict):
+        task_id = data.get("task_id") or data.get("id")
+        task = data.get("task")
+        if not task_id and isinstance(task, dict):
+            task_id = task.get("task_id") or task.get("id")
+
+    if not task_id and (
+        response.status_code == 408 or response.status_code >= 500
+    ):
+        headers = getattr(response, "headers", None) or {}
+        task_id = headers.get("X-Task-Id")
+
+    if response.status_code != 200 and not task_id:
+        raise SeedanceAPIError(
+            f"MiniMax H3 submit rejected (HTTP {response.status_code}): "
+            f"{_extract_error_message(data, response.text[:200])}"
+        )
+    if not task_id:
+        raise SeedanceAPIError(
+            "No task id in MiniMax H3 submit response: "
+            f"{_truncate(response.text, 300)}"
+        )
 
     _log(logger_prefix, "  Submit accepted")
     return str(task_id)
@@ -715,6 +795,148 @@ def poll_task(
             _log(logger_prefix, f"  Unknown status '{status}', continue polling...")
 
 
+_MINIMAX_H3_V2_RUNNING_STATUSES = {"queued", "running"}
+_MINIMAX_H3_V2_TERMINAL_FAILURES = {"failed", "cancelled"}
+
+
+def poll_minimax_h3_v2_task(
+    task_id: str,
+    config: Dict[str, Any],
+    on_progress: Optional[Callable[[int], None]] = None,
+    logger_prefix: str = "Minimax_H3_V2",
+) -> Dict[str, Any]:
+    """Poll MiniMax V2 GET /v2/query/video_generation/{task_id}."""
+    url = f"{config['base_url']}/v2/query/video_generation/{task_id}"
+    poll_interval = max(5.0, float(config.get("poll_interval", 5.0)))
+    max_poll_time = config.get("max_poll_time", 1800)
+    _log(
+        logger_prefix,
+        f"Poll MiniMax H3 -> interval={poll_interval:g}s, max={max_poll_time}s",
+    )
+
+    start_time = time.time()
+    consecutive_failures = 0
+    last_status = ""
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > max_poll_time:
+            raise RuntimeError(
+                f"MiniMax H3 task exceeded {max_poll_time}s, polling stopped. "
+                "The task may still complete server-side. "
+                f"[task_id: {task_id}]"
+            )
+
+        cooperative_sleep(poll_interval)
+        try:
+            response = _session().get(
+                url,
+                headers=_headers(config["api_key"], with_json=False),
+                timeout=30,
+            )
+        except requests.exceptions.RequestException as error:
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                "MiniMax H3 poll network error "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES}): "
+                f"{type(error).__name__}",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "MiniMax H3 polling failed after repeated network errors "
+                    f"[task_id: {task_id}]"
+                )
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        if response.status_code != 200:
+            try:
+                data = response.json() if response.text else {}
+            except ValueError:
+                data = {}
+            if response.status_code != 429 and response.status_code < 500:
+                raise SeedanceAPIError(
+                    f"MiniMax H3 poll rejected (HTTP {response.status_code}): "
+                    f"{_extract_error_message(data, response.text[:200])} "
+                    f"[task_id: {task_id}]"
+                )
+            consecutive_failures += 1
+            _log(
+                logger_prefix,
+                f"MiniMax H3 poll HTTP {response.status_code} "
+                f"({consecutive_failures}/{_MAX_CONSECUTIVE_POLL_FAILURES})",
+            )
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "MiniMax H3 polling failed after repeated transient HTTP errors "
+                    f"[task_id: {task_id}]"
+                )
+            cooperative_sleep(min(consecutive_failures * 2, 10))
+            continue
+
+        try:
+            data = response.json()
+        except ValueError:
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "MiniMax H3 polling failed: invalid JSON repeatedly "
+                    f"[task_id: {task_id}]"
+                )
+            continue
+
+        task = data.get("task") if isinstance(data, dict) else None
+        if not isinstance(task, dict):
+            consecutive_failures += 1
+            if consecutive_failures >= _MAX_CONSECUTIVE_POLL_FAILURES:
+                raise RuntimeError(
+                    "MiniMax H3 polling failed: response has no task object "
+                    f"[task_id: {task_id}]"
+                )
+            continue
+
+        consecutive_failures = 0
+        status = str(task.get("status") or "").strip().lower()
+        if status != last_status:
+            _log(
+                logger_prefix,
+                f"  MiniMax H3 poll: status={status}, elapsed={int(elapsed)}s",
+            )
+            last_status = status
+
+        if on_progress:
+            progress = (
+                100 if status == "succeeded"
+                else 40 if status == "running"
+                else 10
+            )
+            try:
+                on_progress(progress)
+            except Exception:
+                pass
+
+        if status == "succeeded":
+            _log(logger_prefix, f"  MiniMax H3 task completed in {int(elapsed)}s")
+            return data
+
+        if status in _MINIMAX_H3_V2_TERMINAL_FAILURES:
+            error = task.get("error")
+            error_message = _extract_error_message(
+                error,
+                "MiniMax H3 generation failed",
+            )
+            raise SeedanceAPIError(
+                f"MiniMax H3 task {status}: {error_message} [task_id: {task_id}]"
+            )
+
+        if status and status not in _MINIMAX_H3_V2_RUNNING_STATUSES:
+            _log(
+                logger_prefix,
+                f"  Unknown MiniMax H3 status '{status}', continue polling...",
+            )
+
+
 def extract_video_url(final_response: Dict[str, Any]) -> str:
     """Pull the result video URL out of the completed /v1/videos response."""
     metadata = final_response.get("metadata")
@@ -732,6 +954,19 @@ def extract_video_url(final_response: Dict[str, Any]) -> str:
         return str(content["video_url"])
     raise SeedanceAPIError(
         f"Task completed but no video URL in response: {_truncate(json.dumps(final_response, ensure_ascii=False), 300)}"
+    )
+
+
+def extract_minimax_h3_v2_video_url(final_response: Dict[str, Any]) -> str:
+    """Extract task.content.url from a successful MiniMax V2 response."""
+    task = final_response.get("task")
+    if isinstance(task, dict):
+        content = task.get("content")
+        if isinstance(content, dict) and content.get("url"):
+            return str(content["url"])
+    raise SeedanceAPIError(
+        "MiniMax H3 task succeeded but task.content.url is missing: "
+        f"{_truncate(json.dumps(_sanitize_payload_for_log(final_response), ensure_ascii=False), 300)}"
     )
 
 
