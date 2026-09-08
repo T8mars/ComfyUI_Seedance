@@ -40,6 +40,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Zhenzhen_Image_GK_V2_Region_Edit",
     "Wan_2_7_Global_Image",
     "Zhenzhen_Image_NB",
+    "VOSR2_Image_Upscale",
 )
 
 PURE_VIDEO_NODE_KEYS = (
@@ -67,6 +68,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Vidu_Q3_Video",
     "Vidu_Q3_ShortPlay",
     "FashVSR_Video_Upscale",
+    "VOSR2_Video_Upscale",
     "Zhenzhen_Upscaler_Video",
 )
 

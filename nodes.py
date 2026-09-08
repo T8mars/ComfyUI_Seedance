@@ -1,6 +1,6 @@
 """
 ComfyUI nodes for Seedance, FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu,
-FlashVSR/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
+FlashVSR/VOSR2/Zhenzhen Upscaler, Seedream image generation/layer decomposition, Dola Seedream,
 Qwen, Zhenzhen Image G/NB, MiniMax H3 Context IR prompt enhancement,
 Zhenzhen Video G/GK/V3.1, Hunyuan 3D, GK v2 image tools, Doubao Seed Audio,
 and Whisper transcription APIs
@@ -8,7 +8,7 @@ and Whisper transcription APIs
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
 dedicated six-model Seedance 2.5 Standard node.
-FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FlashVSR, and Zhenzhen Upscaler use dedicated video
+FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FlashVSR, VOSR2, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
 use dedicated video nodes, Hunyuan returns native ComfyUI GLB files, GK v2
@@ -683,6 +683,8 @@ MAX_VIDU_SHORT_PLAY_ASSETS = 14
 ZHENZHEN_UPSCALER_MODEL = "zhenzhen-upscaler"
 ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
 FLASHVSR_VIDEO_UPSCALE_MODEL = "FlashVSR_video_upscale"
+VOSR2_IMAGE_UPSCALE_MODEL = "vosr2-image-upscale"
+VOSR2_VIDEO_UPSCALE_MODEL = "vosr2-video-upscale"
 # Backward-compatible import alias; existing workflows use the stable node key below.
 FASHVSR_VIDEO_UPSCALE_MODEL = FLASHVSR_VIDEO_UPSCALE_MODEL
 
@@ -6186,6 +6188,158 @@ FashVSRVideoUpscale = FlashVSRVideoUpscale
 
 
 # ---------------------------------------------------------------------------
+# VOSR2 video upscaling
+# ---------------------------------------------------------------------------
+
+class VOSR2VideoUpscale(SeedanceVideoNodeBase):
+    """Upscale exactly one video to 2K through the compatibility endpoint."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Optional public video URL. Leave empty when connecting input_video. | "
+                        "可选公网视频直链；连接 input_video 时留空。"
+                    ),
+                }),
+            },
+            "optional": {
+                "input_video": ("VIDEO", {
+                    "tooltip": (
+                        "Local ComfyUI video to upload. Use exactly one local video or "
+                        "one public URL. The result is a 2K video. | 本地 ComfyUI 视频；"
+                        "本地视频和公网直链二选一，结果为 2K 视频。"
+                    ),
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "On failure return a placeholder error video instead of stopping "
+                        "the workflow. | 失败时输出占位错误视频而不中断工作流。"
+                    ),
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video_url=None, **kwargs):
+        url_text = str(video_url or "").strip()
+        if url_text and not url_text.startswith(("http://", "https://")):
+            return "video_url must be an http(s) URL | video_url 必须是 http(s) URL"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return VOSR2_VIDEO_UPSCALE_MODEL
+
+    def collect_media(self, kwargs, config, progress_cb):
+        video_url = str(kwargs.get("video_url") or "").strip()
+        input_video = kwargs.get("input_video")
+        if video_url and input_video is not None:
+            raise SeedanceAPIError(
+                "VOSR2 video accepts exactly one source: input_video or video_url | "
+                "VOSR2 视频只能选择一个来源：input_video 或 video_url"
+            )
+        if video_url:
+            progress_cb(1.0)
+            return {"video_url": video_url}
+        if input_video is None:
+            raise SeedanceAPIError(
+                "connect input_video or provide video_url for VOSR2 video | "
+                "VOSR2 视频需要连接 input_video 或填写 video_url"
+            )
+
+        video_bytes, extension = video_to_bytes(input_video)
+        video_mime = {
+            "mp4": "video/mp4",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "mkv": "video/x-matroska",
+        }.get(extension, "video/mp4")
+        url = upload_media(
+            video_bytes,
+            f"vosr2_video_input.{extension}",
+            video_mime,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"video_url": url}
+
+    def build_payload(self, kwargs, media):
+        video_url = str(media.get("video_url") or "").strip()
+        if not video_url:
+            raise SeedanceAPIError(
+                "metadata.video_url is required for VOSR2 video | "
+                "VOSR2 视频必须提供 metadata.video_url"
+            )
+        return {
+            "model": VOSR2_VIDEO_UPSCALE_MODEL,
+            "metadata": {"video_url": video_url},
+        }
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        try:
+            media = self.collect_media(
+                kwargs,
+                config,
+                lambda fraction: self._update_progress(
+                    pbar, fraction * self.PROGRESS_UPLOAD_END
+                ),
+            )
+        except SeedanceAPIError:
+            raise
+        except Exception as error:
+            raise RuntimeError(
+                f"[{self._log_prefix}] Media upload failed: {error}"
+            ) from error
+        self._update_progress(pbar, self.PROGRESS_UPLOAD_END)
+
+        task_id = submit_legacy_video_task(
+            self.build_payload(kwargs, media),
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+
+        poll_span = self.PROGRESS_POLL_END - self.PROGRESS_SUBMIT_END
+        final_response = poll_legacy_video_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar,
+                self.PROGRESS_SUBMIT_END + progress / 100.0 * poll_span,
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+
+        result_url = extract_legacy_video_url(final_response)
+        video = download_video(result_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(
+            video,
+            result_url,
+            task_id,
+            final_response,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Zhenzhen Upscaler video super-resolution
 # ---------------------------------------------------------------------------
 
@@ -6440,6 +6594,113 @@ class SeedanceImageNodeBase:
                 )
                 return self._make_error_result(error_msg)
             raise
+
+
+class VOSR2ImageUpscale(SeedanceImageNodeBase):
+    """Upscale exactly one image to 4K through the image task endpoint."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "input_image": ("IMAGE", {
+                    "tooltip": (
+                        "Exactly one source image. The result is a 4K image. | "
+                        "必须连接且只能提交一张源图片，结果为 4K 图片。"
+                    ),
+                }),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "On failure return a placeholder error image instead of stopping "
+                        "the workflow. | 失败时输出占位错误图片而不中断工作流。"
+                    ),
+                }),
+            },
+        }
+
+    @property
+    def _log_prefix(self) -> str:
+        return VOSR2_IMAGE_UPSCALE_MODEL
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    @staticmethod
+    def build_payload(image_url: str) -> Dict[str, Any]:
+        url_text = str(image_url or "").strip()
+        if not url_text:
+            raise SeedanceAPIError(
+                "exactly one image URL is required for VOSR2 image | "
+                "VOSR2 图片必须且只能提供一个图片 URL"
+            )
+        return {
+            "model": VOSR2_IMAGE_UPSCALE_MODEL,
+            "images": [url_text],
+        }
+
+    def _execute_inner(self, input_image, api_config=None):
+        shape = getattr(input_image, "shape", ())
+        if len(shape) == 4 and int(shape[0]) != 1:
+            raise SeedanceAPIError(
+                "VOSR2 image accepts exactly one input image, not an image batch | "
+                "VOSR2 图片只接受单张输入，不接受图片批次"
+            )
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+
+        image_url = upload_media(
+            image_to_png_bytes(input_image),
+            "vosr2_image_input.png",
+            "image/png",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 15)
+
+        task_id = submit_image_task(
+            self.build_payload(image_url),
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 75
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+
+        result_url = extract_image_url(final_response)
+        image = download_image(result_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [result_url, response_str]},
+            "result": (image, result_url, task_id, response_str),
+        }
 
 
 class SeedreamV5ProImage(SeedanceImageNodeBase):
@@ -12631,6 +12892,8 @@ NODE_CLASS_MAPPINGS = {
     "Vidu_Q3_Video": ViduQ3Video,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "FashVSR_Video_Upscale": FlashVSRVideoUpscale,
+    "VOSR2_Image_Upscale": VOSR2ImageUpscale,
+    "VOSR2_Video_Upscale": VOSR2VideoUpscale,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Qwen3_TTS": Qwen3TTS,
@@ -12759,6 +13022,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "FashVSR_Video_Upscale": "FlashVSR 480P 视频超分",
+    "VOSR2_Image_Upscale": "VOSR2 4K 图片超分",
+    "VOSR2_Video_Upscale": "VOSR2 2K 视频超分",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",

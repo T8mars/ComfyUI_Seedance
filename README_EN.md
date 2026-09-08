@@ -15,6 +15,13 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 
 ## Current Release
 
+### v0.14.0 - 2026-09-09
+
+- Added independent `VOSR2 4K Image Upscale` and `VOSR2 2K Video Upscale` nodes using the exact `vosr2-image-upscale` and `vosr2-video-upscale` endpoint contracts.
+- Supports local images, local videos, and public video URLs with resilient media downloads, `skip_error`, standard seed caching, optional 30-way image submission, and optional 10-way video submission.
+- Added two credential-free example workflows. Both nodes completed real upload, submit, poll, download, and media-validity checks.
+- The complete offline suite passed 413 tests, and all 195 example workflows passed JSON and sensitive-data audits.
+
 ### v0.13.0 - 2026-09-06
 
 - Added an independent `MiniMax-H3 V2 Multimodal Video` node using the exact `MiniMax-H3` model and V2 submit, query, and result contracts without changing existing MiniMax H3 OW nodes or workflows.
@@ -95,7 +102,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - Vidu Q3
 - Zhenzhen Video G, GK, and V3.1
 - Midjourney video
-- FlashVSR and Zhenzhen Upscaler
+- FlashVSR, VOSR2 image/video upscaling, and Zhenzhen Upscaler
 
 ### Image and 3D
 
@@ -149,6 +156,8 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Video_GK_V15` | Zhenzhen Video GK v1.5 |
 | `Zhenzhen_Video_V31` | Zhenzhen Video V3.1 Fast, Quality, and Lite |
 | `FashVSR_Video_Upscale` | FlashVSR 480P video upscaling |
+| `VOSR2_Image_Upscale` | VOSR2 single-image 4K upscaling |
+| `VOSR2_Video_Upscale` | VOSR2 single-video 2K upscaling |
 | `Zhenzhen_Upscaler_Video` | Zhenzhen video upscaling |
 | `Seedream_V5_Pro_Image` | Seedream/Dola Seedream generation and editing |
 | `Seedream_V5_Pro_Layer_Decomposition` | Seedream/Dola layer decomposition |
@@ -202,6 +211,12 @@ python -m pip install -r custom_nodes/ComfyUI_Seedance/requirements.txt
 ```
 
 Portable ComfyUI installations should use their bundled Python interpreter. Restart ComfyUI after installation.
+
+## VOSR2 Upscaling
+
+`VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
+
+`VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
 
 ## MiniMax-H3 V2
 

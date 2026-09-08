@@ -91,6 +91,8 @@ class FrontendExtensionTests(unittest.TestCase):
             "Vidu_Q3_Video",
             "Vidu_Q3_ShortPlay",
             "FashVSR_Video_Upscale",
+            "VOSR2_Image_Upscale",
+            "VOSR2_Video_Upscale",
             "Zhenzhen_Upscaler_Video",
             "Doubao_Seed_Audio",
             "Whisper_Transcription",

@@ -20,9 +20,16 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / Zhenzhen Upscaler 视频超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.14.0（2026-09-09）
+
+- 新增独立的 `VOSR2 4K 图片超分` 与 `VOSR2 2K 视频超分` 节点，严格使用 `vosr2-image-upscale` 和 `vosr2-video-upscale` 的独立接口契约。
+- 支持本地图片、本地视频及公开视频 URL，沿用可靠媒体下载、`skip_error`、标准随机种子缓存，并分别提供 30 路图片与 10 路视频并发提交版本。
+- 新增两份不含凭据和运行结果的示例工作流。图片与视频节点均已完成真实上传、提交、轮询、下载和媒体有效性校验。
+- 完整离线回归通过 413 项测试，195 份示例工作流全部通过 JSON 与敏感信息检查。
 
 ## v0.13.0（2026-09-06）
 
@@ -435,6 +442,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 支持 MiniMax H3 OW Fast 文生、单首帧图生、最多 9 图参考生和单图单音频驱动视频
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 FlashVSR 480P 视频超分
+- 支持 VOSR2 单图 4K 超分和单视频 2K 超分
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
 - 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK / Nano Banana 文生图 / 图像编辑
@@ -448,7 +456,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 VOSR2 图片超分模型、1 个 VOSR2 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -494,6 +502,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
+| `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
+| `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
@@ -668,6 +678,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `Zhenzhen Video GK v1.5`：使用 `zhenzhen-video-gk-v15`
    - `Zhenzhen Video V3.1`：在 `zhenzhen-video-v31-fast`、`zhenzhen-video-v31-quality` 和仅文生视频的 `zhenzhen-video-v31-lite` 间切换
    - `FlashVSR 480P 视频超分`：连接一段 480P、3 到 15 秒的 `input_video`，或填写公网 `video_url`
+   - `VOSR2 4K 图片超分`：连接一张 `input_image`
+   - `VOSR2 2K 视频超分`：连接 `input_video`，或填写公网 `video_url`
    - `Zhenzhen Upscaler 视频超分`：连接 `input_video` 或填写公网 MP4 `video_url`
 3. 选择 `model`，设置 `seconds`、`resolution`、`ratio`。
 4. 运行工作流。
@@ -685,8 +697,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 
 | 接收节点 | 可连接的并发提交节点 |
 | --- | --- |
-| `并发接收图片（30 路）` | Seedream / Dola Seedream、Zhenzhen Image G、GK v1.5、Nano Banana、Midjourney 图片 |
-| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、Upscaler、Midjourney 视频 |
+| `并发接收图片（30 路）` | Seedream / Dola Seedream、Zhenzhen Image G、GK v1.5、Nano Banana、VOSR2、Midjourney 图片 |
+| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、VOSR2、Upscaler、Midjourney 视频 |
 
 不同原节点的输入参数和素材类型不同，所以每个原节点都有对应的 `并发提交｜...` 版本；它们输出统一的图片 Future 或视频 Future。同类型 Future 可以混接到同一个接收节点，例如 `Seedream future -> future_1`、`Image G future -> future_2`、`Nano Banana future -> future_3`。
 
@@ -1053,6 +1065,13 @@ FlashVSR 节点使用兼容视频端点：
 | --- | --- | --- |
 | `FlashVSR_video_upscale` | 单视频超分 | `metadata.video_url` 必填且只能有一条；源视频必须为 480P、3 到 15 秒；可连接本地 `VIDEO` 自动上传，也可填写公网直链 |
 
+VOSR2 使用两个独立节点和文档指定的兼容端点：
+
+| 模型 | 端点 | 用途与限制 |
+| --- | --- | --- |
+| `vosr2-image-upscale` | `POST /v1/image/generations` | `images` 必填且只能有一张；输出 4K 图片 |
+| `vosr2-video-upscale` | `POST /v1/video/generations` | `metadata.video_url` 必填且只能有一条；输出 2K 视频 |
+
 Zhenzhen Upscaler 节点使用 `/v1/videos` 视频端点：
 
 | 模型 | 用途 | 限制 |
@@ -1384,6 +1403,17 @@ FlashVSR 节点参数：
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 FlashVSR API |
+
+VOSR2 节点参数：
+
+| 节点 | 参数 | 说明 |
+| --- | --- | --- |
+| 图片超分 | `input_image` | 必填，单张 ComfyUI `IMAGE`；图片批次会被拒绝 |
+| 视频超分 | `video_url` | 可选公网视频直链；连接 `input_video` 时留空 |
+| 视频超分 | `input_video` | 可选 ComfyUI `VIDEO`；与 `video_url` 二选一 |
+| 两个节点 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+| 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
+| 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
 
 Zhenzhen Upscaler 节点参数：
 
