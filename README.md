@@ -20,9 +20,16 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G v2.5 / G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.15.0（2026-09-09）
+
+- 新增独立的 `Zhenzhen Image G v2.5 LowPrice 生成/编辑` 节点，支持文生图、最多 15 张参考图编辑、1K/2K/4K 和文档规定的固定画幅。
+- 新增 `Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）` 节点，包含 Flare 与 Sunburst，支持最多 16 张参考图、单次 1 到 4 张图片、质量、格式、背景和精确像素尺寸。
+- 两个节点均支持可靠图片下载、`skip_error`、标准 ComfyUI 缓存种子和 30 路图片并发提交，并提供三个模型各自的文生图与图像编辑示例。
+- 三个模型均完成真实节点路径验证：LowPrice 与 Flare 完成文生图，Sunburst 完成单参考图上传与编辑，结果全部成功下载为有效 ComfyUI IMAGE。完整离线回归通过 425 项测试，201 份示例工作流通过 JSON 与敏感信息检查。
 
 ## v0.14.0（2026-09-09）
 
@@ -445,18 +452,18 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 支持 VOSR2 单图 4K 超分和单视频 2K 超分
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
-- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G / GK / Nano Banana 文生图 / 图像编辑
+- 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G v2.5 / G / GK / Nano Banana 文生图 / 图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
 - 支持 Flow Music 9 项音乐生成、歌词、上传、续写、替换、改编、分轨、下载和视频渲染操作
 - 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
 - 支持图片 30 路、视频 10 路独立并发提交与按槽位接收，原节点仍可单独运行
-- 图像编辑按节点支持最多 10 或 14 张参考图
+- 图像编辑按节点支持最多 16 张参考图
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 VOSR2 图片超分模型、1 个 VOSR2 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、10 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 VOSR2 图片超分模型、1 个 VOSR2 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、13 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -477,6 +484,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
 | `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
+| `Zhenzhen Image G v2.5 LowPrice 生成/编辑` | G v2.5 文生图与最多 15 图参考编辑 | `prompt`、`resolution`、`size`、`nsfw_check`、可选参考图 |
+| `Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）` | Flare / Sunburst 文生图与最多 16 图参考编辑 | `model`、`prompt`、尺寸、质量、数量、格式、背景、可选参考图 |
 | `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
 | `Zhenzhen Image GK v2 文生图` | GK v2 文生图，支持 7 种固定比例和单次 1 到 12 张请求 | `prompt`、`size`、`n` |
 | `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
@@ -719,6 +728,14 @@ Zhenzhen Image G 图片生成或编辑：
 4. `zhenzhen-image-g2-i2i` 需要连接 1 到 10 张参考图；Lowprice 可不连接图，也可连接最多 16 张参考图。
 5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
+Zhenzhen Image G v2.5 图片生成或编辑：
+
+1. LowPrice 路线添加独立的 `Zhenzhen Image G v2.5 LowPrice 生成/编辑`；Official 路线添加 `Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）`。
+2. 不连接参考图时执行文生图；连接参考图后执行图像编辑。LowPrice 最多 15 张，Official 最多 16 张。
+3. LowPrice 支持 1K/2K/4K、固定比例和可选内容检查，始终返回一张图。
+4. Official 可选择 Flare 或 Sunburst、1 到 4 张输出、质量、PNG/JPEG/WebP 与背景；选择 `custom` 后填写符合约束的 `宽x高` 像素尺寸。
+5. Official 编辑选择 `preserve_reference` 时不发送 `size`，用于保留参考图比例。
+
 Zhenzhen Image GK v1.5 图片生成或编辑：
 
 1. 添加 `Zhenzhen Image GK v1.5 图像生成/编辑`。
@@ -794,6 +811,7 @@ Midjourney 图片与视频：
 - `examples/zhenzhen-image-g2图像编辑.json`
 - `examples/zhenzhen-image-g-v2-lowprice文生图.json`
 - `examples/zhenzhen-image-g-v2-lowprice图像编辑.json`
+- `examples/zhenzhen-image-g-v2.5-*.json`（6 份，LowPrice、Flare、Sunburst 各含文生图和图像编辑）
 - `examples/zhenzhen-image-gk-v15文生图.json`
 - `examples/zhenzhen-image-gk-v15图像编辑.json`
 - `examples/zhenzhen-image-nb-*.json`（8 份，4 个模型各含文生图和图像编辑）
@@ -889,6 +907,16 @@ Zhenzhen Image G 节点使用独立的 `/v1/image/generations` 图片端点：
 | `zhenzhen-image-g2-t2i` | 文生图 | `prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
 | `zhenzhen-image-g2-i2i` | 图像编辑 | 需要 1 到 10 张参考图；`prompt` 必填；`resolution` 固定为 `1k`；可选 `ratio` |
 | `zhenzhen-image-g-v2-lowprice` | 文生图 / 图像编辑 | 默认模型；`resolution` 为 `1k` / `2k` / `4k`；顶层 `size` 支持比例或 WxH；`n` 为 1 到 10；参考图最多 16 张 |
+
+Zhenzhen Image G v2.5 使用两个独立节点和同一图片异步端点：
+
+| 节点 / 模型 | 用途 | 限制 |
+| --- | --- | --- |
+| `Zhenzhen_Image_G25_Lowprice` / `zhenzhen-image-g-v2.5-lowprice` | 文生图 / 图像编辑 | 最多 15 张参考图；`n=1`；`resolution=1k|2k|4k`；`size` 使用文档固定比例；支持 `nsfw_check` |
+| `Zhenzhen_Image_G25_Official` / `zhenzhen-image-g-v2.5-flare` | 文生图 / 图像编辑 | 最多 16 张参考图；`n=1..4`；支持质量、输出格式、背景、审核等级和精确像素尺寸 |
+| `Zhenzhen_Image_G25_Official` / `zhenzhen-image-g-v2.5-sunburst` | 文生图 / 图像编辑 | 与 Flare 共用 Official 参数契约，侧重精细编辑 |
+
+Official 自定义尺寸使用 `宽x高`：宽高均为 16 的倍数且不超过 3840，长短边比例不超过 3:1，总像素为 655360 到 8294400。PNG 不发送压缩值；透明背景仅适用于 PNG/WebP。
 
 Zhenzhen Image GK v1.5 节点使用同一个 `/v1/image/generations` 图片端点：
 
@@ -1157,6 +1185,14 @@ Zhenzhen Image G 参数：
 | `n` | 仅 Lowprice 使用；1 到 10 |
 | `image1` ... `image16` | G-2 图像编辑使用前 10 张且至少 1 张；Lowprice 最多 16 张且可不连接 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
+
+Zhenzhen Image G v2.5 参数：
+
+| 节点 | 参数 |
+| --- | --- |
+| LowPrice | `prompt`、`resolution`、`size`、`nsfw_check`、`image1` ... `image15` |
+| Official | `model`、`prompt`、`size` / `custom_size`、`resolution`、`quality`、`n`、`output_format`、`output_compression`、`background`、`moderation`、`image1` ... `image16` |
+| 两个节点 | 可选 `api_config`、`skip_error` 与仅用于 ComfyUI 缓存控制的 `seed` |
 
 Zhenzhen Image GK v1.5 参数：
 

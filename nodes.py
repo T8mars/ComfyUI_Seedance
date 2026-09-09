@@ -26,6 +26,8 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+import torch
+
 from .core.config import get_config, validate_api_key, DEFAULT_BASE_URL
 from .core.client import (
     SeedanceAPIError,
@@ -215,6 +217,34 @@ ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MIN_LENGTH = 5
 ZHENZHEN_IMAGE_G_V2_LOWPRICE_PROMPT_MAX_LENGTH = 5000
 MAX_ZHENZHEN_IMAGE_G2_IMAGES = 10
 MAX_ZHENZHEN_IMAGE_G_V2_LOWPRICE_IMAGES = 16
+ZHENZHEN_IMAGE_G25_LOWPRICE_MODEL = "zhenzhen-image-g-v2.5-lowprice"
+ZHENZHEN_IMAGE_G25_FLARE_MODEL = "zhenzhen-image-g-v2.5-flare"
+ZHENZHEN_IMAGE_G25_SUNBURST_MODEL = "zhenzhen-image-g-v2.5-sunburst"
+ZHENZHEN_IMAGE_G25_OFFICIAL_MODELS = [
+    ZHENZHEN_IMAGE_G25_FLARE_MODEL,
+    ZHENZHEN_IMAGE_G25_SUNBURST_MODEL,
+]
+ZHENZHEN_IMAGE_G25_RESOLUTIONS = ["1k", "2k", "4k"]
+ZHENZHEN_IMAGE_G25_LOWPRICE_SIZES = [
+    "auto", "1:1", "1:3", "3:1", "16:9", "9:16", "4:3", "3:4",
+    "3:2", "2:3", "5:4", "4:5", "2:1", "1:2", "21:9", "9:21",
+]
+ZHENZHEN_IMAGE_G25_OFFICIAL_SIZES = [
+    "preserve_reference", "auto", "1:1", "3:2", "2:3", "4:3", "3:4",
+    "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21",
+    "3:1", "1:3", "custom",
+]
+ZHENZHEN_IMAGE_G25_QUALITIES = [
+    "auto", "low", "medium", "high", "xhigh", "max",
+]
+ZHENZHEN_IMAGE_G25_OUTPUT_FORMATS = ["png", "jpeg", "webp"]
+ZHENZHEN_IMAGE_G25_BACKGROUNDS = ["auto", "transparent", "opaque"]
+ZHENZHEN_IMAGE_G25_MODERATION_LEVELS = ["low", "auto"]
+ZHENZHEN_IMAGE_G25_PROMPT_MAX_LENGTH = 5000
+MAX_ZHENZHEN_IMAGE_G25_LOWPRICE_IMAGES = 15
+MAX_ZHENZHEN_IMAGE_G25_OFFICIAL_IMAGES = 16
+ZHENZHEN_IMAGE_G25_MIN_CUSTOM_PIXELS = 655360
+ZHENZHEN_IMAGE_G25_MAX_CUSTOM_PIXELS = 8294400
 QWEN_IMAGE_30_T2I_MODEL = "qwen-image-3.0-t2i"
 QWEN_IMAGE_30_I2I_MODEL = "qwen-image-3.0-i2i"
 QWEN_IMAGE_30_PRO_T2I_MODEL = "qwen-image-3.0-pro-t2i"
@@ -7556,6 +7586,528 @@ class ZhenzhenImageG2(SeedanceImageNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Zhenzhen Image G v2.5 generation and editing
+# ---------------------------------------------------------------------------
+
+class _ZhenzhenImageG25Base(SeedanceImageNodeBase):
+    """Shared upload, polling, and multi-image download flow for Image G v2.5."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+    MAX_IMAGES = 0
+    FILE_PREFIX = "zhenzhen_image_g25"
+
+    def _update_progress(self, pbar, value: float):
+        if pbar is not None:
+            try:
+                pbar.update_absolute(int(value), 100)
+            except Exception:
+                pass
+
+    def _connected_images(self, kwargs: Dict[str, Any]) -> List[Tuple[int, Any]]:
+        slots = [
+            (index, kwargs.get(f"image{index}"))
+            for index in range(1, self.MAX_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        connected = [index for index, _image in slots]
+        if connected and connected != list(range(1, len(connected) + 1)):
+            print(
+                f"[{self._log_prefix}] WARNING: Image G v2.5 slots {connected} "
+                f"have gaps; they will be compacted to images order "
+                f"1..{len(connected)}."
+            )
+        return slots
+
+    def _upload_references(self, references, config, pbar) -> List[str]:
+        image_urls: List[str] = []
+        total = max(1, len(references))
+        for done, (slot, tensor) in enumerate(references, start=1):
+            image_urls.append(
+                upload_media(
+                    image_to_png_bytes(tensor),
+                    f"{self.FILE_PREFIX}_reference_{slot}.png",
+                    "image/png",
+                    config,
+                    logger_prefix=self._log_prefix,
+                )
+            )
+            self._update_progress(pbar, done / total * 15)
+        self._update_progress(pbar, 15)
+        return image_urls
+
+    def _submit_and_download(self, payload, config, pbar):
+        task_id = submit_image_task(
+            payload,
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+
+        final_response = poll_image_task(
+            task_id,
+            config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, 20 + progress / 100.0 * 70
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 90)
+
+        image_urls = extract_image_urls(final_response)
+        images = []
+        for index, image_url in enumerate(image_urls, start=1):
+            images.append(
+                download_image(image_url, logger_prefix=self._log_prefix)
+            )
+            self._update_progress(
+                pbar, 90 + index / max(1, len(image_urls)) * 10
+            )
+
+        if not images:
+            raise SeedanceAPIError(
+                "Image G v2.5 completed without downloadable images | "
+                "Image G v2.5 任务完成但没有可下载图片"
+            )
+        try:
+            image = images[0] if len(images) == 1 else torch.cat(images, dim=0)
+        except RuntimeError as error:
+            raise SeedanceAPIError(
+                "Image G v2.5 returned images with incompatible dimensions"
+            ) from error
+
+        primary_url = image_urls[0]
+        response_str = json.dumps(final_response, ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [primary_url, response_str]},
+            "result": (image, primary_url, task_id, response_str),
+        }
+
+
+class ZhenzhenImageG25Lowprice(_ZhenzhenImageG25Base):
+    """LowPrice Image G v2.5 text-to-image and reference-image editing."""
+
+    MAX_IMAGES = MAX_ZHENZHEN_IMAGE_G25_LOWPRICE_IMAGES
+    FILE_PREFIX = "zhenzhen_image_g25_lowprice"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": ("IMAGE", {
+                "tooltip": (
+                    f"Optional reference image {index}/{cls.MAX_IMAGES}; connected "
+                    "images are submitted in slot order. | 可选参考图，按槽位顺序提交。"
+                ),
+            })
+            for index in range(1, cls.MAX_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": (
+                "On failure return a placeholder image instead of stopping the workflow. | "
+                "失败时输出占位图片而不中断工作流。"
+            ),
+        })
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Required prompt, 1 to 5000 characters. | 必填提示词，1 到 5000 字符。",
+                }),
+                "resolution": (ZHENZHEN_IMAGE_G25_RESOLUTIONS, {
+                    "default": "1k",
+                    "tooltip": "Output resolution: 1k, 2k, or 4k. | 输出分辨率：1k、2k 或 4k。",
+                }),
+                "size": (ZHENZHEN_IMAGE_G25_LOWPRICE_SIZES, {
+                    "default": "16:9",
+                    "tooltip": "Documented output aspect ratio. | 文档支持的输出画幅比例。",
+                }),
+                "nsfw_check": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Enable the documented pre-generation content check. | 启用文档规定的生成前内容检查。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        prompt=None,
+        resolution=None,
+        size=None,
+        strict=False,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        if strict and not prompt_text:
+            return "prompt is required for Image G v2.5 LowPrice | LowPrice 必须填写提示词"
+        if prompt_text and len(prompt_text) > ZHENZHEN_IMAGE_G25_PROMPT_MAX_LENGTH:
+            return "LowPrice prompt must contain 1 to 5000 characters | LowPrice 提示词必须为 1 到 5000 字符"
+        if resolution is not None and resolution not in ZHENZHEN_IMAGE_G25_RESOLUTIONS:
+            return f"unsupported Image G v2.5 LowPrice resolution: {resolution}"
+        if size is not None and size not in ZHENZHEN_IMAGE_G25_LOWPRICE_SIZES:
+            return f"unsupported Image G v2.5 LowPrice size: {size}"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return ZHENZHEN_IMAGE_G25_LOWPRICE_MODEL
+
+    @classmethod
+    def _build_payload(
+        cls,
+        prompt: str,
+        resolution: str,
+        size: str,
+        nsfw_check: bool,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        validation = cls.VALIDATE_INPUTS(
+            prompt=prompt,
+            resolution=resolution,
+            size=size,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > cls.MAX_IMAGES:
+            raise SeedanceAPIError(
+                f"{ZHENZHEN_IMAGE_G25_LOWPRICE_MODEL} supports at most "
+                f"{cls.MAX_IMAGES} reference images"
+            )
+        payload: Dict[str, Any] = {
+            "model": ZHENZHEN_IMAGE_G25_LOWPRICE_MODEL,
+            "prompt": prompt,
+            "n": 1,
+            "size": size,
+            "resolution": resolution,
+            "nsfw_check": bool(nsfw_check),
+        }
+        if images:
+            payload["images"] = list(images)
+        return payload
+
+    def _execute_inner(
+        self,
+        prompt: str,
+        resolution: str,
+        size: str,
+        nsfw_check: bool,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt_text,
+            resolution=resolution,
+            size=size,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        image_urls = self._upload_references(
+            self._connected_images(kwargs), config, pbar
+        )
+        payload = self._build_payload(
+            prompt_text, resolution, size, nsfw_check, image_urls
+        )
+        return self._submit_and_download(payload, config, pbar)
+
+
+class ZhenzhenImageG25Official(_ZhenzhenImageG25Base):
+    """Official Flare/Sunburst Image G v2.5 generation and editing."""
+
+    MAX_IMAGES = MAX_ZHENZHEN_IMAGE_G25_OFFICIAL_IMAGES
+    FILE_PREFIX = "zhenzhen_image_g25_official"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional: Dict[str, tuple] = {
+            f"image{index}": ("IMAGE", {
+                "tooltip": (
+                    f"Optional reference image {index}/{cls.MAX_IMAGES}; connected "
+                    "images switch the request to editing mode. | 连接参考图后进入编辑模式。"
+                ),
+            })
+            for index in range(1, cls.MAX_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": (
+                "On failure return a placeholder image instead of stopping the workflow. | "
+                "失败时输出占位图片而不中断工作流。"
+            ),
+        })
+        return {
+            "required": {
+                "model": (ZHENZHEN_IMAGE_G25_OFFICIAL_MODELS, {
+                    "default": ZHENZHEN_IMAGE_G25_FLARE_MODEL,
+                    "tooltip": (
+                        "Flare is intended for everyday creation and fast iteration; "
+                        "Sunburst focuses on precise editing. | Flare 适合日常创作与快速迭代；"
+                        "Sunburst 侧重精细编辑。"
+                    ),
+                }),
+                "prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Required generation or editing prompt. | 必填的生成或编辑提示词。",
+                }),
+                "size": (ZHENZHEN_IMAGE_G25_OFFICIAL_SIZES, {
+                    "default": "auto",
+                    "tooltip": (
+                        "Use preserve_reference to omit size, or choose a ratio/custom pixels. | "
+                        "选择 preserve_reference 可省略 size 并保留参考图比例，也可选择比例或自定义像素。"
+                    ),
+                }),
+                "custom_size": ("STRING", {
+                    "default": "1024x1024",
+                    "tooltip": "Used only when size is custom, for example 1536x864. | 仅 custom 使用，例如 1536x864。",
+                }),
+                "resolution": (ZHENZHEN_IMAGE_G25_RESOLUTIONS, {
+                    "default": "1k",
+                    "tooltip": "Ignored by the API for an exact custom pixel size. | 使用精确自定义像素尺寸时由 API 忽略。",
+                }),
+                "quality": (ZHENZHEN_IMAGE_G25_QUALITIES, {
+                    "default": "auto",
+                    "tooltip": "Rendering quality from auto through max. | 从 auto 到 max 的渲染质量。",
+                }),
+                "n": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 4,
+                    "step": 1,
+                    "tooltip": "Request 1 to 4 images; all results return as one IMAGE batch. | 请求 1 到 4 张图，全部结果作为 IMAGE 批次返回。",
+                }),
+                "output_format": (ZHENZHEN_IMAGE_G25_OUTPUT_FORMATS, {
+                    "default": "png",
+                    "tooltip": "Output format: png, jpeg, or webp. | 输出格式：png、jpeg 或 webp。",
+                }),
+                "output_compression": ("INT", {
+                    "default": 90,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                    "tooltip": "JPEG/WebP only; omitted for PNG. | 仅 JPEG/WebP 使用，PNG 会省略。",
+                }),
+                "background": (ZHENZHEN_IMAGE_G25_BACKGROUNDS, {
+                    "default": "auto",
+                    "tooltip": "Transparent background requires PNG or WebP. | 透明背景必须配合 PNG 或 WebP。",
+                }),
+                "moderation": (ZHENZHEN_IMAGE_G25_MODERATION_LEVELS, {
+                    "default": "low",
+                    "tooltip": "Documented moderation level: low or auto. | 文档支持的审核等级：low 或 auto。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @staticmethod
+    def _normalize_custom_size(value: Any) -> str:
+        return str(value or "").strip().replace("X", "x")
+
+    @classmethod
+    def _custom_size_error(cls, value: Any) -> Optional[str]:
+        normalized = cls._normalize_custom_size(value)
+        parts = [part.strip() for part in normalized.split("x")]
+        if len(parts) != 2 or not all(part.isdigit() for part in parts):
+            return "custom size must use WIDTHxHEIGHT, for example 1536x864"
+        width, height = (int(part) for part in parts)
+        if width <= 0 or height <= 0 or width % 16 or height % 16:
+            return "custom width and height must be positive multiples of 16"
+        if width > 3840 or height > 3840:
+            return "custom width and height must not exceed 3840"
+        if max(width, height) / min(width, height) > 3:
+            return "custom aspect ratio must be between 1:3 and 3:1"
+        pixels = width * height
+        if not (
+            ZHENZHEN_IMAGE_G25_MIN_CUSTOM_PIXELS
+            <= pixels
+            <= ZHENZHEN_IMAGE_G25_MAX_CUSTOM_PIXELS
+        ):
+            return "custom total pixels must be between 655360 and 8294400"
+        return None
+
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        model=None,
+        prompt=None,
+        size=None,
+        custom_size=None,
+        resolution=None,
+        quality=None,
+        n=None,
+        output_format=None,
+        output_compression=None,
+        background=None,
+        moderation=None,
+        strict=False,
+        **kwargs,
+    ):
+        if model not in (None, *ZHENZHEN_IMAGE_G25_OFFICIAL_MODELS):
+            return f"unsupported Image G v2.5 Official model: {model}"
+        if strict and not str(prompt or "").strip():
+            return "prompt is required for Image G v2.5 Official | Official 必须填写提示词"
+        if size is not None and size not in ZHENZHEN_IMAGE_G25_OFFICIAL_SIZES:
+            return f"unsupported Image G v2.5 Official size: {size}"
+        if strict and size == "custom":
+            custom_error = cls._custom_size_error(custom_size)
+            if custom_error:
+                return f"{custom_error} | 自定义尺寸不符合 Image G v2.5 文档约束"
+        if resolution is not None and resolution not in ZHENZHEN_IMAGE_G25_RESOLUTIONS:
+            return f"unsupported Image G v2.5 Official resolution: {resolution}"
+        if quality is not None and quality not in ZHENZHEN_IMAGE_G25_QUALITIES:
+            return f"unsupported Image G v2.5 Official quality: {quality}"
+        if n is not None and not 1 <= int(n) <= 4:
+            return "Image G v2.5 Official n must be between 1 and 4 | n 必须在 1 到 4 之间"
+        if output_format is not None and output_format not in ZHENZHEN_IMAGE_G25_OUTPUT_FORMATS:
+            return f"unsupported Image G v2.5 output format: {output_format}"
+        if output_compression is not None and not 0 <= int(output_compression) <= 100:
+            return "output_compression must be between 0 and 100 | 压缩值必须在 0 到 100 之间"
+        if background is not None and background not in ZHENZHEN_IMAGE_G25_BACKGROUNDS:
+            return f"unsupported Image G v2.5 background: {background}"
+        if moderation is not None and moderation not in ZHENZHEN_IMAGE_G25_MODERATION_LEVELS:
+            return f"unsupported Image G v2.5 moderation: {moderation}"
+        if background == "transparent" and output_format == "jpeg":
+            return "transparent background requires png or webp | 透明背景必须使用 png 或 webp"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return "Zhenzhen_image_g25_official"
+
+    @classmethod
+    def _build_payload(
+        cls,
+        model: str,
+        prompt: str,
+        size: str,
+        custom_size: str,
+        resolution: str,
+        quality: str,
+        n: int,
+        output_format: str,
+        output_compression: int,
+        background: str,
+        moderation: str,
+        images: List[str],
+    ) -> Dict[str, Any]:
+        validation = cls.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt,
+            size=size,
+            custom_size=custom_size,
+            resolution=resolution,
+            quality=quality,
+            n=n,
+            output_format=output_format,
+            output_compression=output_compression,
+            background=background,
+            moderation=moderation,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > cls.MAX_IMAGES:
+            raise SeedanceAPIError(
+                f"Image G v2.5 Official supports at most {cls.MAX_IMAGES} reference images"
+            )
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "n": int(n),
+            "quality": quality,
+            "output_format": output_format,
+            "background": background,
+            "moderation": moderation,
+        }
+        if size == "custom":
+            payload["size"] = cls._normalize_custom_size(custom_size)
+        else:
+            payload["resolution"] = resolution
+            if size != "preserve_reference":
+                payload["size"] = size
+        if output_format in {"jpeg", "webp"}:
+            payload["output_compression"] = int(output_compression)
+        if images:
+            payload["images"] = list(images)
+        return payload
+
+    def _execute_inner(
+        self,
+        model: str,
+        prompt: str,
+        size: str,
+        custom_size: str,
+        resolution: str,
+        quality: str,
+        n: int,
+        output_format: str,
+        output_compression: int,
+        background: str,
+        moderation: str,
+        api_config=None,
+        **kwargs,
+    ):
+        prompt_text = str(prompt or "").strip()
+        validation = self.VALIDATE_INPUTS(
+            model=model,
+            prompt=prompt_text,
+            size=size,
+            custom_size=custom_size,
+            resolution=resolution,
+            quality=quality,
+            n=n,
+            output_format=output_format,
+            output_compression=output_compression,
+            background=background,
+            moderation=moderation,
+            strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        image_urls = self._upload_references(
+            self._connected_images(kwargs), config, pbar
+        )
+        payload = self._build_payload(
+            model,
+            prompt_text,
+            size,
+            custom_size,
+            resolution,
+            quality,
+            n,
+            output_format,
+            output_compression,
+            background,
+            moderation,
+            image_urls,
+        )
+        return self._submit_and_download(payload, config, pbar)
+
+
+# ---------------------------------------------------------------------------
 # Qwen Image 3.0 image generation and editing
 # ---------------------------------------------------------------------------
 
@@ -12862,6 +13414,8 @@ NODE_CLASS_MAPPINGS = {
     "Seedream_V5_Pro_Image": SeedreamV5ProImage,
     "Seedream_V5_Pro_Layer_Decomposition": SeedreamV5ProLayerDecomposition,
     "Zhenzhen_Image_G2": ZhenzhenImageG2,
+    "Zhenzhen_Image_G25_Lowprice": ZhenzhenImageG25Lowprice,
+    "Zhenzhen_Image_G25_Official": ZhenzhenImageG25Official,
     "Qwen_Image_3_0": QwenImage30,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
@@ -12992,6 +13546,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
     "Seedream_V5_Pro_Layer_Decomposition": "Seedream / Dola Seedream v5 Pro 图层拆分（2 合 1）",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
+    "Zhenzhen_Image_G25_Lowprice": "Zhenzhen Image G v2.5 LowPrice 生成/编辑",
+    "Zhenzhen_Image_G25_Official": "Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",

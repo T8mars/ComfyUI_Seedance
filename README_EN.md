@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.15.0 - 2026-09-09
+
+- Added an independent `Zhenzhen Image G v2.5 LowPrice` generation/editing node with text-to-image, up to 15 reference images, 1K/2K/4K, and the documented fixed aspect ratios.
+- Added a two-model `Zhenzhen Image G v2.5 Official` generation/editing node for Flare and Sunburst with up to 16 references, 1-4 result images, quality, format, background, and exact-pixel controls.
+- Both nodes include resilient image downloads, `skip_error`, standard ComfyUI cache seeds, optional 30-way image submission, and separate generation/editing workflows for every model.
+- All three models completed real node-path checks: LowPrice and Flare generated images, while Sunburst uploaded and edited one reference image. Every result downloaded as a valid ComfyUI IMAGE. The complete offline suite passed 425 tests, and all 201 workflows passed JSON and sensitive-data audits.
+
 ## API Access
 
 | Service | Audience | Open |
@@ -109,7 +116,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - Seedream v5 Pro and Dola Seedream 5.0 Pro
 - Seedream layer decomposition
 - Qwen Image 3.0 and Pro
-- Zhenzhen Image G, GK v1.5, GK v2, and Nano Banana
+- Zhenzhen Image G v2.5, G, GK v1.5, GK v2, and Nano Banana
 - Wan 2.7 global image generation/editing
 - Midjourney image generation and editing
 - Hunyuan 3D v3.1
@@ -163,6 +170,8 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Seedream_V5_Pro_Layer_Decomposition` | Seedream/Dola layer decomposition |
 | `Qwen_Image_3_0` | Qwen Image 3.0/Pro generation and editing |
 | `Zhenzhen_Image_G2` | Zhenzhen Image G generation and editing |
+| `Zhenzhen_Image_G25_Lowprice` | Zhenzhen Image G v2.5 LowPrice generation and up-to-15-image editing |
+| `Zhenzhen_Image_G25_Official` | Flare/Sunburst Image G v2.5 generation and up-to-16-image editing |
 | `Zhenzhen_Image_GK_V15` | Zhenzhen Image GK v1.5 generation and editing |
 | `Zhenzhen_Image_GK_V2` | Zhenzhen Image GK v2 text-to-image |
 | `Zhenzhen_Image_GK_V2_Edit` | Zhenzhen Image GK v2 one-to-three-image editing |
@@ -217,6 +226,14 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 `VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
+
+## Zhenzhen Image G v2.5
+
+`Zhenzhen_Image_G25_Lowprice` exposes only its documented contract: required prompt, `1k|2k|4k`, a fixed aspect-ratio selector, optional `nsfw_check`, `n=1`, and up to 15 connected reference images.
+
+`Zhenzhen_Image_G25_Official` combines Flare and Sunburst. It supports up to 16 connected references, `n=1..4`, `1k|2k|4k`, quality, PNG/JPEG/WebP, background and moderation controls, plus exact `WIDTHxHEIGHT` sizing. Exact sizes use multiples of 16, each edge at most 3840 pixels, a maximum 3:1 aspect ratio, and 655360-8294400 total pixels. Selecting `preserve_reference` omits `size`; PNG omits compression; transparent backgrounds require PNG or WebP.
+
+Both nodes submit and poll `/v1/image/generations`, return all downloaded results as a ComfyUI IMAGE batch, preserve the existing shared download recovery, and provide serial plus 30-way concurrent submit paths.
 
 ## MiniMax-H3 V2
 
@@ -359,7 +376,7 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
 - FLUX 3, Hailuo H3/H3 Max, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
-- Seedream, Qwen Image, Zhenzhen Image, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
+- Seedream, Qwen Image, Zhenzhen Image including six G v2.5 generation/editing examples, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.
 - Doubao, Qwen3 TTS, MiniMax Audio, Mureka, Whisper, Suno, and Flow Music workflows.
 - Serial and concurrent generation examples.

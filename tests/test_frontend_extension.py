@@ -69,6 +69,8 @@ class FrontendExtensionTests(unittest.TestCase):
             "Seedance_2_5_Video",
             "Seedream_V5_Pro_Image",
             "Zhenzhen_Image_G2",
+            "Zhenzhen_Image_G25_Lowprice",
+            "Zhenzhen_Image_G25_Official",
             "Qwen_Image_3_0",
             "Zhenzhen_Image_GK_V15",
             "Zhenzhen_Image_GK_V2",
@@ -251,6 +253,7 @@ class FrontendExtensionTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         required_fragments = (
             'const G2_NODE_NAME = "Zhenzhen_Image_G2"',
+            'const G25_OFFICIAL_NODE_NAME = "Zhenzhen_Image_G25_Official"',
             'const NB_NODE_NAME = "Zhenzhen_Image_NB"',
             'const V31_NODE_NAME = "Zhenzhen_Video_V31"',
             'const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice"',
@@ -263,6 +266,11 @@ class FrontendExtensionTests(unittest.TestCase):
             'String(widgetByName(node, "size")?.value) === "custom"',
             'setWidgetVisible(widgetByName(node, "n"), isLowprice)',
             "normalizeLowpriceSizeWidgets(node)",
+            "function refreshG25OfficialNode(node)",
+            'const usesExactPixels = size === "custom"',
+            'outputFormat === "jpeg" || outputFormat === "webp"',
+            '? ["auto", "opaque"]',
+            'wrapRefresh(this, refresh, "output_format")',
             "migrateLegacyG2WidgetValues(arguments[0])",
             'wrapRefresh(this, refresh, "size")',
             'values.splice(G2_CUSTOM_SIZE_WIDGET_INDEX, 0, "")',

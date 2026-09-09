@@ -33,6 +33,8 @@ VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 PURE_IMAGE_NODE_KEYS = (
     "Seedream_V5_Pro_Image",
     "Zhenzhen_Image_G2",
+    "Zhenzhen_Image_G25_Lowprice",
+    "Zhenzhen_Image_G25_Official",
     "Qwen_Image_3_0",
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_GK_V2",

@@ -7,6 +7,7 @@ import {
 } from "./dynamic_widget_ui.js";
 
 const G2_NODE_NAME = "Zhenzhen_Image_G2";
+const G25_OFFICIAL_NODE_NAME = "Zhenzhen_Image_G25_Official";
 const NB_NODE_NAME = "Zhenzhen_Image_NB";
 const V31_NODE_NAME = "Zhenzhen_Video_V31";
 const LOWPRICE_MODEL = "zhenzhen-image-g-v2-lowprice";
@@ -142,6 +143,26 @@ function refreshG2Node(node) {
     resizeSeedanceNode(node, 340);
 }
 
+function refreshG25OfficialNode(node) {
+    const size = String(widgetByName(node, "size")?.value ?? "auto");
+    const outputFormat = String(widgetByName(node, "output_format")?.value ?? "png");
+    const usesExactPixels = size === "custom";
+    setWidgetVisible(widgetByName(node, "custom_size"), usesExactPixels);
+    setWidgetVisible(widgetByName(node, "resolution"), !usesExactPixels);
+    setWidgetVisible(
+        widgetByName(node, "output_compression"),
+        outputFormat === "jpeg" || outputFormat === "webp",
+    );
+    updateCombo(
+        widgetByName(node, "background"),
+        outputFormat === "jpeg"
+            ? ["auto", "opaque"]
+            : ["auto", "transparent", "opaque"],
+        "auto",
+    );
+    resizeSeedanceNode(node, 360);
+}
+
 function refreshNBNode(node) {
     const model = String(widgetByName(node, "model")?.value ?? "");
     const options = NB_MODEL_OPTIONS[model] ?? NB_MODEL_OPTIONS["zhenzhen-image-nb-flash"];
@@ -185,11 +206,12 @@ app.registerExtension({
     name: "ComfyUI_Seedance.ZhenzhenModelUI",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const originalNodeName = originalSeedanceNodeName(nodeData.name);
-        if (![G2_NODE_NAME, NB_NODE_NAME, V31_NODE_NAME].includes(originalNodeName)) {
+        if (![G2_NODE_NAME, G25_OFFICIAL_NODE_NAME, NB_NODE_NAME, V31_NODE_NAME].includes(originalNodeName)) {
             return;
         }
         const refreshers = {
             [G2_NODE_NAME]: refreshG2Node,
+            [G25_OFFICIAL_NODE_NAME]: refreshG25OfficialNode,
             [NB_NODE_NAME]: refreshNBNode,
             [V31_NODE_NAME]: refreshV31Node,
         };
@@ -201,6 +223,10 @@ app.registerExtension({
             wrapRefresh(this, refresh);
             if (originalNodeName === G2_NODE_NAME) {
                 wrapRefresh(this, refresh, "size");
+            }
+            if (originalNodeName === G25_OFFICIAL_NODE_NAME) {
+                wrapRefresh(this, refresh, "size");
+                wrapRefresh(this, refresh, "output_format");
             }
             refresh(this);
             return result;
