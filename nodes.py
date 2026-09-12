@@ -753,12 +753,17 @@ MUREKA_BGM_MODELS = ["mureka-v8-bgm", "mureka-v9-bgm"]
 WHISPER_TRANSCRIPTION_MODEL = "whisper-1"
 WHISPER_RESPONSE_FORMATS = ["json", "verbose_json", "srt", "text", "vtt"]
 
-SUNO_VERSIONS = ["v3.5", "v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5"]
-SUNO_INSPO_VERSIONS = ["v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5"]
-SUNO_REPLACE_VERSIONS = ["v4", "v4.5+", "v5", "v5.5"]
-SUNO_REMASTER_VERSIONS = ["v4.5+", "v5", "v5.5"]
-SUNO_V5_VERSIONS = ["v5", "v5.5"]
-MAX_SUNO_REFERENCE_AUDIOS = 4
+SUNO_V6_VERSIONS = ["v6", "v6-wild", "v6-mini"]
+SUNO_VERSIONS = SUNO_V6_VERSIONS + [
+    "v3.5", "v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5",
+]
+SUNO_INSPO_VERSIONS = SUNO_V6_VERSIONS + [
+    "v4", "v4.5", "v4.5+", "v4.5-all", "v5", "v5.5",
+]
+SUNO_REPLACE_VERSIONS = SUNO_V6_VERSIONS + ["v4", "v4.5+", "v5", "v5.5"]
+SUNO_V5_VERSIONS = SUNO_V6_VERSIONS + ["v5", "v5.5"]
+MAX_SUNO_REFERENCE_AUDIOS = 24
+MAX_SUNO_INSPO_AUDIOS = 4
 SUNO_UPLOAD_MIN_SECONDS = 6.0
 
 SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
@@ -778,6 +783,76 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
         ),
         "allowed_versions": tuple(SUNO_VERSIONS),
         "default_version": None,
+        "result_family": "audio",
+    },
+    "suno-create-model": {
+        "action": "create-model",
+        "sync": False,
+        "reference_type": "model_audios",
+        "required_fields": ("name", "audio_urls"),
+        "allowed_fields": ("name", "audio_urls"),
+        "allowed_versions": (),
+        "default_version": None,
+        "result_family": "model",
+    },
+    "suno-upload-cover": {
+        "action": "upload-cover",
+        "sync": False,
+        "reference_type": "url",
+        "required_fields": ("audio_url",),
+        "allowed_fields": (
+            "audio_url",
+            "version",
+            "custom_model_id",
+            "custom",
+            "instrumental",
+            "gpt_description",
+            "prompt",
+            "tags",
+            "title",
+            "negative_tags",
+            "style_weight",
+            "weirdness",
+            "audio_weight",
+            "auto_lyrics",
+            "vocal_gender",
+            "persona_id",
+            "duration_s",
+            "variety",
+            "max_mode",
+            "audio_format",
+        ),
+        "allowed_versions": tuple(SUNO_V6_VERSIONS),
+        "default_version": "v6",
+        "result_family": "audio",
+    },
+    "suno-upload-extend": {
+        "action": "upload-extend",
+        "sync": False,
+        "reference_type": "url",
+        "required_fields": ("audio_url", "continue_at"),
+        "allowed_fields": (
+            "audio_url",
+            "continue_at",
+            "version",
+            "custom_model_id",
+            "prompt",
+            "tags",
+            "title",
+            "negative_tags",
+            "style_weight",
+            "weirdness",
+            "audio_weight",
+            "auto_lyrics",
+            "vocal_gender",
+            "persona_id",
+            "duration_s",
+            "variety",
+            "max_mode",
+            "audio_format",
+        ),
+        "allowed_versions": tuple(SUNO_V6_VERSIONS),
+        "default_version": "v6",
         "result_family": "audio",
     },
     "suno-lyrics": {
@@ -991,9 +1066,9 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
         "sync": False,
         "reference_type": "task_audio",
         "required_fields": ("task_id",),
-        "allowed_fields": ("task_id", "audio_index", "version"),
-        "allowed_versions": tuple(SUNO_REMASTER_VERSIONS),
-        "default_version": "v5.5",
+        "allowed_fields": ("task_id", "audio_index"),
+        "allowed_versions": (),
+        "default_version": None,
         "result_family": "audio",
     },
     "suno-midi": {
@@ -1089,7 +1164,7 @@ SUNO_ACTION_SPECS: Dict[str, Dict[str, Any]] = {
         "reference_type": "task_audio",
         "required_fields": ("task_id", "prompt"),
         "allowed_fields": ("task_id", "audio_index", "prompt", "version"),
-        "allowed_versions": ("v5.5",),
+        "allowed_versions": tuple(SUNO_V6_VERSIONS + ["v5.5"]),
         "default_version": "v5.5",
         "result_family": "audio",
     },
@@ -11008,6 +11083,7 @@ class SunoMusic:
         "STRING",
         "STRING",
         "STRING",
+        "STRING",
     )
     RETURN_NAMES = (
         "audio1",
@@ -11020,19 +11096,21 @@ class SunoMusic:
         "result_paths",
         "task_id",
         "response",
+        "model_id",
     )
 
     @classmethod
     def INPUT_TYPES(cls):
         optional: Dict[str, tuple] = {}
-        for i in range(1, MAX_SUNO_REFERENCE_AUDIOS + 1):
+        for i in range(1, MAX_SUNO_INSPO_AUDIOS + 1):
             optional[f"audio{i}"] = (
                 "AUDIO",
                 {
                     "tooltip": (
-                        f"Local audio reference {i}; used by upload, create-voice, "
-                        f"or inspo. Upload sources require at least 6 seconds. | "
-                        f"本地音频素材 {i}；导入源音频至少需要 6 秒。"
+                        f"Local audio reference {i}; used by upload, create-model, "
+                        f"upload-cover, upload-extend, create-voice, or inspo. | "
+                        f"本地音频素材 {i}；可用于导入、模型创建、翻唱、续写、"
+                        f"音色或参考生成。"
                     )
                 },
             )
@@ -11064,6 +11142,141 @@ class SunoMusic:
                 ),
             },
         )
+        # Keep the first four audio sockets, api_config, and skip_error in their
+        # legacy positions. New model-training sockets are appended afterwards.
+        for i in range(MAX_SUNO_INSPO_AUDIOS + 1, MAX_SUNO_REFERENCE_AUDIOS + 1):
+            optional[f"audio{i}"] = (
+                "AUDIO",
+                {
+                    "tooltip": (
+                        f"Additional create-model audio reference {i}. | "
+                        f"创建自定义模型的附加音频素材 {i}。"
+                    )
+                },
+            )
+            optional[f"audio_url{i}"] = (
+                "STRING",
+                {
+                    "default": "",
+                    "tooltip": (
+                        f"Additional public create-model audio URL {i}; do not fill "
+                        f"together with audio{i}. | 创建模型公网音频 URL {i}，不能与"
+                        f"同槽本地音频同时使用。"
+                    ),
+                },
+            )
+        optional.update(
+            {
+                "custom_model_id": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": (
+                            "Custom model UUID returned by create-model; version and "
+                            "persona_id are omitted when used. | 创建模型返回的 UUID；"
+                            "使用时不发送 version 和 persona_id。"
+                        ),
+                    },
+                ),
+                "gpt_description": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": (
+                            "Required inspiration description for upload-cover when "
+                            "custom is false, up to 3000 characters. | upload-cover "
+                            "非自定义模式的灵感描述，最多 3000 字符。"
+                        ),
+                    },
+                ),
+                "negative_tags": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Styles to avoid. | 不希望出现的风格。",
+                    },
+                ),
+                "style_weight": (
+                    "FLOAT",
+                    {
+                        "default": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.05,
+                        "tooltip": "Style weight from 0 to 1. | 风格权重，范围 0-1。",
+                    },
+                ),
+                "weirdness": (
+                    "FLOAT",
+                    {
+                        "default": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.05,
+                        "tooltip": "Creativity weight from 0 to 1. | 创意度，范围 0-1。",
+                    },
+                ),
+                "audio_weight": (
+                    "FLOAT",
+                    {
+                        "default": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.05,
+                        "tooltip": "Audio weight from 0 to 1. | 音频权重，范围 0-1。",
+                    },
+                ),
+                "auto_lyrics": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Rewrite the supplied lyrics. | 对输入歌词进行二次创作。",
+                    },
+                ),
+                "persona_id": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": (
+                            "Optional Persona ID; mutually exclusive with custom_model_id. | "
+                            "可选 Persona ID，不能与 custom_model_id 同时使用。"
+                        ),
+                    },
+                ),
+                "target_duration_s": (
+                    "INT",
+                    {
+                        "default": 10,
+                        "min": 10,
+                        "max": 360,
+                        "step": 1,
+                        "tooltip": "Target duration from 10 to 360 seconds. | 目标时长 10-360 秒。",
+                    },
+                ),
+                "variety": (
+                    ["normal", "off", "high", "extra", "max"],
+                    {
+                        "default": "normal",
+                        "tooltip": "V6 style variation level. | V6 风格变化程度。",
+                    },
+                ),
+                "max_mode": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Enable Max mode where supported. | 在支持的操作中启用 Max 模式。",
+                    },
+                ),
+                "audio_format": (
+                    ["mp3", "m4a", "wav"],
+                    {
+                        "default": "mp3",
+                        "tooltip": "Generated audio format. | 生成音频格式。",
+                    },
+                ),
+            }
+        )
 
         return {
             "required": {
@@ -11088,7 +11301,7 @@ class SunoMusic:
                 "version": (
                     SUNO_VERSIONS,
                     {
-                        "default": "v5.5",
+                        "default": "v6",
                         "tooltip": (
                             "Sent only when the selected action supports this version. | "
                             "仅在当前操作支持时发送。"
@@ -11221,6 +11434,7 @@ class SunoMusic:
         cls,
         operation=None,
         version=None,
+        custom_model_id=None,
         audio_index=None,
         strict=False,
         **kwargs,
@@ -11230,7 +11444,11 @@ class SunoMusic:
 
         spec = SUNO_ACTION_SPECS[operation]
         allowed_versions = spec["allowed_versions"]
-        if allowed_versions and version not in allowed_versions:
+        has_custom_model = bool(
+            str(custom_model_id or "").strip()
+            and "custom_model_id" in spec["allowed_fields"]
+        )
+        if allowed_versions and not has_custom_model and version not in allowed_versions:
             return (
                 f"{operation} does not support version '{version}'; "
                 f"allowed: {', '.join(allowed_versions)}"
@@ -11275,7 +11493,15 @@ class SunoMusic:
         config: Dict[str, Any],
         progress_cb,
     ) -> List[str]:
-        if operation not in {"suno-upload", "suno-create-voice", "suno-inspo"}:
+        audio_operations = {
+            "suno-upload",
+            "suno-create-model",
+            "suno-upload-cover",
+            "suno-upload-extend",
+            "suno-create-voice",
+            "suno-inspo",
+        }
+        if operation not in audio_operations:
             return []
 
         slots: List[Tuple[int, Any, str]] = []
@@ -11295,7 +11521,13 @@ class SunoMusic:
             if audio is not None or url:
                 slots.append((i, audio, url))
 
-        if operation in {"suno-upload", "suno-create-voice"}:
+        single_audio_operations = {
+            "suno-upload",
+            "suno-upload-cover",
+            "suno-upload-extend",
+            "suno-create-voice",
+        }
+        if operation in single_audio_operations:
             if any(i != 1 for i, _audio, _url in slots):
                 raise SeedanceAPIError(
                     f"{operation} only accepts audio slot 1 | "
@@ -11306,10 +11538,18 @@ class SunoMusic:
                     f"{operation} requires exactly one local audio or URL | "
                     f"{operation} 必须提供一个本地音频或 URL"
                 )
-        elif not 1 <= len(slots) <= MAX_SUNO_REFERENCE_AUDIOS:
+        elif operation == "suno-inspo" and (
+            not 1 <= len(slots) <= MAX_SUNO_INSPO_AUDIOS
+            or any(i > MAX_SUNO_INSPO_AUDIOS for i, _audio, _url in slots)
+        ):
             raise SeedanceAPIError(
                 "suno-inspo requires 1-4 local audios or URLs | "
                 "suno-inspo 必须提供 1-4 个本地音频或 URL"
+            )
+        elif operation == "suno-create-model" and not 6 <= len(slots) <= 24:
+            raise SeedanceAPIError(
+                "suno-create-model requires 6-24 local audios or URLs | "
+                "suno-create-model 必须提供 6-24 个本地音频或 URL"
             )
 
         resolved: List[str] = []
@@ -11326,6 +11566,15 @@ class SunoMusic:
                     raise SeedanceAPIError(
                         "suno-upload local audio must be at least 6 seconds | "
                         "suno-upload 本地音频至少需要 6 秒"
+                    )
+                if (
+                    operation == "suno-upload-extend"
+                    and duration is not None
+                    and float(kwargs.get("continue_at") or 0) >= duration
+                ):
+                    raise SeedanceAPIError(
+                        "continue_at must be shorter than the local source audio | "
+                        "continue_at 必须小于本地源音频实际时长"
                     )
                 url = upload_media(
                     audio_to_wav_bytes(audio),
@@ -11353,9 +11602,22 @@ class SunoMusic:
         allowed_fields = set(spec["allowed_fields"])
         payload: Dict[str, Any] = {"model": "suno"}
 
+        custom_model_id = self._text(kwargs.get("custom_model_id"))
+        persona_id = self._text(kwargs.get("persona_id"))
+        uses_custom_model = bool(
+            custom_model_id and "custom_model_id" in allowed_fields
+        )
+        if uses_custom_model and persona_id:
+            raise SeedanceAPIError(
+                "custom_model_id and persona_id are mutually exclusive | "
+                "custom_model_id 与 persona_id 不能同时使用"
+            )
+        if uses_custom_model:
+            payload["custom_model_id"] = custom_model_id
+
         version = self._text(kwargs.get("version"))
         allowed_versions = spec["allowed_versions"]
-        if allowed_versions:
+        if allowed_versions and not uses_custom_model:
             if version not in allowed_versions:
                 raise SeedanceAPIError(
                     f"{operation} does not support version '{version}'; "
@@ -11403,10 +11665,78 @@ class SunoMusic:
 
         if operation == "suno-upload" and audio_urls:
             payload["audioFilePath"] = audio_urls[0]
+        elif operation == "suno-create-model" and audio_urls:
+            payload["audio_urls"] = audio_urls
+        elif operation in {"suno-upload-cover", "suno-upload-extend"} and audio_urls:
+            payload["audio_url"] = audio_urls[0]
         elif operation == "suno-create-voice" and audio_urls:
             payload["audio_url"] = audio_urls[0]
         elif operation == "suno-inspo" and audio_urls:
             payload["audio_urls"] = audio_urls
+
+        if operation in {"suno-upload-cover", "suno-upload-extend"}:
+            title = self._text(kwargs.get("title"))
+            if title:
+                payload["title"] = title
+            vocal_gender = self._text(kwargs.get("vocal_gender"))
+            if vocal_gender in {"Male", "Female"}:
+                payload["vocal_gender"] = vocal_gender
+            for field in (
+                "negative_tags",
+                "persona_id",
+                "variety",
+                "audio_format",
+            ):
+                value = self._text(kwargs.get(field))
+                if value and field in allowed_fields:
+                    payload[field] = value
+
+            for field in ("style_weight", "weirdness", "audio_weight"):
+                raw_value = kwargs.get(field)
+                if raw_value is not None and raw_value != "":
+                    payload[field] = float(raw_value)
+
+            if "auto_lyrics" in allowed_fields:
+                payload["auto_lyrics"] = bool(kwargs.get("auto_lyrics", False))
+            if bool(kwargs.get("max_mode", False)):
+                payload["max_mode"] = True
+
+        if operation == "suno-upload-cover":
+            custom = bool(kwargs.get("custom", False))
+            instrumental = bool(kwargs.get("instrumental", False))
+            payload["custom"] = custom
+            payload["instrumental"] = instrumental
+            if custom:
+                payload.pop("gpt_description", None)
+                if not instrumental and not self._text(kwargs.get("prompt")):
+                    raise SeedanceAPIError(
+                        "suno-upload-cover requires prompt when custom=true and "
+                        "instrumental=false"
+                    )
+                payload["duration_s"] = int(kwargs.get("target_duration_s") or 10)
+            else:
+                description = self._text(kwargs.get("gpt_description"))
+                if not description:
+                    raise SeedanceAPIError(
+                        "suno-upload-cover requires gpt_description when custom=false"
+                    )
+                payload["gpt_description"] = description
+                for field in (
+                    "prompt",
+                    "tags",
+                    "title",
+                    "negative_tags",
+                    "style_weight",
+                    "weirdness",
+                    "audio_weight",
+                    "auto_lyrics",
+                    "persona_id",
+                    "max_mode",
+                ):
+                    payload.pop(field, None)
+
+        if operation == "suno-upload-extend":
+            payload["duration_s"] = int(kwargs.get("target_duration_s") or 10)
 
         numeric_fields = {
             "continue_at": float,
@@ -11417,9 +11747,42 @@ class SunoMusic:
         }
         for field, converter in numeric_fields.items():
             if field in allowed_fields:
+                if field == "duration_s" and operation in {
+                    "suno-upload-cover",
+                    "suno-upload-extend",
+                }:
+                    continue
                 raw_value = kwargs.get(field)
                 if raw_value is not None and raw_value != "":
                     payload[field] = converter(raw_value)
+
+        text_limits = {
+            "gpt_description": 3000,
+            "prompt": 5000,
+            "tags": 1000,
+            "title": 80,
+        }
+        for field, limit in text_limits.items():
+            value = payload.get(field)
+            if isinstance(value, str) and len(value) > limit:
+                raise SeedanceAPIError(f"{field} must not exceed {limit} characters")
+
+        for field in ("style_weight", "weirdness", "audio_weight"):
+            if field in payload and not 0.0 <= float(payload[field]) <= 1.0:
+                raise SeedanceAPIError(f"{field} must be between 0 and 1")
+        if "duration_s" in payload and operation in {
+            "suno-upload-cover",
+            "suno-upload-extend",
+        }:
+            if not 10 <= int(payload["duration_s"]) <= 360:
+                raise SeedanceAPIError("duration_s must be between 10 and 360")
+        if operation == "suno-upload-extend" and payload.get("continue_at", 0) < 1:
+            raise SeedanceAPIError("continue_at must be at least 1 second")
+        if payload.get("max_mode") and operation == "suno-upload-cover":
+            if not payload.get("custom"):
+                raise SeedanceAPIError(
+                    "max_mode requires custom=true for suno-upload-cover"
+                )
 
         missing = [
             field
@@ -11437,8 +11800,18 @@ class SunoMusic:
 
         if "task_ids" in payload and len(payload["task_ids"]) != 2:
             raise SeedanceAPIError("suno-mashup requires exactly two task IDs")
-        if "audio_urls" in payload and not 1 <= len(payload["audio_urls"]) <= 4:
+        if (
+            operation == "suno-inspo"
+            and "audio_urls" in payload
+            and not 1 <= len(payload["audio_urls"]) <= 4
+        ):
             raise SeedanceAPIError("suno-inspo requires 1-4 audio URLs")
+        if (
+            operation == "suno-create-model"
+            and "audio_urls" in payload
+            and not 6 <= len(payload["audio_urls"]) <= 24
+        ):
+            raise SeedanceAPIError("suno-create-model requires 6-24 audio URLs")
         if "audio_index" in payload and payload["audio_index"] < 1:
             raise SeedanceAPIError("audio_index must be at least 1")
         if "start_s" in payload and "end_s" in payload:
@@ -11468,6 +11841,7 @@ class SunoMusic:
                 "[]",
                 "",
                 response_str,
+                "",
             ),
         }
 
@@ -11537,6 +11911,7 @@ class SunoMusic:
         validation = self.VALIDATE_INPUTS(
             operation=operation,
             version=kwargs.get("version"),
+            custom_model_id=kwargs.get("custom_model_id"),
             audio_index=kwargs.get("audio_index"),
             strict=True,
         )
@@ -11583,6 +11958,8 @@ class SunoMusic:
 
         extracted = extract_music_results(final_response)
         result_task_id = submitted_task_id or extracted["task_id"]
+        model_ids = extracted.get("model_ids") or []
+        model_id = model_ids[0] if model_ids else ""
         audio_objects: List[Any] = []
         video = None
         result_paths: List[str] = []
@@ -11681,6 +12058,7 @@ class SunoMusic:
                     primary_path,
                     result_task_id,
                     response_str,
+                    model_id,
                 ]
             },
             "result": (
@@ -11694,6 +12072,7 @@ class SunoMusic:
                 paths_str,
                 result_task_id,
                 response_str,
+                model_id,
             ),
         }
 
@@ -13586,7 +13965,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Minimax_Audio": "MiniMax 音乐/语音/声音克隆（4 合 1）",
     "Mureka_BGM": "Mureka BGM 背景音乐（2 合 1）",
     "Whisper_Transcription": "Whisper 1 语音转写",
-    "Suno_Music": "Suno 音乐生成与处理（31 合 1）",
+    "Suno_Music": "Suno 音乐生成与处理（34 合 1）",
     "Flow_Music": "Flow Music 音乐生成与处理（9 合 1）",
     "Midjourney_Multi_Action": "Midjourney 图像与视频（16 合 1）",
 }

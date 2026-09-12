@@ -2715,6 +2715,7 @@ def extract_music_results(final_response: Dict[str, Any]) -> Dict[str, Any]:
         "result": result_data,
         "music": music,
         "clip_ids": _collect_music_string_values(result_data, "clip_id"),
+        "model_ids": _collect_music_string_values(result_data, "model_id"),
         "audio_urls": buckets["audio"],
         "video_urls": buckets["video"],
         "image_urls": buckets["image"],

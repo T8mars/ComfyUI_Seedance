@@ -1,10 +1,11 @@
-"""Generate the 31 documented Suno example workflows.
+"""Generate the 34 documented Suno example workflows.
 
 The files deliberately contain no API key, source task id, result URL, or
 runtime response. Task-based actions are wired to preceding Suno node outputs.
 """
 
 import json
+import sys
 import uuid
 from pathlib import Path
 
@@ -14,6 +15,9 @@ EXAMPLES_DIR = PLUGIN_ROOT / "examples"
 
 OPERATIONS = [
     ("suno-generation", "音乐生成"),
+    ("suno-create-model", "创建自定义模型"),
+    ("suno-upload-cover", "上传音频翻唱"),
+    ("suno-upload-extend", "上传音频续写"),
     ("suno-lyrics", "歌词生成"),
     ("suno-upload", "本地音频导入"),
     ("suno-extend", "续写"),
@@ -47,6 +51,7 @@ OPERATIONS = [
 ]
 
 TEXT_ONLY = {
+    "suno-create-model",
     "suno-lyrics",
     "suno-upload",
     "suno-upsample-tags",
@@ -57,7 +62,14 @@ TEXT_ONLY = {
 }
 FILE_ONLY = {"suno-midi"}
 VIDEO_ONLY = {"suno-generate-mp4"}
-LOCAL_AUDIO_ACTIONS = {"suno-upload", "suno-inspo", "suno-create-voice"}
+LOCAL_AUDIO_ACTIONS = {
+    "suno-upload",
+    "suno-create-model",
+    "suno-upload-cover",
+    "suno-upload-extend",
+    "suno-inspo",
+    "suno-create-voice",
+}
 UPLOAD_SOURCE_ACTIONS = {
     "suno-add-vocals",
     "suno-add-instrumental",
@@ -65,6 +77,9 @@ UPLOAD_SOURCE_ACTIONS = {
 }
 DIRECT_ACTIONS = {
     "suno-generation",
+    "suno-create-model",
+    "suno-upload-cover",
+    "suno-upload-extend",
     "suno-lyrics",
     "suno-upload",
     "suno-inspo",
@@ -84,6 +99,7 @@ SUNO_OUTPUTS = [
     ("result_paths", "STRING"),
     ("task_id", "STRING"),
     ("response", "STRING"),
+    ("model_id", "STRING"),
 ]
 
 
@@ -133,21 +149,25 @@ def suno_widgets(operation):
         prompt = "a hopeful journey through a rainy city at night"
     elif operation == "suno-sounds":
         prompt = "a short wooden door creak in a quiet room"
-    return [
+    name = "V6 Custom Model" if operation == "suno-create-model" else "Studio Voice"
+    custom = operation == "suno-upload-cover"
+    instrumental = operation in {"suno-generation", "suno-upload-cover"}
+    continue_at = 2.0 if operation == "suno-upload-extend" else 30.0
+    legacy_widgets = [
         operation,
         prompt,
-        "v5.5",
-        False,
-        operation == "suno-generation",
+        "v6",
+        custom,
+        instrumental,
         "",
         "",
         "unspecified",
         "cinematic, emotional, piano",
-        "Studio Persona",
+        name,
         "",
         "",
         1,
-        30.0,
+        continue_at,
         0.0,
         4.0,
         2.0,
@@ -158,6 +178,24 @@ def suno_widgets(operation):
         "",
         False,
     ]
+    appended_audio_urls = ["" for _ in range(5, 25)]
+    v6_widgets = [
+        "",
+        "turn this reference into a calm cinematic instrumental",
+        "harsh vocals",
+        0.5,
+        0.5,
+        0.5,
+        False,
+        "",
+        10,
+        "normal",
+        False,
+        "mp3",
+        0,
+        "fixed",
+    ]
+    return legacy_widgets + appended_audio_urls + v6_widgets
 
 
 def suno_node(node_id, operation, x, y, title=None):
@@ -172,6 +210,10 @@ def suno_node(node_id, operation, x, y, title=None):
             "type": "SEEDANCE_CONFIG",
             "link": None,
         }
+    )
+    inputs.extend(
+        {"name": f"audio{i}", "shape": 7, "type": "AUDIO", "link": None}
+        for i in range(5, 25)
     )
     return {
         "id": node_id,
@@ -339,15 +381,37 @@ def build_workflow(operation):
     builder = WorkflowBuilder(operation)
 
     if operation in DIRECT_ACTIONS:
-        load_audio = None
+        load_audios = []
+        audio_count = 6 if operation == "suno-create-model" else 1
         if operation in LOCAL_AUDIO_ACTIONS:
-            load_audio = builder.add(load_audio_node(builder.node_id(), 40, 120))
+            for index in range(audio_count):
+                load_audios.append(
+                    builder.add(
+                        load_audio_node(
+                            builder.node_id(),
+                            40 + (index % 2) * 300,
+                            80 + (index // 2) * 180,
+                        )
+                    )
+                )
         target = builder.add(
-            suno_node(builder.node_id(), operation, 400, 100, f"Suno {operation}")
+            suno_node(
+                builder.node_id(),
+                operation,
+                700 if operation == "suno-create-model" else 400,
+                100,
+                f"Suno {operation}",
+            )
         )
         add_config(builder, target)
-        if load_audio:
-            builder.connect(load_audio, "AUDIO", target, "audio1", "AUDIO")
+        for index, load_audio in enumerate(load_audios, 1):
+            builder.connect(
+                load_audio,
+                "AUDIO",
+                target,
+                f"audio{index}",
+                "AUDIO",
+            )
         add_result_sink(builder, operation, target, 940)
         return builder.finish()
 
@@ -409,9 +473,12 @@ def build_workflow(operation):
     return builder.finish()
 
 
-def main():
+def main(selected_operations=None):
     EXAMPLES_DIR.mkdir(parents=True, exist_ok=True)
+    selected = set(selected_operations or [])
     for operation, label in OPERATIONS:
+        if selected and operation not in selected:
+            continue
         path = EXAMPLES_DIR / f"{operation}{label}.json"
         workflow = build_workflow(operation)
         path.write_text(
@@ -421,4 +488,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

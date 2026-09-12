@@ -14,6 +14,9 @@ from ComfyUI_Seedance.core import client
 
 EXPECTED_OPERATIONS = [
     "suno-generation",
+    "suno-create-model",
+    "suno-upload-cover",
+    "suno-upload-extend",
     "suno-lyrics",
     "suno-upload",
     "suno-extend",
@@ -48,6 +51,9 @@ EXPECTED_OPERATIONS = [
 
 EXPECTED_REQUIRED = {
     "suno-generation": ("version", "prompt"),
+    "suno-create-model": ("name", "audio_urls"),
+    "suno-upload-cover": ("audio_url",),
+    "suno-upload-extend": ("audio_url", "continue_at"),
     "suno-lyrics": ("prompt",),
     "suno-upload": ("audioFilePath",),
     "suno-extend": ("task_id", "continue_at"),
@@ -84,7 +90,7 @@ EXPECTED_REQUIRED = {
 def base_kwargs():
     return {
         "prompt": "soft piano with rain",
-        "version": "v5.5",
+        "version": "v6",
         "custom": False,
         "instrumental": True,
         "title": "",
@@ -100,13 +106,25 @@ def base_kwargs():
         "end_s": 4.0,
         "duration_s": 2.0,
         "speed": 1.1,
+        "custom_model_id": "",
+        "gpt_description": "turn the source into a calm cinematic arrangement",
+        "negative_tags": "harsh vocals",
+        "style_weight": 0.6,
+        "weirdness": 0.2,
+        "audio_weight": 0.7,
+        "auto_lyrics": False,
+        "persona_id": "",
+        "target_duration_s": 10,
+        "variety": "normal",
+        "max_mode": False,
+        "audio_format": "mp3",
     }
 
 
 class SunoActionSpecTests(unittest.TestCase):
     def test_operation_catalog_matches_documented_registry(self):
         self.assertEqual(nodes.SUNO_OPERATIONS, EXPECTED_OPERATIONS)
-        self.assertEqual(len(nodes.SUNO_ACTION_SPECS), 31)
+        self.assertEqual(len(nodes.SUNO_ACTION_SPECS), 34)
 
     def test_paths_are_explicit_and_kebab_case(self):
         for operation in EXPECTED_OPERATIONS:
@@ -138,9 +156,31 @@ class SunoActionSpecTests(unittest.TestCase):
                     set(spec["required_fields"]).issubset(spec["allowed_fields"])
                 )
 
+    def test_new_inputs_are_appended_after_legacy_sockets_and_widgets(self):
+        inputs = nodes.SunoMusic.INPUT_TYPES()
+        optional_names = list(inputs["optional"])
+        self.assertEqual(
+            optional_names[:10],
+            [
+                "audio1",
+                "audio_url1",
+                "audio2",
+                "audio_url2",
+                "audio3",
+                "audio_url3",
+                "audio4",
+                "audio_url4",
+                "api_config",
+                "skip_error",
+            ],
+        )
+        self.assertEqual(optional_names[-1], "seed")
+        self.assertIn("audio24", optional_names)
+        self.assertIn("custom_model_id", optional_names)
+
     def test_every_operation_has_a_matching_example_workflow(self):
         workflow_paths = sorted((PLUGIN_ROOT / "examples").glob("suno-*.json"))
-        self.assertEqual(len(workflow_paths), 31)
+        self.assertEqual(len(workflow_paths), 34)
         covered = set()
         for workflow_path in workflow_paths:
             expected = next(
@@ -208,7 +248,7 @@ class SunoPayloadTests(unittest.TestCase):
             payload,
             {
                 "model": "suno",
-                "version": "v5.5",
+                "version": "v6",
                 "prompt": "soft piano with rain",
                 "custom": True,
                 "instrumental": False,
@@ -217,6 +257,119 @@ class SunoPayloadTests(unittest.TestCase):
                 "vocal_gender": "Female",
             },
         )
+
+    def test_create_model_payload_uses_exactly_the_documented_fields(self):
+        urls = [f"https://cdn.example/reference-{index}.wav" for index in range(6)]
+        payload = self.node._build_payload(
+            "suno-create-model",
+            urls,
+            **base_kwargs(),
+        )
+        self.assertEqual(
+            payload,
+            {
+                "model": "suno",
+                "name": "Studio Voice",
+                "audio_urls": urls,
+            },
+        )
+
+    def test_upload_cover_custom_payload_matches_v6_contract(self):
+        values = base_kwargs()
+        values.update(
+            {
+                "custom": True,
+                "instrumental": False,
+                "title": "Rain Room",
+                "vocal_gender": "Female",
+                "tags": "piano, ambient",
+                "auto_lyrics": True,
+                "max_mode": True,
+            }
+        )
+        payload = self.node._build_payload(
+            "suno-upload-cover",
+            ["https://cdn.example/reference.wav"],
+            **values,
+        )
+        self.assertEqual(
+            payload,
+            {
+                "model": "suno",
+                "audio_url": "https://cdn.example/reference.wav",
+                "version": "v6",
+                "custom": True,
+                "instrumental": False,
+                "prompt": "soft piano with rain",
+                "tags": "piano, ambient",
+                "title": "Rain Room",
+                "negative_tags": "harsh vocals",
+                "style_weight": 0.6,
+                "weirdness": 0.2,
+                "audio_weight": 0.7,
+                "auto_lyrics": True,
+                "vocal_gender": "Female",
+                "duration_s": 10,
+                "variety": "normal",
+                "max_mode": True,
+                "audio_format": "mp3",
+            },
+        )
+
+    def test_upload_cover_inspiration_mode_sends_no_custom_only_fields(self):
+        payload = self.node._build_payload(
+            "suno-upload-cover",
+            ["https://cdn.example/reference.wav"],
+            **base_kwargs(),
+        )
+        self.assertEqual(
+            payload,
+            {
+                "model": "suno",
+                "audio_url": "https://cdn.example/reference.wav",
+                "version": "v6",
+                "custom": False,
+                "instrumental": True,
+                "gpt_description": (
+                    "turn the source into a calm cinematic arrangement"
+                ),
+                "variety": "normal",
+                "audio_format": "mp3",
+            },
+        )
+
+    def test_upload_extend_omits_forbidden_cover_mode_fields(self):
+        values = base_kwargs()
+        values.update({"custom": True, "instrumental": True})
+        payload = self.node._build_payload(
+            "suno-upload-extend",
+            ["https://cdn.example/reference.wav"],
+            **values,
+        )
+        self.assertEqual(payload["continue_at"], 30.0)
+        self.assertEqual(payload["duration_s"], 10)
+        self.assertNotIn("custom", payload)
+        self.assertNotIn("instrumental", payload)
+        self.assertNotIn("gpt_description", payload)
+
+    def test_custom_model_omits_version_and_rejects_persona(self):
+        values = base_kwargs()
+        values["custom_model_id"] = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        payload = self.node._build_payload(
+            "suno-upload-extend",
+            ["https://cdn.example/reference.wav"],
+            **values,
+        )
+        self.assertNotIn("version", payload)
+        self.assertEqual(payload["custom_model_id"], values["custom_model_id"])
+
+        values["persona_id"] = "persona-test"
+        with self.assertRaisesRegex(client.SeedanceAPIError, "mutually exclusive"):
+            self.node._build_payload(
+                "suno-upload-extend",
+                ["https://cdn.example/reference.wav"],
+                **values,
+            )
 
     def test_irrelevant_hidden_values_do_not_enter_payload(self):
         payload = self.node._build_payload("suno-lyrics", [], **base_kwargs())
@@ -244,6 +397,11 @@ class SunoPayloadTests(unittest.TestCase):
     def test_all_operations_build_only_registered_fields(self):
         url_actions = {
             "suno-upload": ["https://cdn.example/source.wav"],
+            "suno-create-model": [
+                f"https://cdn.example/source-{index}.wav" for index in range(6)
+            ],
+            "suno-upload-cover": ["https://cdn.example/source.wav"],
+            "suno-upload-extend": ["https://cdn.example/source.wav"],
             "suno-create-voice": ["https://cdn.example/source.wav"],
             "suno-inspo": ["https://cdn.example/source.wav"],
         }
@@ -340,6 +498,27 @@ class SunoPayloadTests(unittest.TestCase):
         payload = self.node._build_payload("suno-inspo", urls, **base_kwargs())
         self.assertEqual(payload["audio_urls"], urls)
 
+    def test_create_model_accepts_six_to_twenty_four_audio_slots(self):
+        kwargs = {
+            f"audio_url{index}": f"https://cdn.example/{index}.wav"
+            for index in range(1, 7)
+        }
+        urls = self.node._collect_audio_inputs(
+            "suno-create-model",
+            kwargs,
+            {"api_key": "not-a-real-key"},
+            lambda _fraction: None,
+        )
+        self.assertEqual(len(urls), 6)
+
+        with self.assertRaisesRegex(client.SeedanceAPIError, "6-24"):
+            self.node._collect_audio_inputs(
+                "suno-create-model",
+                {"audio_url1": "https://cdn.example/1.wav"},
+                {"api_key": "not-a-real-key"},
+                lambda _fraction: None,
+            )
+
     def test_local_audio_is_uploaded_and_url_slot_is_preserved(self):
         audio = {"waveform": MagicMock(), "sample_rate": 16000}
         kwargs = {
@@ -419,10 +598,10 @@ class SunoExecutionTests(unittest.TestCase):
             )
         poll.assert_not_called()
         self.assertEqual(result["result"][3], "cinematic")
-        self.assertEqual(len(result["result"]), 10)
+        self.assertEqual(len(result["result"]), 11)
 
 
-    def test_skip_error_returns_ten_placeholder_outputs(self):
+    def test_skip_error_returns_eleven_placeholder_outputs(self):
         with patch.object(
             self.node, "_execute_inner", side_effect=client.SeedanceAPIError("boom")
         ):
@@ -432,7 +611,7 @@ class SunoExecutionTests(unittest.TestCase):
                 skip_error=True,
                 **base_kwargs(),
             )
-        self.assertEqual(len(result["result"]), 10)
+        self.assertEqual(len(result["result"]), 11)
         self.assertIn("boom", json.loads(result["result"][9])["error"])
     def test_asynchronous_action_polls_and_downloads_two_tracks(self):
         final = {
@@ -715,6 +894,23 @@ class SunoClientTests(unittest.TestCase):
                 {"url": "https://cdn.example/result.mp4", "kind": "video"},
                 {"url": "https://cdn.example/result.mid", "kind": "file"},
             ],
+        )
+
+    def test_extract_music_results_exposes_custom_model_id(self):
+        response = {
+            "data": {
+                "id": "source-result",
+                "status": "completed",
+                "result": {
+                    "model_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "name": "Studio Model",
+                },
+            }
+        }
+        extracted = client.extract_music_results(response)
+        self.assertEqual(
+            extracted["model_ids"],
+            ["a1b2c3d4-e5f6-7890-abcd-ef1234567890"],
         )
 
 

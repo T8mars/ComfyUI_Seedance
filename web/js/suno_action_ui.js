@@ -17,9 +17,45 @@ const AUDIO_FIELDS = [
     "audio4",
     "audio_url4",
 ];
+const MODEL_AUDIO_FIELDS = Array.from({ length: 24 }, (_, index) => {
+    const slot = index + 1;
+    return [`audio${slot}`, `audio_url${slot}`];
+}).flat();
+const V6_VERSIONS = ["v6", "v6-wild", "v6-mini"];
+const ALL_VERSIONS = [
+    ...V6_VERSIONS,
+    "v3.5",
+    "v4",
+    "v4.5",
+    "v4.5+",
+    "v4.5-all",
+    "v5",
+    "v5.5",
+];
+const V6_ONLY_OPERATIONS = new Set(["suno-upload-cover", "suno-upload-extend"]);
+const V6_ADVANCED_FIELDS = [
+    "custom_model_id",
+    "prompt",
+    "tags",
+    "title",
+    "negative_tags",
+    "style_weight",
+    "weirdness",
+    "audio_weight",
+    "auto_lyrics",
+    "vocal_gender",
+    "persona_id",
+    "target_duration_s",
+    "variety",
+    "max_mode",
+    "audio_format",
+];
 
 const ACTION_FIELDS = {
     "suno-generation": ["prompt", "version", "custom", "instrumental", "title", "style", "vocal_gender"],
+    "suno-create-model": ["name", ...MODEL_AUDIO_FIELDS],
+    "suno-upload-cover": ["version", "custom", "instrumental", "gpt_description", ...V6_ADVANCED_FIELDS, "audio1", "audio_url1"],
+    "suno-upload-extend": ["version", "continue_at", ...V6_ADVANCED_FIELDS, "audio1", "audio_url1"],
     "suno-lyrics": ["prompt"],
     "suno-upload": ["audio1", "audio_url1"],
     "suno-extend": ["version", "task_id", "audio_index", "continue_at"],
@@ -40,7 +76,7 @@ const ACTION_FIELDS = {
     "suno-remove-section": ["task_id", "audio_index", "start_s", "end_s"],
     "suno-replace-music": ["version", "task_id", "audio_index", "start_s", "end_s"],
     "suno-adjust-speed": ["task_id", "audio_index", "speed"],
-    "suno-remaster": ["version", "task_id", "audio_index"],
+    "suno-remaster": ["task_id", "audio_index"],
     "suno-midi": ["task_id", "audio_index"],
     "suno-bpm": ["task_id", "audio_index"],
     "suno-aligned-lyrics": ["task_id", "audio_index"],
@@ -56,10 +92,61 @@ const MANAGED_FIELDS = new Set(
     Object.values(ACTION_FIELDS).flat().concat([...ALWAYS_VISIBLE]),
 );
 
+function widgetByName(node, name) {
+    return node.widgets?.find((widget) => widget.name === name);
+}
+
+function setVersionChoices(node, operation) {
+    const versionWidget = widgetByName(node, "version");
+    if (!versionWidget?.options) {
+        return;
+    }
+    const choices = V6_ONLY_OPERATIONS.has(operation) ? V6_VERSIONS : ALL_VERSIONS;
+    versionWidget.options.values = [...choices];
+    if (!choices.includes(String(versionWidget.value ?? ""))) {
+        versionWidget.value = choices[0];
+    }
+}
+
 function refreshSunoNode(node) {
-    const operationWidget = node.widgets?.find((widget) => widget.name === "operation");
+    const operationWidget = widgetByName(node, "operation");
     const operation = String(operationWidget?.value ?? "suno-generation");
     const fields = new Set(ACTION_FIELDS[operation] ?? []);
+    setVersionChoices(node, operation);
+
+    const customModelId = String(widgetByName(node, "custom_model_id")?.value ?? "").trim();
+    if (customModelId && V6_ONLY_OPERATIONS.has(operation)) {
+        fields.delete("version");
+        fields.delete("persona_id");
+    }
+
+    if (operation === "suno-upload-cover") {
+        const custom = Boolean(widgetByName(node, "custom")?.value);
+        const instrumental = Boolean(widgetByName(node, "instrumental")?.value);
+        if (custom) {
+            fields.delete("gpt_description");
+            if (instrumental) {
+                fields.delete("prompt");
+            }
+        } else {
+            for (const name of [
+                "prompt",
+                "tags",
+                "title",
+                "negative_tags",
+                "style_weight",
+                "weirdness",
+                "audio_weight",
+                "auto_lyrics",
+                "persona_id",
+                "target_duration_s",
+                "max_mode",
+            ]) {
+                fields.delete(name);
+            }
+        }
+    }
+
     for (const name of ALWAYS_VISIBLE) {
         fields.add(name);
     }
@@ -101,6 +188,19 @@ app.registerExtension({
                     return callbackResult;
                 };
                 operationWidget.seedanceSunoCallback = true;
+            }
+            for (const name of ["custom", "instrumental", "custom_model_id"] ) {
+                const widget = widgetByName(this, name);
+                if (!widget || widget.seedanceSunoCallback) {
+                    continue;
+                }
+                const originalCallback = widget.callback;
+                widget.callback = (...args) => {
+                    const callbackResult = originalCallback?.apply(widget, args);
+                    refreshSunoNode(this);
+                    return callbackResult;
+                };
+                widget.seedanceSunoCallback = true;
             }
             refreshSunoNode(this);
             return result;

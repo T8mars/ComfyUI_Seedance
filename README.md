@@ -22,7 +22,14 @@ My favorite girl Go YounJung
 
 Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G v2.5 / G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
-本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 31 合 1 节点完成音乐生成、歌词、素材导入、续写、翻唱、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.16.0（2026-09-12）
+
+- `Suno 音乐生成与处理（34 合 1）` 新增 `suno-create-model`、`suno-upload-cover` 与 `suno-upload-extend`。
+- 创建模型支持 6 到 24 段本地音频或公网直链，并单独输出后续操作可连接的 `model_id`。
+- V6 上传翻唱与上传续写支持 `v6`、`v6-wild`、`v6-mini`，按当前模式动态显示有效字段；三个示例工作流均不包含 API Key 或运行结果。
+- 三条新增路径均已完成真实节点验证；完整离线回归通过 433 项测试，204 份示例工作流通过 JSON 与敏感信息检查。
 
 ## v0.15.0（2026-09-09）
 
@@ -455,7 +462,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G v2.5 / G / GK / Nano Banana 文生图 / 图像编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
-- 支持 Suno 31 项音乐生成、引用、编辑、分轨、导出与分析操作
+- 支持 Suno 34 项音乐生成、自定义模型、V6 公网音频翻唱/续写、引用、编辑、分轨、导出与分析操作
 - 支持 Flow Music 9 项音乐生成、歌词、上传、续写、替换、改编、分轨、下载和视频渲染操作
 - 支持 Midjourney 16 项图片生成、编辑、二次操作、局部重绘和图生视频
 - 支持图片 30 路、视频 10 路独立并发提交与按槽位接收，原节点仍可单独运行
@@ -463,7 +470,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 除 `Seedance API Config` 外，插件节点底部统一提供“获取平价版APIKEY”按钮
 - 内置 18 个 Seedance 2.0 模型变体
 - 接入 6 个 Seedance 2.5 Standard 模型，并提供独立六合一节点
-- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 VOSR2 图片超分模型、1 个 VOSR2 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、13 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、31 项 Suno 操作和 9 项 Flow Music 操作
+- 接入 3 个 HappyHorse 1.1 视频模型、1 个 Wan 2.7 Spicy 视频模型、8 个 Wan 3.0 标准版/Prime 视频模型、21 个 Kling 视频/编辑模型、6 个 Hailuo 2.3 视频模型、6 个 Hailuo H3 视频模型、4 个 Hailuo H3 Max / Max Turbo 视频模型、1 个 MiniMax-H3 V2 多模态视频模型、8 个 FLUX 3 Video 模型、3 个 MiniMax H3 Context IR 提示词增强模型、8 个 MiniMax H3 OW 视频模型、15 个 Vidu Q3 模型、1 个 FlashVSR 视频超分模型、1 个 VOSR2 图片超分模型、1 个 VOSR2 视频超分模型、1 个 Zhenzhen Upscaler 视频超分模型、5 个 Zhenzhen Video 模型、2 个 Dola Seedream 图片模型、8 个 Qwen Image 3.0 图片模型、13 个 Zhenzhen Image G / GK / NB 图片模型、1 个 Doubao Seed Audio 模型、1 个 Whisper 转写模型、34 项 Suno 操作和 9 项 Flow Music 操作
 - 支持国内线路和 `global` 海外线路
 - 支持 `standard`、`fast`、`mini` 三档模型
 - 自动上传 IMAGE、VIDEO、AUDIO 参考素材
@@ -516,7 +523,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
-| `Suno 音乐生成与处理（31 合 1）` | 音乐生成、素材导入、续写、翻唱、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
+| `Suno 音乐生成与处理（34 合 1）` | 音乐生成、自定义模型、V6 公网音频翻唱/续写、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
 | `Flow Music 音乐生成与处理（9 合 1）` | 音乐生成、歌词、上传、续写、替换、改编、分轨、音频导出和视频渲染 | `operation` 和当前操作动态显示的输入 |
 | `Midjourney 图像与视频（16 合 1）` | 图片生成、融合、描述、编辑、二次操作、局部重绘和图生视频 | `operation` 和当前操作动态显示的输入 |
 | `并发提交｜...` | 使用对应原节点的完整参数异步提交图片或视频任务 | 与对应原节点相同 |
@@ -769,7 +776,7 @@ Zhenzhen Image Nano Banana 图片生成或编辑：
 
 Suno 音乐生成与处理：
 
-1. 添加 `Suno 音乐生成与处理（31 合 1）`，选择 `operation`。
+1. 添加 `Suno 音乐生成与处理（34 合 1）`，选择 `operation`。
 2. 音乐生成、歌词、音效和风格标签操作直接填写当前显示的文本字段。
 3. 素材导入、创建音色和参考生成可连接本地 `AUDIO` 或填写公网音频 URL；导入源音频至少 6 秒。
 4. 续写、翻唱、编辑、分轨和导出可把前一个 Suno 节点的 `task_id` 直接连接过来；翻唱、双曲混合、采样和三项添加动作还需填写 `prompt`，双曲混合连接两个任务。
@@ -834,7 +841,7 @@ Midjourney 图片与视频：
 - `examples/seed-audio-1.0音频生成（识别图片人物）.json`
 - `examples/seed-audio-1.0音频生成（语音克隆）.json`
 - `examples/whisper-1语音转写.json`
-- `examples/suno-*.json`（31 份，每个 operation 一份）
+- `examples/suno-*.json`（34 份，每个 operation 一份）
 - `examples/midjourney-*.json`（19 份，覆盖全部 16 个 operation 和 3 个常用变体）
 - `examples/vidu-q3文生视频.json`
 - `examples/vidu-q3图生视频.json`
@@ -1489,13 +1496,17 @@ Suno 音乐节点参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| `operation` | 31 项官方操作；选择后动态显示相关控件 |
+| `operation` | 34 项官方操作；选择后动态显示相关控件 |
 | `prompt` | 音乐生成、歌词、音效、翻唱、双曲混合、采样和三项添加动作使用；支持前置字符串节点 |
-| `version` | 仅当前操作支持版本时发送 |
+| `version` | 新 V6 操作支持 `v6`、`v6-wild`、`v6-mini`；使用 `custom_model_id` 时自动省略 |
 | `custom` / `instrumental` / `title` / `style` / `vocal_gender` | 音乐生成专用设置 |
 | `task_id` / `task_id_2` / `audio_index` | 引用前置 Suno 任务；`audio_index` 从 1 开始 |
-| `audio1` ... `audio4` | 本地音频；用于素材导入、创建音色或参考生成 |
-| `audio_url1` ... `audio_url4` | 公网音频 URL，不能与同槽本地音频同时使用 |
+| `audio1` ... `audio24` | 本地音频；创建自定义模型使用 6 到 24 段，其他单音频操作只使用第 1 槽，参考生成最多使用 4 槽 |
+| `audio_url1` ... `audio_url24` | 公网音频 URL，不能与同槽本地音频同时使用；本地素材会自动上传 |
+| `custom_model_id` | `suno-create-model` 返回的模型 UUID；与 `persona_id` 互斥，并可直接连接新增的 `model_id` 输出 |
+| `gpt_description` / `negative_tags` / `style_weight` / `weirdness` / `audio_weight` | V6 上传翻唱或续写的描述、排除风格与权重参数 |
+| `auto_lyrics` / `persona_id` / `target_duration_s` | V6 歌词处理、Persona 与 10 到 360 秒目标时长 |
+| `variety` / `max_mode` / `audio_format` | V6 风格变化、Max 模式与 `mp3` / `m4a` / `wav` 输出格式 |
 | `continue_at` / `start_s` / `end_s` / `duration_s` / `speed` | 续写与编辑操作的时间或速度参数 |
 | `api_config` / `skip_error` | 可选配置节点与批处理错误策略 |
 

@@ -128,7 +128,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - MiniMax music, speech, and voice clone
 - Mureka BGM
 - Whisper 1 transcription
-- Suno multi-action music workflows
+- Suno 34-action music workflows, including V6 custom models and direct audio cover/extend
 - Flow Music multi-action workflows
 
 ## Node Catalog
@@ -185,7 +185,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Minimax_Audio` | MiniMax music, speech, and voice clone |
 | `Mureka_BGM` | Mureka background music generation |
 | `Whisper_Transcription` | Whisper transcription |
-| `Suno_Music` | Suno multi-action music node |
+| `Suno_Music` | 34 Suno actions, including custom-model creation and V6 upload cover/extend |
 | `Flow_Music` | Flow Music multi-action node |
 | `Midjourney_Multi_Action` | Midjourney image and video operations |
 
@@ -335,6 +335,15 @@ Model and operation selectors update the node UI automatically:
 - Multimodal modes progressively reveal image, video, and audio sockets as they are connected.
 - Suno, Flow Music, and Midjourney show only fields accepted by the selected operation.
 - Connected hidden inputs are preserved when loading existing workflows.
+
+### Suno V6 Actions
+
+- `suno-create-model` accepts 6-24 local audio inputs or public audio URLs and exposes the completed `model_id` as a connectable output.
+- `suno-upload-cover` and `suno-upload-extend` accept one local audio input or public URL and support `v6`, `v6-wild`, and `v6-mini`.
+- The node omits `version` when `custom_model_id` is connected and rejects the documented `custom_model_id`/`persona_id` conflict before submission.
+- V6 controls include mode-specific prompt fields, style weights, target duration, variety, Max mode, and MP3/M4A/WAV output selection.
+- Three matching example workflows keep the API key and all runtime values empty.
+- All three paths completed real node-level verification. The full offline suite passes 433 tests, and all 204 workflows pass JSON and credential/runtime-value checks.
 
 ## Outputs
 
