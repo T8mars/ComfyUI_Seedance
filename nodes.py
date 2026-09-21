@@ -22,6 +22,7 @@ field and skip_error support for batch workflows.
 
 import copy
 import json
+import math
 from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -246,6 +247,14 @@ MAX_ZHENZHEN_IMAGE_G25_OFFICIAL_IMAGES = 16
 ZHENZHEN_IMAGE_G25_MIN_CUSTOM_PIXELS = 655360
 ZHENZHEN_IMAGE_G25_MAX_CUSTOM_PIXELS = 8294400
 QWEN_IMAGE_30_T2I_MODEL = "qwen-image-3.0-t2i"
+QWEN_IMAGE_GLOBAL_21_MODEL = "qwen-image-global-2.1"
+QWEN_IMAGE_GLOBAL_21_RESOLUTIONS = ["1k", "2k", "4k"]
+QWEN_IMAGE_GLOBAL_21_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
+MAX_QWEN_IMAGE_GLOBAL_21_IMAGES = 10
+ANIMATE_MOTION_TRANSFER_MODEL = "animate-motion-transfer"
+ANIMATE_MOTION_RESOLUTIONS = ["480p", "720p", "1080p"]
+ANIMATE_MOTION_POSE_METHODS = ["vitpose", "sdpose", "wuwupose"]
+ANIMATE_MOTION_RATIOS = ["adaptive", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9", "custom"]
 QWEN_IMAGE_30_I2I_MODEL = "qwen-image-3.0-i2i"
 QWEN_IMAGE_30_PRO_T2I_MODEL = "qwen-image-3.0-pro-t2i"
 QWEN_IMAGE_30_PRO_I2I_MODEL = "qwen-image-3.0-pro-i2i"
@@ -6296,6 +6305,149 @@ FashVSRVideoUpscale = FlashVSRVideoUpscale
 # VOSR2 video upscaling
 # ---------------------------------------------------------------------------
 
+class AnimateMotionTransfer(SeedanceVideoNodeBase):
+    """Transfer motion from one reference video to one character image."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_url": ("STRING", {"default": "", "tooltip": "Character image URL; leave empty for input_image | 角色图片 URL；连接本地图时留空。"}),
+                "video_url": ("STRING", {"default": "", "tooltip": "Motion video URL; leave empty for input_video | 动作视频 URL；连接本地视频时留空。"}),
+                "resolution": (ANIMATE_MOTION_RESOLUTIONS, {"default": "720p"}),
+                "ratio": (ANIMATE_MOTION_RATIOS, {"default": "adaptive"}),
+                "custom_ratio": ("STRING", {"default": "16:9", "tooltip": "Used only with custom ratio, positive width:height | 仅自定义画幅时使用。"}),
+                "frame_rate": ("INT", {"default": 30, "min": 1, "max": 999999, "step": 1}),
+                "max_frames": ("INT", {"default": 0, "min": 0, "max": 999999, "step": 1,
+                                      "tooltip": "0 uses API default; 1080p permits at most frame_rate x 10 | 0 使用接口默认值；1080p 最多 10 秒。"}),
+                "skip_frames": ("INT", {"default": 0, "min": 0, "max": 999999, "step": 1}),
+                "pose_method": (ANIMATE_MOTION_POSE_METHODS, {"default": "vitpose"}),
+                "normal_mode": ("BOOLEAN", {"default": True}),
+                "neck_correction": ("BOOLEAN", {"default": False}),
+                "pose_strength": ("FLOAT", {"default": 1.0, "step": 0.01}),
+                "camera_motion": ("BOOLEAN", {"default": False}),
+                "camera_strength": ("FLOAT", {"default": 1.0, "step": 0.01}),
+                "mask_mode": ("BOOLEAN", {"default": False}),
+                "expression_strength": ("FLOAT", {"default": 0.8, "step": 0.01}),
+                "chest_motion_strength": ("FLOAT", {"default": 0.2, "step": 0.01}),
+            },
+            "optional": {
+                "input_image": ("IMAGE", {"tooltip": "One local character image | 一张本地角色图。"}),
+                "input_video": ("VIDEO", {"tooltip": "One local motion reference video | 一条本地动作参考视频。"}),
+                "api_config": ("SEEDANCE_CONFIG", {"tooltip": "Connect Seedance API Config or use SEEDANCE_API_KEY."}),
+                "skip_error": ("BOOLEAN", {"default": False, "tooltip": "Return a placeholder on failure | 出错时输出占位视频。"}),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, image_url=None, video_url=None, resolution=None,
+                        ratio=None, custom_ratio=None, frame_rate=None,
+                        max_frames=None, skip_frames=None, pose_method=None,
+                        strict=False, **kwargs):
+        for label, value in (("image_url", image_url), ("video_url", video_url)):
+            text = str(value or "").strip()
+            if text and not text.startswith(("http://", "https://")):
+                return f"{label} must be an http(s) URL"
+        if resolution is not None and resolution not in ANIMATE_MOTION_RESOLUTIONS:
+            return "unsupported Animate resolution"
+        if ratio is not None and ratio not in ANIMATE_MOTION_RATIOS:
+            return "unsupported Animate ratio"
+        if ratio == "custom":
+            parts = str(custom_ratio or "").strip().split(":")
+            if len(parts) != 2 or any(not p.isdigit() or not 1 <= int(p) <= 999999 for p in parts):
+                return "custom_ratio must be width:height with values 1..999999"
+        if frame_rate is not None and not 1 <= int(frame_rate) <= 999999:
+            return "frame_rate must be 1..999999"
+        if max_frames is not None and not 0 <= int(max_frames) <= 999999:
+            return "max_frames must be 0 (default) or 1..999999"
+        if skip_frames is not None and not 0 <= int(skip_frames) <= 999999:
+            return "skip_frames must be 0..999999"
+        if resolution == "1080p" and max_frames and frame_rate and int(max_frames) > int(frame_rate) * 10:
+            return "1080p max_frames cannot exceed frame_rate x 10"
+        if pose_method is not None and pose_method not in ANIMATE_MOTION_POSE_METHODS:
+            return "unsupported Animate pose_method"
+        for key in ("pose_strength", "camera_strength", "expression_strength", "chest_motion_strength"):
+            if kwargs.get(key) is not None and not math.isfinite(float(kwargs[key])):
+                return f"{key} must be finite"
+        if strict:
+            if bool(str(image_url or "").strip()) == (kwargs.get("input_image") is not None):
+                return "provide exactly one character image: image_url or input_image"
+            if bool(str(video_url or "").strip()) == (kwargs.get("input_video") is not None):
+                return "provide exactly one motion video: video_url or input_video"
+            image = kwargs.get("input_image")
+            if image is not None and (len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1):
+                return "input_image must contain exactly one image, not a batch"
+        return True
+
+    @property
+    def _log_prefix(self):
+        return ANIMATE_MOTION_TRANSFER_MODEL
+
+    def collect_media(self, kwargs, config, progress_cb):
+        image_url = str(kwargs.get("image_url") or "").strip()
+        video_url = str(kwargs.get("video_url") or "").strip()
+        if not image_url:
+            image_url = upload_media(
+                image_to_png_bytes(kwargs["input_image"]), "animate_character.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            )
+        progress_cb(.5)
+        if not video_url:
+            data, extension = video_to_bytes(kwargs["input_video"])
+            mime = {"mp4": "video/mp4", "mov": "video/quicktime", "avi": "video/x-msvideo", "mkv": "video/x-matroska"}.get(extension, "video/mp4")
+            video_url = upload_media(data, f"animate_motion.{extension}", mime,
+                                     config, logger_prefix=self._log_prefix)
+        progress_cb(1.0)
+        return {"image_url": image_url, "video_url": video_url}
+
+    def build_payload(self, kwargs, media):
+        ratio = kwargs["custom_ratio"].strip() if kwargs["ratio"] == "custom" else kwargs["ratio"]
+        metadata = {
+            "video_url": [media["video_url"]],
+            "resolution": kwargs["resolution"],
+            "ratio": ratio,
+            "frame_rate": int(kwargs["frame_rate"]),
+            "pose_method": kwargs["pose_method"],
+        }
+        defaults = {
+            "max_frames": 0, "skip_frames": 0, "normal_mode": True,
+            "neck_correction": False, "pose_strength": 1.0,
+            "camera_motion": False, "camera_strength": 1.0,
+            "mask_mode": False, "expression_strength": 0.8,
+            "chest_motion_strength": 0.2,
+        }
+        for key, default in defaults.items():
+            value = kwargs[key]
+            if value != default:
+                metadata[key] = value
+        return {"model": ANIMATE_MOTION_TRANSFER_MODEL,
+                "images": [media["image_url"]], "metadata": metadata}
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        media = self.collect_media(
+            kwargs, config,
+            lambda fraction: pbar.update_absolute(int(fraction * 15), 100) if pbar else None,
+        )
+        task_id = submit_legacy_video_task(
+            self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix,
+        )
+        final = poll_legacy_video_task(
+            task_id, config,
+            on_progress=(lambda value: pbar.update_absolute(20 + int(value * .75), 100)) if pbar else None,
+            logger_prefix=self._log_prefix,
+        )
+        result_url = extract_legacy_video_url(final)
+        video = download_video(result_url, logger_prefix=self._log_prefix)
+        if pbar:
+            pbar.update_absolute(100, 100)
+        return self._make_success_result(video, result_url, task_id, final)
+
+
 class VOSR2VideoUpscale(SeedanceVideoNodeBase):
     """Upscale exactly one video to 2K through the compatibility endpoint."""
 
@@ -8185,6 +8337,114 @@ class ZhenzhenImageG25Official(_ZhenzhenImageG25Base):
 # ---------------------------------------------------------------------------
 # Qwen Image 3.0 image generation and editing
 # ---------------------------------------------------------------------------
+
+class QwenImageGlobal21(SeedanceImageNodeBase):
+    """One-image Qwen 2.1 generation or editing with up to ten references."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {
+            f"image{i}": ("IMAGE", {"tooltip": f"Reference image {i}/10 | 参考图 {i}/10"})
+            for i in range(1, MAX_QWEN_IMAGE_GLOBAL_21_IMAGES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {
+            "tooltip": "Connect Seedance API Config or use SEEDANCE_API_KEY.",
+        })
+        optional["skip_error"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "Return a placeholder on failure | 出错时输出占位图。",
+        })
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True, "default": ""}),
+                "resolution": (QWEN_IMAGE_GLOBAL_21_RESOLUTIONS, {"default": "2k"}),
+                "ratio": (QWEN_IMAGE_GLOBAL_21_RATIOS, {"default": "3:4"}),
+                "seed": ("INT", {
+                    "default": -1, "min": -1, "max": 9007199254740991,
+                    "step": 1, "control_after_generate": True,
+                    "tooltip": "-1 omits API seed; 0 is valid | -1 不发送种子，0 是有效种子。",
+                }),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, resolution=None, ratio=None, seed=None, strict=False, **kwargs):
+        if strict and not str(prompt or "").strip():
+            return "prompt is required | 必须填写提示词"
+        if resolution is not None and resolution not in QWEN_IMAGE_GLOBAL_21_RESOLUTIONS:
+            return "unsupported Qwen 2.1 resolution | 不支持的分辨率"
+        if ratio is not None and ratio not in QWEN_IMAGE_GLOBAL_21_RATIOS:
+            return "unsupported Qwen 2.1 ratio | 不支持的画幅"
+        if seed is not None and not -1 <= int(seed) <= 9007199254740991:
+            return "Qwen 2.1 seed must be -1 or 0..9007199254740991"
+        return True
+
+    @property
+    def _log_prefix(self):
+        return QWEN_IMAGE_GLOBAL_21_MODEL
+
+    @staticmethod
+    def build_payload(prompt, resolution, ratio, seed, images):
+        payload = {
+            "model": QWEN_IMAGE_GLOBAL_21_MODEL,
+            "prompt": str(prompt).strip(),
+            "metadata": {"ratio": ratio, "resolution": resolution},
+        }
+        if images:
+            payload["images"] = images
+        if int(seed) >= 0:
+            payload["metadata"]["seed"] = int(seed)
+        return payload
+
+    def _execute_inner(self, prompt, resolution, ratio, seed, api_config=None, **kwargs):
+        validation = self.VALIDATE_INPUTS(
+            prompt=prompt, resolution=resolution, ratio=ratio, seed=seed, strict=True,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        references = [
+            (index, kwargs[f"image{index}"])
+            for index in range(1, MAX_QWEN_IMAGE_GLOBAL_21_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        for _, image in references:
+            if len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1:
+                raise SeedanceAPIError("each Qwen 2.1 reference must be one IMAGE, not a batch | 每路只能连接一张图")
+
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        urls = []
+        for index, image in references:
+            urls.append(upload_media(
+                image_to_png_bytes(image), f"qwen21_reference_{index}.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            ))
+            if pbar:
+                pbar.update_absolute(int(len(urls) / len(references) * 15), 100)
+        task_id = submit_image_task(
+            self.build_payload(prompt, resolution, ratio, seed, urls),
+            config, logger_prefix=self._log_prefix,
+        )
+        final = poll_image_task(
+            task_id, config,
+            on_progress=(lambda value: pbar.update_absolute(20 + int(value * .75), 100)) if pbar else None,
+            logger_prefix=self._log_prefix,
+        )
+        result_url = extract_image_urls(final)[0]
+        image = download_image(result_url, logger_prefix=self._log_prefix)
+        if pbar:
+            pbar.update_absolute(100, 100)
+        response_str = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [result_url, response_str]},
+                "result": (image, result_url, task_id, response_str)}
+
 
 class QwenImage30(SeedanceImageNodeBase):
     """Qwen Image 3.0/3.0 Pro domestic and global generation/editing."""
@@ -13796,6 +14056,7 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_G25_Lowprice": ZhenzhenImageG25Lowprice,
     "Zhenzhen_Image_G25_Official": ZhenzhenImageG25Official,
     "Qwen_Image_3_0": QwenImage30,
+    "Qwen_Image_Global_2_1": QwenImageGlobal21,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
     "Zhenzhen_Image_GK_V2_Edit": ZhenzhenImageGKV2Edit,
@@ -13827,6 +14088,7 @@ NODE_CLASS_MAPPINGS = {
     "FashVSR_Video_Upscale": FlashVSRVideoUpscale,
     "VOSR2_Image_Upscale": VOSR2ImageUpscale,
     "VOSR2_Video_Upscale": VOSR2VideoUpscale,
+    "Animate_Motion_Transfer": AnimateMotionTransfer,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
     "Qwen3_TTS": Qwen3TTS,
@@ -13928,6 +14190,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_G25_Lowprice": "Zhenzhen Image G v2.5 LowPrice 生成/编辑",
     "Zhenzhen_Image_G25_Official": "Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
+    "Qwen_Image_Global_2_1": "Qwen Image Global 2.1 文生图/图像编辑",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
     "Zhenzhen_Image_GK_V2_Edit": "Zhenzhen Image GK v2 图像编辑（1-3 图）",
@@ -13959,6 +14222,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FashVSR_Video_Upscale": "FlashVSR 480P 视频超分",
     "VOSR2_Image_Upscale": "VOSR2 4K 图片超分",
     "VOSR2_Video_Upscale": "VOSR2 2K 视频超分",
+    "Animate_Motion_Transfer": "Animate 角色动作迁移",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
     "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",

@@ -20,9 +20,15 @@ My favorite girl Go YounJung
 
 本站开设初衷是方便粉丝朋友体验最新 AI 模型，仅服务于粉丝朋友，望理解。
 
-Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G 系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Zhenzhen Image G v2.5 / G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
+Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hailuo 2.3 / Hailuo H3 / Hailuo H3 Max / MiniMax-H3 / MiniMax H3 OW / Vidu Q3 / Zhenzhen Video G / Animate 动作迁移系列视频生成、混元 3D v3.1 文生/多视图图生 3D、MiniMax H3 Context IR 视频提示词增强、FlashVSR / VOSR2 / Zhenzhen Upscaler 视频超分、VOSR2 4K 图片超分、Seedream / Dola Seedream / Qwen Image 3.0 / Qwen Image Global 2.1 / Zhenzhen Image G v2.5 / G / GK / Nano Banana / Midjourney 图片生成、GK v2 智能分割与区域编辑、Seedream / Dola Seedream 图层拆分、Midjourney 图生视频、Qwen3 TTS / MiniMax / Mureka / Doubao 音频生成、Whisper 语音转写以及 Suno / Flow Music 音乐 API 的 ComfyUI 节点插件，默认接入 [api.seedance.nz](https://api.seedance.nz)。
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
+
+## v0.17.0（2026-09-21）
+
+- 新增独立的 `Qwen_Image_Global_2_1` 节点：文生图或最多 10 张参考图编辑；支持 1k/2k/4k、8 种画幅和可选原生 seed，不向接口发送旧版 `megapixels` 或多图数量字段。
+- 新增独立的 `Animate_Motion_Transfer` 节点：一张角色图片与一条动作视频，支持本地素材或公网 URL，提供分辨率、帧数、动作/镜头等文档参数；无需提示词，seed 仅用于 ComfyUI 缓存。
+- 两个节点均接入原有 `skip_error`、可靠媒体下载与通用图片/视频并发包装；示例见 `examples/qwen-image-global-2.1*.json` 和 `examples/animate-motion-transfer*.json`。
 
 ## v0.16.0（2026-09-12）
 
@@ -457,9 +463,11 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 接入 Vidu Q3 文生视频、图生视频、首尾帧、参考生视频和短剧成片
 - 支持 FlashVSR 480P 视频超分
 - 支持 VOSR2 单图 4K 超分和单视频 2K 超分
+- 支持 Animate Motion Transfer 单图单视频动作迁移
 - 支持 Zhenzhen Upscaler 视频超分
 - 支持 Zhenzhen Video G / GK / V3.1 视频生成，V3.1 包含 Fast / Quality / Lite
 - 支持国内 Seedream v5 Pro、海外 Dola Seedream 5.0 Pro 和 Zhenzhen Image G v2.5 / G / GK / Nano Banana 文生图 / 图像编辑
+- 支持 Qwen Image Global 2.1 文生图与最多 10 图参考编辑
 - 支持 Doubao Seed Audio 1.0 异步音频生成
 - 支持 Whisper 1 同步语音转写
 - 支持 Suno 34 项音乐生成、自定义模型、V6 公网音频翻唱/续写、引用、编辑、分轨、导出与分析操作
@@ -490,6 +498,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Seedance 2.5 Standard 视频生成（6 合 1）` | 国内/海外 T2V、I2V、Multi 六模型统一调用 | 4 到 30 秒或智能时长、首尾帧、最多 30 图 10 视频 10 音频 |
 | `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
 | `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
+| `Qwen Image Global 2.1 文生图/图像编辑` | 海外文生图或 1 到 10 图编辑 | `prompt`、1k/2k/4k、画幅、原生 seed、可选参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
 | `Zhenzhen Image G v2.5 LowPrice 生成/编辑` | G v2.5 文生图与最多 15 图参考编辑 | `prompt`、`resolution`、`size`、`nsfw_check`、可选参考图 |
 | `Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）` | Flare / Sunburst 文生图与最多 16 图参考编辑 | `model`、`prompt`、尺寸、质量、数量、格式、背景、可选参考图 |
@@ -520,6 +529,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
+| `Animate 角色动作迁移` | 单角色图片 + 单动作视频迁移 | 本地图片/视频或公网 URL、分辨率、帧率、姿态与动作控制 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
@@ -713,8 +723,8 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 
 | 接收节点 | 可连接的并发提交节点 |
 | --- | --- |
-| `并发接收图片（30 路）` | Seedream / Dola Seedream、Zhenzhen Image G、GK v1.5、Nano Banana、VOSR2、Midjourney 图片 |
-| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、VOSR2、Upscaler、Midjourney 视频 |
+| `并发接收图片（30 路）` | Seedream / Dola Seedream、Qwen Image Global 2.1、Zhenzhen Image G、GK v1.5、Nano Banana、VOSR2、Midjourney 图片 |
+| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Animate 动作迁移、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、VOSR2、Upscaler、Midjourney 视频 |
 
 不同原节点的输入参数和素材类型不同，所以每个原节点都有对应的 `并发提交｜...` 版本；它们输出统一的图片 Future 或视频 Future。同类型 Future 可以混接到同一个接收节点，例如 `Seedream future -> future_1`、`Image G future -> future_2`、`Nano Banana future -> future_3`。
 

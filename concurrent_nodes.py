@@ -36,6 +36,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Zhenzhen_Image_G25_Lowprice",
     "Zhenzhen_Image_G25_Official",
     "Qwen_Image_3_0",
+    "Qwen_Image_Global_2_1",
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_GK_V2",
     "Zhenzhen_Image_GK_V2_Edit",
@@ -71,6 +72,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Vidu_Q3_ShortPlay",
     "FashVSR_Video_Upscale",
     "VOSR2_Video_Upscale",
+    "Animate_Motion_Transfer",
     "Zhenzhen_Upscaler_Video",
 )
 

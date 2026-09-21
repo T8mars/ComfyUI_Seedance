@@ -1202,7 +1202,7 @@ def extract_legacy_video_url(final_response: Dict[str, Any]) -> str:
             container.get("content"),
             container.get("metadata"),
         ])
-        for key in ("result_url", "video_url", "url"):
+        for key in ("result_url", "video_url", "video_urls", "url"):
             value = container.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()

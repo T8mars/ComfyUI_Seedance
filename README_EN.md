@@ -4,6 +4,17 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.17.0 - 2026-09-21
+
+- Added independent `Qwen_Image_Global_2_1` generation/editing node: text or up to 10 ordered reference images, 1k/2k/4k, eight ratios, and optional native seed. It does not send the obsolete `megapixels` or multi-image count fields.
+- Added independent `Animate_Motion_Transfer` node: exactly one character image and one motion video, each from a local ComfyUI input or public URL. It exposes the documented frame, pose, camera, and expression controls without a prompt or API seed.
+- Both nodes reuse `skip_error`, resilient downloads, and the shared image/video concurrent submit collectors. Four credential-free examples cover Qwen text/edit and Animate local/URL inputs.
+
+## v0.16.0 - 2026-09-12
+
+- Extended the Suno node to 34 operations with `suno-create-model`, `suno-upload-cover`, and `suno-upload-extend`, plus three credential-free workflows.
+- All three new paths completed real node checks; the offline suite passed 433 tests and all 204 example workflows parsed successfully.
+
 ## v0.15.0 - 2026-09-09
 
 - Added an independent `Zhenzhen Image G v2.5 LowPrice` generation/editing node with text-to-image, up to 15 reference images, 1K/2K/4K, and the documented fixed aspect ratios.
@@ -20,7 +31,7 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 | RunningHub China | Domestic RunningHub API access | <a href="https://www.runninghub.cn/user-center/1819214514410942465/webapp?inviteCode=rh-v1121"><kbd>Open RunningHub China</kbd></a> |
 | RunningHub Global | Overseas RunningHub API access | <a href="https://www.runninghub.ai/user-center/1907375370302308353/webapp?inviteCode=rh-v1121"><kbd>Open RunningHub Global</kbd></a> |
 
-## Current Release
+## Earlier Releases
 
 ### v0.14.0 - 2026-09-09
 
@@ -107,6 +118,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 - MiniMax-H3 V2 multimodal video generation
 - MiniMax H3 OW and H3 OW Fast
 - Vidu Q3
+- Animate Motion Transfer
 - Zhenzhen Video G, GK, and V3.1
 - Midjourney video
 - FlashVSR, VOSR2 image/video upscaling, and Zhenzhen Upscaler
@@ -115,7 +127,7 @@ The full historical changelog remains in the [Chinese README](README.md).
 
 - Seedream v5 Pro and Dola Seedream 5.0 Pro
 - Seedream layer decomposition
-- Qwen Image 3.0 and Pro
+- Qwen Image 3.0/Pro and Qwen Image Global 2.1
 - Zhenzhen Image G v2.5, G, GK v1.5, GK v2, and Nano Banana
 - Wan 2.7 global image generation/editing
 - Midjourney image generation and editing
@@ -165,10 +177,12 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `FashVSR_Video_Upscale` | FlashVSR 480P video upscaling |
 | `VOSR2_Image_Upscale` | VOSR2 single-image 4K upscaling |
 | `VOSR2_Video_Upscale` | VOSR2 single-video 2K upscaling |
+| `Animate_Motion_Transfer` | Single-image, single-video motion transfer with local or URL inputs |
 | `Zhenzhen_Upscaler_Video` | Zhenzhen video upscaling |
 | `Seedream_V5_Pro_Image` | Seedream/Dola Seedream generation and editing |
 | `Seedream_V5_Pro_Layer_Decomposition` | Seedream/Dola layer decomposition |
 | `Qwen_Image_3_0` | Qwen Image 3.0/Pro generation and editing |
+| `Qwen_Image_Global_2_1` | Qwen Global 2.1 text-to-image or up to ten-image editing |
 | `Zhenzhen_Image_G2` | Zhenzhen Image G generation and editing |
 | `Zhenzhen_Image_G25_Lowprice` | Zhenzhen Image G v2.5 LowPrice generation and up-to-15-image editing |
 | `Zhenzhen_Image_G25_Official` | Flare/Sunburst Image G v2.5 generation and up-to-16-image editing |
