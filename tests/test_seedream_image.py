@@ -2,6 +2,7 @@ import os
 import io
 import importlib.util
 import builtins
+import json
 import sys
 import threading
 import unittest
@@ -441,6 +442,19 @@ class AudioClientTests(unittest.TestCase):
 
 
 class ImageNodeTests(unittest.TestCase):
+    def test_seedream_selector_exposes_pro_and_flash_families(self):
+        inputs = nodes.SeedreamV5ProImage.INPUT_TYPES()["required"]
+        self.assertEqual(
+            inputs["model_family"][0],
+            [
+                "seedream-v5-pro (domestic)",
+                "dola-seedream-5.0-pro (overseas)",
+                "seedream-v5-flash (domestic)",
+                "dola-seedream-5.0-flash (overseas)",
+            ],
+        )
+        self.assertEqual(inputs["resolution"][0], ["1k", "1.5k", "2k", "custom"])
+
     def test_payload_omits_images_for_text_to_image(self):
         node = nodes.SeedreamV5ProImage()
         payload = node._build_payload("valid prompt", "2k", 1024, 1024, "png", [])
@@ -498,6 +512,106 @@ class ImageNodeTests(unittest.TestCase):
         self.assertEqual(payload["model"], "dola-seedream-5.0-pro-i2i")
         self.assertEqual(payload["images"], ["https://cdn.test/reference.png"])
         self.assertEqual(payload["metadata"], {"resolution": "1k", "output_format": "png"})
+
+    def test_flash_payloads_select_domestic_and_overseas_models(self):
+        node = nodes.SeedreamV5ProImage()
+        domestic_t2i = node._build_payload(
+            "flash prompt", "1.5k", 1024, 1024, "jpeg", [],
+            nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC,
+        )
+        domestic_i2i = node._build_payload(
+            "flash edit", "1k", 1024, 1024, "png", ["https://cdn.test/ref.png"],
+            nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC,
+        )
+        overseas_t2i = node._build_payload(
+            "dola flash prompt", "2k", 1024, 1024, "png", [],
+            nodes.SEEDREAM_FLASH_FAMILY_DOLA,
+        )
+        overseas_i2i = node._build_payload(
+            "dola flash edit", "custom", 1280, 720, "jpeg",
+            ["https://cdn.test/ref.png"], nodes.SEEDREAM_FLASH_FAMILY_DOLA,
+        )
+
+        self.assertEqual(domestic_t2i["model"], "seedream-v5-flash-t2i")
+        self.assertEqual(domestic_t2i["metadata"]["resolution"], "1.5k")
+        self.assertEqual(domestic_i2i["model"], "seedream-v5-flash-i2i")
+        self.assertEqual(overseas_t2i["model"], "dola-seedream-5.0-flash-t2i")
+        self.assertEqual(overseas_i2i["model"], "dola-seedream-5.0-flash-i2i")
+        self.assertEqual(
+            overseas_i2i["metadata"],
+            {"width": 1280, "height": 720, "output_format": "jpeg"},
+        )
+
+    def test_flash_and_pro_validation_use_model_specific_limits(self):
+        common = {
+            "width": 1024,
+            "height": 1024,
+            "output_format": "png",
+        }
+        self.assertIsNot(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="valid prompt", resolution="1.5k",
+                model_family=nodes.SEEDREAM_FAMILY_DOMESTIC, **common,
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="valid prompt", resolution="1.5k",
+                model_family=nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC, **common,
+            ),
+            True,
+        )
+        long_prompt = "x" * 3000
+        self.assertIsNot(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt=long_prompt, resolution="1k",
+                model_family=nodes.SEEDREAM_FAMILY_DOLA, **common,
+            ),
+            True,
+        )
+        self.assertIs(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt=long_prompt, resolution="1k",
+                model_family=nodes.SEEDREAM_FLASH_FAMILY_DOLA, **common,
+            ),
+            True,
+        )
+        self.assertIsNot(
+            nodes.SeedreamV5ProImage.VALIDATE_INPUTS(
+                prompt="x" * 5001, resolution="1k",
+                model_family=nodes.SEEDREAM_FLASH_FAMILY_DOLA, **common,
+            ),
+            True,
+        )
+
+    def test_flash_reference_must_be_single_image_and_within_30_mb(self):
+        node = nodes.SeedreamV5ProImage()
+        arguments = {
+            "prompt": "valid flash edit",
+            "resolution": "1k",
+            "width": 1024,
+            "height": 1024,
+            "output_format": "png",
+            "model_family": nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC,
+        }
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "upload_media"
+        ) as upload:
+            with self.assertRaisesRegex(client.SeedanceAPIError, "exactly one image"):
+                node.execute(image1=torch.zeros((2, 8, 8, 3)), **arguments)
+        upload.assert_not_called()
+
+        with patch.object(nodes, "get_config", return_value=CONFIG), patch.object(
+            nodes, "MAX_SEEDREAM_FLASH_SOURCE_BYTES", 1024 * 1024
+        ), patch.object(
+            nodes, "image_to_png_bytes", return_value=b"x" * (1024 * 1024 + 1)
+        ), patch.object(
+            nodes, "upload_media"
+        ) as upload:
+            with self.assertRaisesRegex(client.SeedanceAPIError, "exceeds 1 MB"):
+                node.execute(image1=torch.zeros((1, 8, 8, 3)), **arguments)
+        upload.assert_not_called()
 
     def test_rejects_unknown_seedream_model_family(self):
         self.assertIsNot(
@@ -601,6 +715,31 @@ class ImageNodeTests(unittest.TestCase):
                 height=1024,
                 output_format="png",
             )
+
+    def test_seedream_flash_example_workflows_are_safe_and_model_specific(self):
+        cases = {
+            "seedream-v5-flash文生图.json": (nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC, False),
+            "seedream-v5-flash图像编辑.json": (nodes.SEEDREAM_FLASH_FAMILY_DOMESTIC, True),
+            "dola-seedream-5.0-flash文生图.json": (nodes.SEEDREAM_FLASH_FAMILY_DOLA, False),
+            "dola-seedream-5.0-flash图像编辑.json": (nodes.SEEDREAM_FLASH_FAMILY_DOLA, True),
+        }
+        for filename, (expected_family, editing) in cases.items():
+            with self.subTest(filename=filename):
+                source = (PACKAGE_ROOT / "examples" / filename).read_text(encoding="utf-8")
+                workflow = json.loads(source)
+                self.assertNotRegex(source, r"sk-[A-Za-z0-9]{12,}")
+                config = next(node for node in workflow["nodes"] if node["type"] == "Seedance_Config")
+                generator = next(
+                    node for node in workflow["nodes"] if node["type"] == "Seedream_V5_Pro_Image"
+                )
+                self.assertEqual(config["widgets_values"][1], "")
+                self.assertEqual(generator["widgets_values"][5], expected_family)
+                self.assertEqual(generator["widgets_values"][6:9], [False, 0, "fixed"])
+                self.assertEqual(
+                    any(node["type"] == "LoadImage" for node in workflow["nodes"]),
+                    editing,
+                )
+                self.assertTrue(any(node["type"] == "SaveImage" for node in workflow["nodes"]))
 
     def test_zhenzhen_image_g2_text_to_image_payload(self):
         node = nodes.ZhenzhenImageG2()

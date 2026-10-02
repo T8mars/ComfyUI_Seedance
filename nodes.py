@@ -172,23 +172,50 @@ SEEDREAM_LAYER_DECOMPOSITION_MODEL = "seedream-v5-pro-layer-decomposition"
 DOLA_SEEDREAM_T2I_MODEL = "dola-seedream-5.0-pro-t2i"
 DOLA_SEEDREAM_I2I_MODEL = "dola-seedream-5.0-pro-i2i"
 DOLA_SEEDREAM_LAYER_DECOMPOSITION_MODEL = "dola-seedream-5.0-pro-layer-decomposition"
+SEEDREAM_FLASH_T2I_MODEL = "seedream-v5-flash-t2i"
+SEEDREAM_FLASH_I2I_MODEL = "seedream-v5-flash-i2i"
+SEEDREAM_FLASH_LAYER_DECOMPOSITION_MODEL = "seedream-v5-flash-layer-decomposition"
+DOLA_SEEDREAM_FLASH_T2I_MODEL = "dola-seedream-5.0-flash-t2i"
+DOLA_SEEDREAM_FLASH_I2I_MODEL = "dola-seedream-5.0-flash-i2i"
+DOLA_SEEDREAM_FLASH_LAYER_DECOMPOSITION_MODEL = "dola-seedream-5.0-flash-layer-decomposition"
 SEEDREAM_LAYER_DECOMPOSITION_MODELS = [
     SEEDREAM_LAYER_DECOMPOSITION_MODEL,
     DOLA_SEEDREAM_LAYER_DECOMPOSITION_MODEL,
+    SEEDREAM_FLASH_LAYER_DECOMPOSITION_MODEL,
+    DOLA_SEEDREAM_FLASH_LAYER_DECOMPOSITION_MODEL,
 ]
 SEEDREAM_FAMILY_DOMESTIC = "seedream-v5-pro (domestic)"
 SEEDREAM_FAMILY_DOLA = "dola-seedream-5.0-pro (overseas)"
-SEEDREAM_MODEL_FAMILIES = [SEEDREAM_FAMILY_DOMESTIC, SEEDREAM_FAMILY_DOLA]
+SEEDREAM_FLASH_FAMILY_DOMESTIC = "seedream-v5-flash (domestic)"
+SEEDREAM_FLASH_FAMILY_DOLA = "dola-seedream-5.0-flash (overseas)"
+SEEDREAM_MODEL_FAMILIES = [
+    SEEDREAM_FAMILY_DOMESTIC,
+    SEEDREAM_FAMILY_DOLA,
+    SEEDREAM_FLASH_FAMILY_DOMESTIC,
+    SEEDREAM_FLASH_FAMILY_DOLA,
+]
 SEEDREAM_MODEL_PAIRS = {
     SEEDREAM_FAMILY_DOMESTIC: (SEEDREAM_T2I_MODEL, SEEDREAM_I2I_MODEL),
     SEEDREAM_FAMILY_DOLA: (DOLA_SEEDREAM_T2I_MODEL, DOLA_SEEDREAM_I2I_MODEL),
+    SEEDREAM_FLASH_FAMILY_DOMESTIC: (SEEDREAM_FLASH_T2I_MODEL, SEEDREAM_FLASH_I2I_MODEL),
+    SEEDREAM_FLASH_FAMILY_DOLA: (DOLA_SEEDREAM_FLASH_T2I_MODEL, DOLA_SEEDREAM_FLASH_I2I_MODEL),
 }
-SEEDREAM_RESOLUTIONS = ["1k", "2k", "custom"]
+SEEDREAM_PRO_RESOLUTIONS = ["1k", "2k", "custom"]
+SEEDREAM_FLASH_RESOLUTIONS = ["1k", "1.5k", "2k", "custom"]
+SEEDREAM_RESOLUTIONS = SEEDREAM_FLASH_RESOLUTIONS
 SEEDREAM_LAYER_RESOLUTIONS = ["auto", "1k", "1.5k", "2k"]
 SEEDREAM_OUTPUT_FORMATS = ["png", "jpeg"]
 SEEDREAM_PROMPT_MIN_LENGTH = 5
-SEEDREAM_PROMPT_MAX_LENGTH = 2000
+SEEDREAM_PRO_PROMPT_MAX_LENGTH = 2000
+SEEDREAM_FLASH_PROMPT_MAX_LENGTH = 5000
+SEEDREAM_LAYER_PROMPT_MAX_LENGTH = 2000
+SEEDREAM_FLASH_FAMILIES = {
+    SEEDREAM_FLASH_FAMILY_DOMESTIC,
+    SEEDREAM_FLASH_FAMILY_DOLA,
+}
 MAX_SEEDREAM_IMAGES = 10
+MAX_SEEDREAM_PRO_SOURCE_BYTES = 10 * 1024 * 1024
+MAX_SEEDREAM_FLASH_SOURCE_BYTES = 30 * 1024 * 1024
 MAX_SEEDREAM_LAYER_SOURCE_BYTES = 30 * 1024 * 1024
 ZHENZHEN_IMAGE_G2_T2I_MODEL = "zhenzhen-image-g2-t2i"
 ZHENZHEN_IMAGE_G2_I2I_MODEL = "zhenzhen-image-g2-i2i"
@@ -6961,7 +6988,7 @@ class VOSR2ImageUpscale(SeedanceImageNodeBase):
 
 
 class SeedreamV5ProImage(SeedanceImageNodeBase):
-    """Text-to-image without references, image editing with 1-10 references."""
+    """Seedream V5 Pro/Flash generation and 1-10 image editing."""
 
     CATEGORY = "Seedance"
     FUNCTION = "execute"
@@ -6990,11 +7017,17 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "",
-                    "tooltip": "Prompt, 5-2000 characters. | 提示词，长度 5-2000 字符。",
+                    "tooltip": (
+                        "Prompt: Pro 5-2000 characters; Flash 5-5000 characters. | "
+                        "提示词：Pro 为 5-2000 字符，Flash 为 5-5000 字符。"
+                    ),
                 }),
                 "resolution": (SEEDREAM_RESOLUTIONS, {
                     "default": "2k",
-                    "tooltip": "1k/2k use the API preset; custom uses width and height. | 1k/2k 使用预设，custom 使用宽高。",
+                    "tooltip": (
+                        "Pro supports 1k/2k; Flash also supports 1.5k; custom uses width and height. | "
+                        "Pro 支持 1k/2k；Flash 另支持 1.5k；custom 使用宽高。"
+                    ),
                 }),
                 "width": ("INT", {
                     "default": 1024,
@@ -7017,9 +7050,9 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
                 "model_family": (SEEDREAM_MODEL_FAMILIES, {
                     "default": SEEDREAM_FAMILY_DOMESTIC,
                     "tooltip": (
-                        "Domestic uses seedream-v5-pro-t2i/i2i; overseas uses "
-                        "dola-seedream-5.0-pro-t2i/i2i. | 国内使用 seedream-v5-pro；"
-                        "海外使用 dola-seedream-5.0-pro。"
+                        "Choose domestic/overseas Pro or Flash; the node selects t2i or i2i "
+                        "from connected references. | 选择国内/海外 Pro 或 Flash；节点按是否连接参考图"
+                        "自动调用文生图或图生图模型。"
                     ),
                 }),
             },
@@ -7038,19 +7071,30 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
         strict=False,
         **kwargs,
     ):
+        family = model_family or SEEDREAM_FAMILY_DOMESTIC
+        if family not in SEEDREAM_MODEL_FAMILIES:
+            return f"unsupported model_family: {model_family}"
         prompt_text = str(prompt or "").strip()
-        if (strict or prompt_text) and not SEEDREAM_PROMPT_MIN_LENGTH <= len(prompt_text) <= SEEDREAM_PROMPT_MAX_LENGTH:
+        prompt_max = (
+            SEEDREAM_FLASH_PROMPT_MAX_LENGTH
+            if family in SEEDREAM_FLASH_FAMILIES
+            else SEEDREAM_PRO_PROMPT_MAX_LENGTH
+        )
+        if (strict or prompt_text) and not SEEDREAM_PROMPT_MIN_LENGTH <= len(prompt_text) <= prompt_max:
             return (
-                f"prompt must contain {SEEDREAM_PROMPT_MIN_LENGTH}-{SEEDREAM_PROMPT_MAX_LENGTH} "
+                f"prompt must contain {SEEDREAM_PROMPT_MIN_LENGTH}-{prompt_max} "
                 f"characters (got {len(prompt_text)}) | 提示词长度必须为 "
-                f"{SEEDREAM_PROMPT_MIN_LENGTH}-{SEEDREAM_PROMPT_MAX_LENGTH} 字符"
+                f"{SEEDREAM_PROMPT_MIN_LENGTH}-{prompt_max} 字符"
             )
-        if resolution not in SEEDREAM_RESOLUTIONS:
+        allowed_resolutions = (
+            SEEDREAM_FLASH_RESOLUTIONS
+            if family in SEEDREAM_FLASH_FAMILIES
+            else SEEDREAM_PRO_RESOLUTIONS
+        )
+        if resolution not in allowed_resolutions:
             return f"unsupported resolution: {resolution}"
         if output_format not in SEEDREAM_OUTPUT_FORMATS:
             return f"unsupported output_format: {output_format}"
-        if model_family is not None and model_family not in SEEDREAM_MODEL_FAMILIES:
-            return f"unsupported model_family: {model_family}"
         if resolution == "custom":
             if width is None or not 240 <= int(width) <= 8192:
                 return "custom width must be between 240 and 8192"
@@ -7131,10 +7175,28 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
             for i in range(1, MAX_SEEDREAM_IMAGES + 1)
             if kwargs.get(f"image{i}") is not None
         ]
+        source_limit = (
+            MAX_SEEDREAM_FLASH_SOURCE_BYTES
+            if model_family in SEEDREAM_FLASH_FAMILIES
+            else MAX_SEEDREAM_PRO_SOURCE_BYTES
+        )
         image_urls: List[str] = []
         for done, (slot, tensor) in enumerate(references, start=1):
+            image_shape = getattr(tensor, "shape", ())
+            if len(image_shape) != 4 or int(image_shape[0]) != 1:
+                raise SeedanceAPIError(
+                    "each Seedream reference input must contain exactly one image | "
+                    "每个 Seedream 参考图输入只能包含一张图片"
+                )
+            source_bytes = image_to_png_bytes(tensor)
+            if len(source_bytes) > source_limit:
+                limit_mib = source_limit // (1024 * 1024)
+                raise SeedanceAPIError(
+                    f"Seedream reference image {slot} exceeds {limit_mib} MB after PNG encoding | "
+                    f"Seedream 参考图 {slot} 编码为 PNG 后超过 {limit_mib} MB"
+                )
             image_url = upload_media(
-                image_to_png_bytes(tensor),
+                source_bytes,
                 f"seedream_reference_{slot}.png",
                 "image/png",
                 config,
@@ -7272,11 +7334,11 @@ class SeedreamV5ProLayerDecomposition(SeedanceImageNodeBase):
         **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
-        if len(prompt_text) > SEEDREAM_PROMPT_MAX_LENGTH:
+        if len(prompt_text) > SEEDREAM_LAYER_PROMPT_MAX_LENGTH:
             return (
-                f"prompt must contain no more than {SEEDREAM_PROMPT_MAX_LENGTH} "
+                f"prompt must contain no more than {SEEDREAM_LAYER_PROMPT_MAX_LENGTH} "
                 f"characters (got {len(prompt_text)}) | 提示词最多 "
-                f"{SEEDREAM_PROMPT_MAX_LENGTH} 字符"
+                f"{SEEDREAM_LAYER_PROMPT_MAX_LENGTH} 字符"
             )
         if resolution not in (None, *SEEDREAM_LAYER_RESOLUTIONS):
             return f"unsupported layer decomposition resolution: {resolution}"
@@ -14184,8 +14246,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
     "Seedance_2_5_Video": "Seedance 2.5 Standard 视频生成（6 合 1）",
-    "Seedream_V5_Pro_Image": "Seedream / Dola Seedream 图像生成/编辑",
-    "Seedream_V5_Pro_Layer_Decomposition": "Seedream / Dola Seedream v5 Pro 图层拆分（2 合 1）",
+    "Seedream_V5_Pro_Image": "Seedream / Dola Seedream V5 Pro/Flash 图像生成/编辑（8 合 1）",
+    "Seedream_V5_Pro_Layer_Decomposition": "Seedream / Dola Seedream V5 Pro/Flash 图层拆分（4 合 1）",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",
     "Zhenzhen_Image_G25_Lowprice": "Zhenzhen Image G v2.5 LowPrice 生成/编辑",
     "Zhenzhen_Image_G25_Official": "Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）",

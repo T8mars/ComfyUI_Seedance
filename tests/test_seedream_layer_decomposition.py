@@ -77,6 +77,8 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
             [
                 "seedream-v5-pro-layer-decomposition",
                 "dola-seedream-5.0-pro-layer-decomposition",
+                "seedream-v5-flash-layer-decomposition",
+                "dola-seedream-5.0-flash-layer-decomposition",
             ],
         )
         self.assertEqual(model_spec[1]["default"], "seedream-v5-pro-layer-decomposition")
@@ -113,6 +115,24 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
             "dola-seedream-5.0-pro-layer-decomposition",
         )
         self.assertEqual(dola["model"], "dola-seedream-5.0-pro-layer-decomposition")
+        flash = node._build_payload(
+            "https://cdn.test/source.png",
+            "",
+            "1.5k",
+            "jpeg",
+            "seedream-v5-flash-layer-decomposition",
+        )
+        dola_flash = node._build_payload(
+            "https://cdn.test/source.png",
+            "split the foreground",
+            "auto",
+            "png",
+            "dola-seedream-5.0-flash-layer-decomposition",
+        )
+        self.assertEqual(flash["model"], "seedream-v5-flash-layer-decomposition")
+        self.assertEqual(flash["metadata"], {"resolution": "1.5k", "output_format": "jpeg"})
+        self.assertEqual(dola_flash["model"], "dola-seedream-5.0-flash-layer-decomposition")
+        self.assertEqual(dola_flash["prompt"], "split the foreground")
 
     def test_validation_accepts_optional_prompt_and_documented_resolutions(self):
         for resolution in ("auto", "1k", "1.5k", "2k"):
@@ -313,6 +333,8 @@ class SeedreamLayerDecompositionTests(unittest.TestCase):
         cases = {
             "seedream-v5-pro图层拆分.json": "seedream-v5-pro-layer-decomposition",
             "dola-seedream-5.0-pro图层拆分.json": "dola-seedream-5.0-pro-layer-decomposition",
+            "seedream-v5-flash图层拆分.json": "seedream-v5-flash-layer-decomposition",
+            "dola-seedream-5.0-flash图层拆分.json": "dola-seedream-5.0-flash-layer-decomposition",
         }
         for filename, expected_model in cases.items():
             with self.subTest(filename=filename):

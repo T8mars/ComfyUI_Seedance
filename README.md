@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.18.0（2026-10-02）
+
+- 原 `Seedream / Dola Seedream` 图像节点新增国内与海外 V5 Flash 文生图/图生图模型，保留 Pro 为默认选项；Flash 支持 5–5000 字符提示词、`1k` / `1.5k` / `2k` 或自定义宽高，以及最多 10 张、单张不超过 30 MB 的参考图。
+- 原图层拆分节点新增国内 `seedream-v5-flash-layer-decomposition` 与海外 `dola-seedream-5.0-flash-layer-decomposition`，继续按顺序输出完整 IMAGE/MASK 列表。
+- 新增六份无凭据工作流，覆盖国内/海外 Flash 的文生图、单图编辑和图层拆分。
+- 六条模型路径均完成真实节点验证；完整离线回归通过 448 项测试，214 份示例工作流和 16 个前端脚本通过检查。
+
 ## v0.17.0（2026-09-21）
 
 - 新增独立的 `Qwen_Image_Global_2_1` 节点：文生图或最多 10 张参考图编辑；支持 1k/2k/4k、8 种画幅和可选原生 seed，不向接口发送旧版 `megapixels` 或多图数量字段。
@@ -496,7 +503,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Seedance 图生视频 (Image to Video)` | 首帧图生成视频，可选尾帧图 | `first_image`、可选 `last_image`、`prompt` |
 | `Seedance 多模态视频 (Multimodal Video)` | 图片、视频、音频混合参考生成视频 | 最多 9 张图、3 个视频、3 段音频 |
 | `Seedance 2.5 Standard 视频生成（6 合 1）` | 国内/海外 T2V、I2V、Multi 六模型统一调用 | 4 到 30 秒或智能时长、首尾帧、最多 30 图 10 视频 10 音频 |
-| `Seedream / Dola Seedream 图像生成/编辑` | 国内 / 海外文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
+| `Seedream / Dola Seedream V5 Pro/Flash 图像生成/编辑（8 合 1）` | 国内 / 海外 Pro 与 Flash 文生图和图像编辑；无参考图时使用 t2i，有参考图时使用 i2i | `model_family`、`prompt`、分辨率、输出格式、可选参考图 |
+| `Seedream / Dola Seedream V5 Pro/Flash 图层拆分（4 合 1）` | 国内 / 海外 Pro 与 Flash 单图图层拆分 | `model`、单张 `image`、可选提示词、分辨率、输出格式 |
 | `Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）` | 国内 / 海外标准版与 Pro 文生图、图像编辑 | `model`、`prompt`、尺寸模式、`n`、可选 1 到 3 张参考图 |
 | `Qwen Image Global 2.1 文生图/图像编辑` | 海外文生图或 1 到 10 图编辑 | `prompt`、1k/2k/4k、画幅、原生 seed、可选参考图 |
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
@@ -730,11 +738,11 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 
 图片生成或编辑：
 
-1. 添加 `Seedream / Dola Seedream 图像生成/编辑`。
-2. 填写 5 到 2000 字符的 `prompt`。
-3. 选择 `model_family`：国内 `seedream-v5-pro` 或海外 `dola-seedream-5.0-pro`。
+1. 添加 `Seedream / Dola Seedream V5 Pro/Flash 图像生成/编辑（8 合 1）`。
+2. 填写 `prompt`：Pro 为 5 到 2000 字符，Flash 为 5 到 5000 字符。
+3. 选择 `model_family`：国内/海外的 V5 Pro 或 V5 Flash；旧工作流仍默认国内 Pro。
 4. 不连接参考图时执行文生图；连接 `image1` 到 `image10` 中任意参考图时执行图像编辑。
-5. 选择 `1k`、`2k`，或选择 `custom` 后设置 `width` 和 `height`。
+5. Pro 选择 `1k`、`2k` 或 `custom`；Flash 还可选择 `1.5k`。选择 `custom` 后设置 `width` 和 `height`。
 6. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
 Zhenzhen Image G 图片生成或编辑：
@@ -824,6 +832,8 @@ Midjourney 图片与视频：
 - `examples/seedream-v5-pro图层拆分.json`
 - `examples/seedream-v5-pro宽审核文生图.json`
 - `examples/seedream-v5-pro宽审核图像编辑.json`
+- `examples/seedream-v5-flash*.json`（3 份，文生图、图像编辑、图层拆分）
+- `examples/dola-seedream-5.0-flash*.json`（3 份，海外文生图、图像编辑、图层拆分）
 - `examples/zhenzhen-image-g2文生图.json`
 - `examples/zhenzhen-image-g2图像编辑.json`
 - `examples/zhenzhen-image-g-v2-lowprice文生图.json`
@@ -905,6 +915,8 @@ Seedance 2.5 使用独立的六合一节点，仅包含 Standard 国内/海外�
 | --- | --- | --- |
 | `seedream-v5-pro (domestic)` | `seedream-v5-pro-t2i` | `seedream-v5-pro-i2i` |
 | `dola-seedream-5.0-pro (overseas)` | `dola-seedream-5.0-pro-t2i` | `dola-seedream-5.0-pro-i2i` |
+| `seedream-v5-flash (domestic)` | `seedream-v5-flash-t2i` | `seedream-v5-flash-i2i` |
+| `dola-seedream-5.0-flash (overseas)` | `dola-seedream-5.0-flash-t2i` | `dola-seedream-5.0-flash-i2i` |
 
 Qwen Image 3.0 节点使用独立的 `/v1/image/generations` 图片端点：
 
@@ -1157,12 +1169,12 @@ Doubao Seed Audio 节点使用独立的 `/v1/audio/generations` 异步端点，�
 
 | 参数 | 说明 |
 | --- | --- |
-| `prompt` | 必填，5 到 2000 字符 |
-| `resolution` | `1k`、`2k` 或 `custom`；选择预设时 API 会忽略宽高 |
+| `prompt` | 必填；Pro 为 5 到 2000 字符，Flash 为 5 到 5000 字符 |
+| `resolution` | Pro 支持 `1k`、`2k`、`custom`；Flash 另支持 `1.5k`；选择预设时 API 会忽略宽高 |
 | `width` / `height` | 仅 `custom` 时提交，范围 240 到 8192 |
 | `output_format` | `png` 或 `jpeg` |
-| `model_family` | 国内 `seedream-v5-pro` 或海外 `dola-seedream-5.0-pro` |
-| `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑 |
+| `model_family` | 国内/海外的 V5 Pro 或 V5 Flash；Pro 仍为默认值 |
+| `image1` ... `image10` | 可选参考图；未连接时文生图，连接后图像编辑；Flash 单张上传后不超过 30 MB |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 Seedream 图层拆分节点参数与输出：
@@ -1173,6 +1185,7 @@ Seedream 图层拆分节点参数与输出：
 | `prompt` | 可选拆分要求，0 到 2000 字符 |
 | `resolution` | `auto`、`1k`、`1.5k` 或 `2k` |
 | `output_format` | `png` 或 `jpeg`；需要透明图层时建议使用 PNG |
+| `model` | 国内/海外 V5 Pro 或 V5 Flash 图层拆分模型；原国内 Pro 仍为默认值 |
 | `images` / `masks` | 按 API 顺序输出的 ComfyUI 列表；第 1 项为底图，后续为全部图层及其透明 MASK |
 | `image_urls` / `image_count` | 完整结果 URL 数组 JSON 与实际结果数量 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |

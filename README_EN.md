@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.18.0 - 2026-10-02
+
+- Extended the existing Seedream/Dola Seedream image node with domestic and overseas V5 Flash text-to-image and image-to-image models while retaining Pro as the default. Flash accepts 5-5000 prompt characters, 1k/1.5k/2k or custom dimensions, and up to ten references of at most 30 MB each.
+- Extended the layer-decomposition node with domestic `seedream-v5-flash-layer-decomposition` and overseas `dola-seedream-5.0-flash-layer-decomposition`, preserving the complete ordered IMAGE/MASK list output.
+- Added six credential-free workflows covering domestic and overseas Flash text generation, single-image editing, and layer decomposition.
+- All six model paths completed real node verification. The complete offline suite passed 448 tests; all 214 workflows and 16 frontend scripts passed validation.
+
 ## v0.17.0 - 2026-09-21
 
 - Added independent `Qwen_Image_Global_2_1` generation/editing node: text or up to 10 ordered reference images, 1k/2k/4k, eight ratios, and optional native seed. It does not send the obsolete `megapixels` or multi-image count fields.
@@ -125,8 +132,8 @@ The full historical changelog remains in the [Chinese README](README.md).
 
 ### Image and 3D
 
-- Seedream v5 Pro and Dola Seedream 5.0 Pro
-- Seedream layer decomposition
+- Seedream V5 Pro/Flash and Dola Seedream 5.0 Pro/Flash
+- Seedream Pro/Flash layer decomposition
 - Qwen Image 3.0/Pro and Qwen Image Global 2.1
 - Zhenzhen Image G v2.5, G, GK v1.5, GK v2, and Nano Banana
 - Wan 2.7 global image generation/editing
@@ -179,8 +186,8 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `VOSR2_Video_Upscale` | VOSR2 single-video 2K upscaling |
 | `Animate_Motion_Transfer` | Single-image, single-video motion transfer with local or URL inputs |
 | `Zhenzhen_Upscaler_Video` | Zhenzhen video upscaling |
-| `Seedream_V5_Pro_Image` | Seedream/Dola Seedream generation and editing |
-| `Seedream_V5_Pro_Layer_Decomposition` | Seedream/Dola layer decomposition |
+| `Seedream_V5_Pro_Image` | Seedream/Dola Seedream V5 Pro/Flash generation and editing |
+| `Seedream_V5_Pro_Layer_Decomposition` | Seedream/Dola V5 Pro/Flash layer decomposition |
 | `Qwen_Image_3_0` | Qwen Image 3.0/Pro generation and editing |
 | `Qwen_Image_Global_2_1` | Qwen Global 2.1 text-to-image or up to ten-image editing |
 | `Zhenzhen_Image_G2` | Zhenzhen Image G generation and editing |
@@ -399,7 +406,7 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
 - FLUX 3, Hailuo H3/H3 Max, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
-- Seedream, Qwen Image, Zhenzhen Image including six G v2.5 generation/editing examples, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
+- Seedream Pro/Flash, Qwen Image, Zhenzhen Image including six G v2.5 generation/editing examples, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.
 - Doubao, Qwen3 TTS, MiniMax Audio, Mureka, Whisper, Suno, and Flow Music workflows.
 - Serial and concurrent generation examples.
