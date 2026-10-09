@@ -74,6 +74,8 @@ function installSeedanceInputPositioning(node) {
             );
             const visibleSlot = visibleInputs.indexOf(input);
             if (visibleSlot >= 0 && visibleInputs.length !== inputs.length) {
+                // Modern ComfyUI's setter splices the original array in place.
+                const originalInputs = [...inputs];
                 this.inputs = visibleInputs;
                 try {
                     return originalGetConnectionPos.call(
@@ -83,7 +85,7 @@ function installSeedanceInputPositioning(node) {
                         out,
                     );
                 } finally {
-                    this.inputs = inputs;
+                    this.inputs = originalInputs;
                 }
             }
         }
@@ -108,11 +110,12 @@ function installSeedanceInputLayout(node) {
         if (visibleInputs.length === inputs.length) {
             return originalComputeSize.apply(this, arguments);
         }
+        const originalInputs = [...inputs];
         this.inputs = visibleInputs;
         try {
             return originalComputeSize.apply(this, arguments);
         } finally {
-            this.inputs = inputs;
+            this.inputs = originalInputs;
         }
     };
     node[INPUT_LAYOUT_STATE] = true;

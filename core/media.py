@@ -4,6 +4,7 @@ upload, plus error placeholder generation for skip_error mode.
 """
 
 import os
+import subprocess
 import tempfile
 import time
 import uuid
@@ -165,6 +166,29 @@ def audio_to_wav_bytes(audio: dict) -> bytes:
     data = (data * 32767).clip(-32768, 32767).astype(np.int16)
     wavfile.write(buf, sample_rate, data)
     return buf.getvalue()
+
+
+def audio_to_mp3_bytes(audio: dict) -> bytes:
+    """Encode ComfyUI audio for endpoints that require MP3 references."""
+    from .client import _find_ffmpeg
+
+    ffmpeg = _find_ffmpeg()
+    if not ffmpeg:
+        raise RuntimeError(
+            "MP3 reference encoding requires FFmpeg; configure SEEDANCE_FFMPEG "
+            "or provide an MP3 URL. | MP3 参考音频需要 FFmpeg；可设置 "
+            "SEEDANCE_FFMPEG 或填写 MP3 直链。"
+        )
+    completed = subprocess.run(
+        [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0",
+         "-codec:a", "libmp3lame", "-b:a", "128k", "-f", "mp3", "pipe:1"],
+        input=audio_to_wav_bytes(audio), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        check=False, timeout=180,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
+    )
+    if completed.returncode != 0 or not completed.stdout:
+        raise RuntimeError("FFmpeg MP3 encoding failed | FFmpeg 转换 MP3 失败")
+    return completed.stdout
 
 
 def make_silent_audio(sample_rate: int = 24000, duration_seconds: float = 1.0) -> dict:

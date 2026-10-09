@@ -4,6 +4,15 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.19.0 - 2026-10-10
+
+- Added an independent `Zhenzhen_Image_NB_2_1` node for text generation and up-to-14-image editing, 5-5000 prompt characters, 1k/2k/4k, and standard ratios plus `auto`. It generates one image and never submits output-format fields.
+- Added an independent `Flux_3_Image` node for text generation and up-to-ten-image editing, five resolutions, and 15 fixed aspect ratios plus `auto`.
+- Added an independent four-model `Vidu_Q4_Preview_Video` node for domestic/global I2V and R2V: 3-16 seconds, 540p through 4k, and up to 15 images plus three MP3 audio references in R2V. Local AUDIO inputs are encoded and uploaded automatically.
+- All three nodes reuse standard cache seeds, `skip_error`, resilient downloads, and existing image/video concurrent submission. Fixed hidden input loss during temporary layout calculations on current ComfyUI without changing socket or link order.
+- Added eight credential-free workflows. NB 2.1 and FLUX text/edit plus all four Vidu model paths completed real submission, polling, download, and decoding checks. Both NB 2.1 paths returned 1024x1024 images; video checks requested 3 seconds at 540p.
+- The complete offline suite passed 470 tests; all 222 workflows and 17 frontend scripts passed validation.
+
 ## v0.18.0 - 2026-10-02
 
 - Extended the existing Seedream/Dola Seedream image node with domestic and overseas V5 Flash text-to-image and image-to-image models while retaining Pro as the default. Flash accepts 5-5000 prompt characters, 1k/1.5k/2k or custom dimensions, and up to ten references of at most 30 MB each.
@@ -176,6 +185,8 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Minimax_H3_Context_IR` | Text, frame, or multimodal video prompt enhancement |
 | `Vidu_Q3_Video` | Vidu Q3 T2V, I2V, start/end, and reference video |
 | `Vidu_Q3_ShortPlay` | Vidu Q3 short-play generation |
+| `Vidu_Q4_Preview_Video` | Four domestic/global I2V/R2V models; up to 15 images and three MP3 audio references |
+| `Flux_3_Image` | FLUX 3 text generation and up-to-ten-image editing |
 | `Zhenzhen_Video_G_Omni_Flash` | Zhenzhen Video G Omni Flash |
 | `Zhenzhen_Video_G_Omni_Flash_Lowprice` | Omni Flash Lowprice text, first-frame, reference-image, and reference-video generation |
 | `Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice` | Omni 1.1 Flash Lowprice text, first-frame, reference-image, and reference-video generation |
@@ -199,6 +210,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Image_GK_V2_Segment` | Zhenzhen Image GK v2 segmentation |
 | `Zhenzhen_Image_GK_V2_Region_Edit` | Zhenzhen Image GK v2 region editing |
 | `Zhenzhen_Image_NB` | Zhenzhen Nano Banana generation and editing |
+| `Zhenzhen_Image_NB_2_1` | Independent NB 2.1 text generation and up-to-14-image editing |
 | `Wan_2_7_Global_Image` | Wan 2.7 global image generation and editing |
 | `Hunyuan3D_V3_1` | Hunyuan 3D text or ordered multi-view image generation |
 | `Doubao_Seed_Audio` | Doubao Seed Audio generation |
@@ -398,6 +410,20 @@ Common audio outputs:
 
 Specialized nodes may expose multiple images, videos, audio tracks, masks, text, local paths, operation buttons, or native `FILE_3D_GLB` outputs.
 
+## Nano Banana 2.1
+
+The independent NB 2.1 node uses `zhenzhen-image-nb-2.1` and the shared `/v1/image/generations` submit/poll/download path. Prompt length is 5-5000 characters. Choose `1k` (default), `2k`, or `4k`, and `auto` or one of ten standard aspect ratios (default `1:1`). No reference images means text generation; connect up to 14 ordered single-image references for editing. Each request generates exactly one image and omits all output-format fields.
+
+The existing four-model NB node remains unchanged. NB 2.1 supports standard cache-only seeds, default-off `skip_error`, resilient downloads, and the optional 30-way image concurrent submit wrapper.
+
+## FLUX 3 Image and Vidu Q4
+
+FLUX requires a non-empty prompt and accepts up to ten ordered local images. Resolution is `768sq`, `1k` (default), `1.5k`, `2k`, or `4k`. Select `auto` or one of 15 fixed aspect ratios; `grounding` defaults to true and `safety_tolerance` accepts 0-4 (default 2). The request uses `/v1/image/generations` and produces one IMAGE result.
+
+Vidu Q4 keeps domestic/global I2V and R2V in one independent node. I2V requires exactly `image1` and allows an empty prompt. R2V requires a prompt and 1-15 images, optionally with up to three local AUDIO inputs or public MP3 URLs. Choose only one source per audio slot. Local audio requires FFmpeg, optionally configured with `SEEDANCE_FFMPEG`.
+
+Vidu supports 3-16 seconds (default 5) and `540p`, `720p` (default), `1080p`, `2k`, or `4k`. Only R2V submits a ratio: `16:9` (default), `9:16`, `1:1`, `4:3`, or `3:4`. `generate_audio` and `is_rec` default to true; `watermark` defaults to false. The node uses `/v1/video/generations`, not Q3's request contract. Both new nodes use cache-only seeds and do not send undocumented seed fields to the API.
+
 ## Example Workflows
 
 The [`examples`](examples) directory contains safe workflows with empty API key fields and no saved runtime results. It includes:
@@ -406,6 +432,9 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
 - FLUX 3, Hailuo H3/H3 Max, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
+- `flux-3-image*.json`: two FLUX image generation/editing workflows.
+- `vidu-q4-preview*.json`: four domestic/global I2V and image-plus-audio R2V workflows.
+- `zhenzhen-image-nb-2.1*.json`: independent NB 2.1 text generation and local-image editing workflows.
 - Seedream Pro/Flash, Qwen Image, Zhenzhen Image including six G v2.5 generation/editing examples, Midjourney, segmentation, region-editing, and layer-decomposition workflows.
 - Hunyuan 3D preview/save workflows.
 - Doubao, Qwen3 TTS, MiniMax Audio, Mureka, Whisper, Suno, and Flow Music workflows.

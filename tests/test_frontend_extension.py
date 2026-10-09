@@ -1,5 +1,7 @@
 import json
 import re
+import shutil
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -12,6 +14,35 @@ import ComfyUI_Seedance
 
 
 class FrontendExtensionTests(unittest.TestCase):
+    def test_vidu_q4_uses_shared_dynamic_helpers_and_concurrent_aliases(self):
+        source = (PLUGIN_ROOT / "web" / "js" / "vidu_q4_ui.js").read_text(encoding="utf-8")
+        for fragment in (
+            'const NODE_NAME = "Vidu_Q4_Preview_Video"',
+            'from "./dynamic_widget_ui.js"',
+            'originalSeedanceNodeName(nodeData.name)',
+            'originalSeedanceNodeName(name)',
+            'model.endsWith("-r2v")',
+            'highest[family] + 1',
+            'family === "image" ? 15 : 3',
+            'setInputVisible(node, input, allowed)',
+            'setWidgetVisible(widget, referenceMode)',
+            'resizeSeedanceNode(node, 440, visibleInputs.length)',
+            '"onConfigure", "onConnectionsChange", "onAfterGraphConfigured"',
+            'Symbol("seedanceViduQ4Installed")',
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_dynamic_inputs_survive_in_place_frontend_setters(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is unavailable")
+        result = subprocess.run(
+            [node, str(PLUGIN_ROOT / "tests" / "dynamic_input_restore.mjs")],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_package_exposes_web_directory(self):
         self.assertEqual(ComfyUI_Seedance.WEB_DIRECTORY, "./web")
 
@@ -558,6 +589,10 @@ class FrontendExtensionTests(unittest.TestCase):
         actual_nb = {
             path.name
             for path in (PLUGIN_ROOT / "examples").glob("zhenzhen-image-nb-*.json")
+            if any(
+                item["type"] == "Zhenzhen_Image_NB"
+                for item in json.loads(path.read_text(encoding="utf-8"))["nodes"]
+            )
         }
         self.assertEqual(actual_nb, expected_nb)
 

@@ -76,6 +76,7 @@ from .core.client import (
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
 from .core.media import (
+    audio_to_mp3_bytes,
     audio_to_wav_bytes,
     image_to_png_bytes,
     mask_to_midjourney_png_bytes,
@@ -407,6 +408,10 @@ ZHENZHEN_IMAGE_NB_MODEL_N_RANGE = {
 }
 MAX_ZHENZHEN_IMAGE_NB_IMAGES = 14
 ZHENZHEN_IMAGE_NB_FLASH_PROMPT_MAX_LENGTH = 1000
+ZHENZHEN_IMAGE_NB_21_MODEL = "zhenzhen-image-nb-2.1"
+ZHENZHEN_IMAGE_NB_21_RESOLUTIONS = ["1k", "2k", "4k"]
+ZHENZHEN_IMAGE_NB_21_SIZES = ["auto", *ZHENZHEN_IMAGE_NB_STANDARD_SIZES]
+MAX_ZHENZHEN_IMAGE_NB_21_IMAGES = 14
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
 ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL = "zhenzhen-video-g-omni-flash-lowprice"
@@ -741,6 +746,22 @@ VIDU_SHORT_PLAY_MODELS = [
 VIDU_SECONDS = [str(s) for s in range(4, 16)]
 VIDU_RESOLUTIONS = ["default", "720p", "1080p"]
 MAX_VIDU_REFERENCE_IMAGES = 9
+VIDU_Q4_MODELS = [
+    "vidu-q4-preview-i2v", "vidu-q4-preview-r2v",
+    "vidu-q4-preview-global-i2v", "vidu-q4-preview-global-r2v",
+]
+VIDU_Q4_SECONDS = [str(seconds) for seconds in range(3, 17)]
+VIDU_Q4_RESOLUTIONS = ["540p", "720p", "1080p", "2k", "4k"]
+VIDU_Q4_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"]
+MAX_VIDU_Q4_IMAGES = 15
+MAX_VIDU_Q4_AUDIOS = 3
+FLUX3_IMAGE_MODEL = "flux-3-image"
+FLUX3_IMAGE_RESOLUTIONS = ["768sq", "1k", "1.5k", "2k", "4k"]
+FLUX3_IMAGE_RATIOS = [
+    "auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+    "5:4", "4:5", "2:1", "1:2", "21:9", "9:21", "5:7", "7:5",
+]
+MAX_FLUX3_IMAGE_REFERENCES = 10
 VIDU_SHORT_PLAY_DURATIONS = [str(s) for s in range(8, 13)]
 VIDU_SHORT_PLAY_ASPECT_RATIOS = ["9:16", "16:9"]
 VIDU_SHORT_PLAY_ASSET_TYPES = ["character", "scene", "prop"]
@@ -5969,6 +5990,174 @@ class ViduQ3Video(SeedanceVideoNodeBase):
         return payload
 
 
+class ViduQ4PreviewVideo(SeedanceVideoNodeBase):
+    """Vidu Q4 domestic/global I2V and image/audio reference generation."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {
+            f"image{i}": ("IMAGE", {"tooltip": f"Reference {i}/15 | 参考图 {i}/15"})
+            for i in range(1, MAX_VIDU_Q4_IMAGES + 1)
+        }
+        optional.update({
+            f"audio{i}": ("AUDIO", {
+                "tooltip": f"R2V audio {i}/3; encoded as MP3 | 参考音频 {i}/3，自动转为 MP3",
+            }) for i in range(1, MAX_VIDU_Q4_AUDIOS + 1)
+        })
+        optional["api_config"] = ("SEEDANCE_CONFIG", {})
+        optional["skip_error"] = ("BOOLEAN", {"default": False})
+        return {
+            "required": {
+                "model": (VIDU_Q4_MODELS, {"default": VIDU_Q4_MODELS[0]}),
+                "prompt": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "Required for R2V; optional for I2V | 参考生视频必填，图生视频可留空",
+                }),
+                "seconds": (VIDU_Q4_SECONDS, {"default": "5"}),
+                "resolution": (VIDU_Q4_RESOLUTIONS, {"default": "720p"}),
+                "ratio": (VIDU_Q4_RATIOS, {"default": "16:9", "tooltip": "R2V only | 仅参考生视频生效"}),
+                "generate_audio": ("BOOLEAN", {"default": True}),
+                "is_rec": ("BOOLEAN", {"default": True}),
+                "watermark": ("BOOLEAN", {"default": False}),
+                **{
+                    f"audio_url{i}": ("STRING", {
+                        "default": "", "tooltip": "Public MP3 URL or connect audio | MP3 直链或连接音频",
+                    }) for i in range(1, MAX_VIDU_Q4_AUDIOS + 1)
+                },
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, seconds=None, resolution=None,
+                        ratio=None, strict=False, **kwargs):
+        if model not in (None, *VIDU_Q4_MODELS):
+            return "unsupported Vidu Q4 model | 不支持的 Vidu Q4 模型"
+        if seconds is not None and str(seconds) not in VIDU_Q4_SECONDS:
+            return "Vidu Q4 seconds must be 3-16 | 时长必须为 3-16 秒"
+        if resolution is not None and resolution not in VIDU_Q4_RESOLUTIONS:
+            return "unsupported Vidu Q4 resolution | 不支持的分辨率"
+        reference_mode = str(model or "").endswith("-r2v")
+        if reference_mode and ratio not in (None, *VIDU_Q4_RATIOS):
+            return "unsupported Vidu Q4 reference ratio | 不支持的参考视频画幅"
+        if strict and reference_mode and not str(prompt or "").strip():
+            return "prompt is required for Vidu Q4 R2V | 参考生视频必须填写提示词"
+        if reference_mode:
+            for index in range(1, MAX_VIDU_Q4_AUDIOS + 1):
+                url = str(kwargs.get(f"audio_url{index}") or "").strip()
+                if url:
+                    parsed = urlparse(url)
+                    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                        return "audio URL must use HTTP(S) | 音频直链必须为 HTTP(S)"
+                if strict and url and kwargs.get(f"audio{index}") is not None:
+                    return f"audio{index} accepts one local input or URL | 音频每路只能选择一个来源"
+        return True
+
+    @property
+    def _log_prefix(self):
+        return "Vidu_Q4_preview"
+
+    def collect_media(self, kwargs, config, progress_cb):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        reference_mode = kwargs["model"].endswith("-r2v")
+        image_slots = [
+            (index, kwargs[f"image{index}"])
+            for index in range(1, MAX_VIDU_Q4_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        if not reference_mode:
+            if kwargs.get("image1") is None:
+                raise SeedanceAPIError("Vidu Q4 I2V requires image1 | 图生视频必须连接 image1")
+            if len(image_slots) != 1:
+                raise SeedanceAPIError("Vidu Q4 I2V accepts exactly one image | 图生视频仅支持一张图")
+        elif not image_slots:
+            raise SeedanceAPIError("Vidu Q4 R2V requires 1-15 images | 参考生视频需要 1-15 张图")
+        for _, image in image_slots:
+            if len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1:
+                raise SeedanceAPIError("each Vidu Q4 image input requires one image | 每路只能连接一张图")
+        audio_slots = []
+        if reference_mode:
+            for index in range(1, MAX_VIDU_Q4_AUDIOS + 1):
+                audio = kwargs.get(f"audio{index}")
+                url = str(kwargs.get(f"audio_url{index}") or "").strip()
+                if audio is not None:
+                    waveform = audio.get("waveform") if isinstance(audio, dict) else None
+                    shape = getattr(waveform, "shape", ())
+                    if not shape or (len(shape) == 3 and int(shape[0]) != 1):
+                        raise SeedanceAPIError("each audio input requires one AUDIO | 每路只能连接一段音频")
+                if audio is not None or url:
+                    audio_slots.append((index, audio, url))
+        total = len(image_slots) + len(audio_slots)
+        image_urls, audio_urls = [], []
+        for index, image in image_slots:
+            image_urls.append(upload_media(
+                image_to_png_bytes(image), f"vidu_q4_image_{index}.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            ))
+            progress_cb(len(image_urls) / total)
+        for index, audio, url in audio_slots:
+            if audio is not None:
+                url = upload_media(
+                    audio_to_mp3_bytes(audio), f"vidu_q4_audio_{index}.mp3", "audio/mpeg",
+                    config, logger_prefix=self._log_prefix,
+                )
+            audio_urls.append(url)
+            progress_cb((len(image_urls) + len(audio_urls)) / total)
+        return {"images": image_urls, "audio_urls": audio_urls}
+
+    def build_payload(self, kwargs, media):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        reference_mode = kwargs["model"].endswith("-r2v")
+        images = media.get("images") or []
+        if not (1 <= len(images) <= MAX_VIDU_Q4_IMAGES if reference_mode else len(images) == 1):
+            raise SeedanceAPIError("invalid Vidu Q4 image count | Vidu Q4 图片数量不正确")
+        metadata = {
+            "resolution": kwargs["resolution"],
+            "generate_audio": bool(kwargs.get("generate_audio", True)),
+            "is_rec": bool(kwargs.get("is_rec", True)),
+            "watermark": bool(kwargs.get("watermark", False)),
+        }
+        if reference_mode:
+            metadata["ratio"] = kwargs.get("ratio", "16:9")
+            audio_urls = media.get("audio_urls") or []
+            if len(audio_urls) > MAX_VIDU_Q4_AUDIOS:
+                raise SeedanceAPIError("Vidu Q4 supports at most 3 audios | 最多支持三段音频")
+            if audio_urls:
+                metadata["audio_urls"] = audio_urls
+        payload = {"model": kwargs["model"], "images": images,
+                   "seconds": str(kwargs["seconds"]), "metadata": metadata}
+        prompt = str(kwargs.get("prompt") or "").strip()
+        if prompt:
+            payload["prompt"] = prompt
+        return payload
+
+    def _execute_inner(self, **kwargs):
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        media = self.collect_media(
+            kwargs, config, lambda fraction: self._update_progress(pbar, fraction * 15),
+        )
+        self._update_progress(pbar, 15)
+        task_id = submit_legacy_video_task(
+            self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(
+            task_id, config,
+            on_progress=lambda value: self._update_progress(pbar, 20 + value * .75),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        result_url = extract_legacy_video_url(final)
+        video = download_video(result_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, result_url, task_id, final)
+
+
 class ViduQ3ShortPlay(SeedanceVideoNodeBase):
     """Vidu Q3 short-play generation via /v1/videos."""
 
@@ -8400,6 +8589,112 @@ class ZhenzhenImageG25Official(_ZhenzhenImageG25Base):
 # Qwen Image 3.0 image generation and editing
 # ---------------------------------------------------------------------------
 
+class Flux3Image(SeedanceImageNodeBase):
+    """FLUX 3 text generation and reference-image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {
+            f"image{i}": ("IMAGE", {"tooltip": f"Reference image {i}/10 | 参考图 {i}/10"})
+            for i in range(1, MAX_FLUX3_IMAGE_REFERENCES + 1)
+        }
+        optional["api_config"] = ("SEEDANCE_CONFIG", {})
+        optional["skip_error"] = ("BOOLEAN", {"default": False})
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True, "default": ""}),
+                "resolution": (FLUX3_IMAGE_RESOLUTIONS, {"default": "1k"}),
+                "aspect_ratio": (FLUX3_IMAGE_RATIOS, {"default": "auto"}),
+                "grounding": ("BOOLEAN", {"default": True}),
+                "safety_tolerance": ("INT", {"default": 2, "min": 0, "max": 4}),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, resolution=None, aspect_ratio=None,
+                        safety_tolerance=None, strict=False, **kwargs):
+        if strict and not str(prompt or "").strip():
+            return "FLUX 3 Image requires a prompt | 必须填写提示词"
+        if resolution not in (None, *FLUX3_IMAGE_RESOLUTIONS):
+            return "unsupported FLUX 3 Image resolution | 不支持的分辨率"
+        if aspect_ratio not in (None, *FLUX3_IMAGE_RATIOS):
+            return "unsupported FLUX 3 Image aspect ratio | 不支持的画幅比例"
+        if safety_tolerance is not None:
+            try:
+                if int(safety_tolerance) != safety_tolerance or not 0 <= int(safety_tolerance) <= 4:
+                    return "safety_tolerance must be an integer from 0 to 4"
+            except (TypeError, ValueError):
+                return "safety_tolerance must be an integer from 0 to 4"
+        return True
+
+    @property
+    def _log_prefix(self):
+        return FLUX3_IMAGE_MODEL
+
+    def build_payload(self, kwargs, images):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > MAX_FLUX3_IMAGE_REFERENCES:
+            raise SeedanceAPIError("FLUX 3 Image accepts at most 10 references | 最多十张参考图")
+        payload = {
+            "model": FLUX3_IMAGE_MODEL, "prompt": str(kwargs["prompt"]).strip(),
+            "resolution": kwargs["resolution"], "aspect_ratio": kwargs["aspect_ratio"],
+            "grounding": bool(kwargs.get("grounding", True)),
+            "safety_tolerance": int(kwargs.get("safety_tolerance", 2)), "n": 1,
+        }
+        if images:
+            payload["images"] = images
+        return payload
+
+    def _execute_inner(self, api_config=None, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        references = [
+            (index, kwargs[f"image{index}"])
+            for index in range(1, MAX_FLUX3_IMAGE_REFERENCES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        for _, image in references:
+            if len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1:
+                raise SeedanceAPIError("each FLUX image input requires one image | 每路只能连接一张图")
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        urls = []
+        for index, image in references:
+            urls.append(upload_media(
+                image_to_png_bytes(image), f"flux3_image_reference_{index}.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            ))
+            if pbar:
+                pbar.update_absolute(int(len(urls) / len(references) * 15), 100)
+        task_id = submit_image_task(self.build_payload(kwargs, urls), config, logger_prefix=self._log_prefix)
+        if pbar:
+            pbar.update_absolute(20, 100)
+        final = poll_image_task(
+            task_id, config,
+            on_progress=(lambda value: pbar.update_absolute(20 + int(value * .75), 100)) if pbar else None,
+            logger_prefix=self._log_prefix,
+        )
+        if pbar:
+            pbar.update_absolute(95, 100)
+        result_url = extract_image_url(final)
+        image = download_image(result_url, logger_prefix=self._log_prefix)
+        if pbar:
+            pbar.update_absolute(100, 100)
+        response_str = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [result_url, response_str]},
+                "result": (image, result_url, task_id, response_str)}
+
+
 class QwenImageGlobal21(SeedanceImageNodeBase):
     """One-image Qwen 2.1 generation or editing with up to ten references."""
 
@@ -9991,6 +10286,112 @@ class Wan27GlobalImage(SeedanceImageNodeBase):
 # ---------------------------------------------------------------------------
 # Zhenzhen Image Nano Banana generation and editing
 # ---------------------------------------------------------------------------
+
+class ZhenzhenImageNB21(SeedanceImageNodeBase):
+    """Independent Nano Banana 2.1 text generation and reference editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "Required, 5-5000 characters | 必填，5-5000 字符",
+                }),
+                "resolution": (ZHENZHEN_IMAGE_NB_21_RESOLUTIONS, {"default": "1k"}),
+                "size": (ZHENZHEN_IMAGE_NB_21_SIZES, {"default": "1:1"}),
+            },
+            "optional": {
+                **{
+                    f"image{i}": ("IMAGE", {
+                        "tooltip": f"Optional reference {i}/14, one image per slot | 可选参考图 {i}/14，每路一张",
+                    }) for i in range(1, MAX_ZHENZHEN_IMAGE_NB_21_IMAGES + 1)
+                },
+                "api_config": ("SEEDANCE_CONFIG", {}),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, resolution=None, size=None, strict=False, **kwargs):
+        if strict and not 5 <= len(str(prompt or "").strip()) <= 5000:
+            return "NB 2.1 prompt must contain 5-5000 characters | NB 2.1 提示词必须为 5-5000 字符"
+        if resolution not in (None, *ZHENZHEN_IMAGE_NB_21_RESOLUTIONS):
+            return "NB 2.1 resolution must be 1k, 2k or 4k | NB 2.1 分辨率仅支持 1k、2k、4k"
+        if size not in (None, *ZHENZHEN_IMAGE_NB_21_SIZES):
+            return "unsupported NB 2.1 size | NB 2.1 不支持该画幅比例"
+        return True
+
+    @property
+    def _log_prefix(self):
+        return ZHENZHEN_IMAGE_NB_21_MODEL
+
+    def _update_progress(self, pbar, value):
+        if pbar is not None:
+            pbar.update_absolute(int(value), 100)
+
+    def build_payload(self, kwargs, images):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > MAX_ZHENZHEN_IMAGE_NB_21_IMAGES:
+            raise SeedanceAPIError("NB 2.1 accepts at most 14 references | NB 2.1 最多支持 14 张参考图")
+        payload = {
+            "model": ZHENZHEN_IMAGE_NB_21_MODEL,
+            "prompt": str(kwargs["prompt"]).strip(),
+            "n": 1,
+            "size": kwargs["size"],
+            "metadata": {"resolution": kwargs["resolution"]},
+        }
+        if images:
+            payload["images"] = images
+        return payload
+
+    def _execute_inner(self, prompt, resolution, size, api_config=None, **kwargs):
+        arguments = {"prompt": prompt, "resolution": resolution, "size": size}
+        validation = self.VALIDATE_INPUTS(**arguments, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        references = [
+            (index, kwargs[f"image{index}"])
+            for index in range(1, MAX_ZHENZHEN_IMAGE_NB_21_IMAGES + 1)
+            if kwargs.get(f"image{index}") is not None
+        ]
+        for _, image in references:
+            if len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1:
+                raise SeedanceAPIError("each NB 2.1 input requires one image | NB 2.1 每路只能连接一张图")
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        urls = []
+        for index, image in references:
+            urls.append(upload_media(
+                image_to_png_bytes(image), f"nb21_reference_{index}.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            ))
+            self._update_progress(pbar, len(urls) / len(references) * 15)
+        self._update_progress(pbar, 15)
+        task_id = submit_image_task(self.build_payload(arguments, urls), config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_image_task(
+            task_id, config,
+            on_progress=lambda value: self._update_progress(pbar, 20 + value * .75),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, 95)
+        image_url = extract_image_url(final)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [image_url, response]},
+                "result": (image, image_url, task_id, response)}
+
 
 class ZhenzhenImageNB(SeedanceImageNodeBase):
     """Zhenzhen Nano Banana text-to-image and image editing."""
@@ -14119,6 +14520,7 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_G25_Official": ZhenzhenImageG25Official,
     "Qwen_Image_3_0": QwenImage30,
     "Qwen_Image_Global_2_1": QwenImageGlobal21,
+    "Flux_3_Image": Flux3Image,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
     "Zhenzhen_Image_GK_V2_Edit": ZhenzhenImageGKV2Edit,
@@ -14127,6 +14529,7 @@ NODE_CLASS_MAPPINGS = {
     "Hunyuan3D_V3_1": Hunyuan3DV31,
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
+    "Zhenzhen_Image_NB_2_1": ZhenzhenImageNB21,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": ZhenzhenVideoGOmniFlashLowprice,
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": ZhenzhenVideoGOmni11FlashLowprice,
@@ -14146,6 +14549,7 @@ NODE_CLASS_MAPPINGS = {
     "Minimax_H3_OW_Video": MinimaxH3OWVideo,
     "Minimax_H3_OW_Fast_Video": MinimaxH3OWFastVideo,
     "Vidu_Q3_Video": ViduQ3Video,
+    "Vidu_Q4_Preview_Video": ViduQ4PreviewVideo,
     "Vidu_Q3_ShortPlay": ViduQ3ShortPlay,
     "FashVSR_Video_Upscale": FlashVSRVideoUpscale,
     "VOSR2_Image_Upscale": VOSR2ImageUpscale,
@@ -14253,6 +14657,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_G25_Official": "Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）",
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Qwen_Image_Global_2_1": "Qwen Image Global 2.1 文生图/图像编辑",
+    "Flux_3_Image": "FLUX 3 Image 图像生成/编辑",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
     "Zhenzhen_Image_GK_V2_Edit": "Zhenzhen Image GK v2 图像编辑（1-3 图）",
@@ -14261,6 +14666,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Hunyuan3D_V3_1": "混元 3D v3.1 生成（文生/多视图图生）",
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
+    "Zhenzhen_Image_NB_2_1": "Zhenzhen Image Nano Banana 2.1 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": "Zhenzhen Video G Omni Flash Lowprice（4 模式）",
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": "Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）",
@@ -14280,6 +14686,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Minimax_H3_OW_Video": "MiniMax H3 OW 视频生成（3 合 1）",
     "Minimax_H3_OW_Fast_Video": "MiniMax H3 OW Fast 视频生成（5 合 1）",
     "Vidu_Q3_Video": "Vidu Q3 视频生成",
+    "Vidu_Q4_Preview_Video": "Vidu Q4 Preview 图生/参考视频（4 合 1）",
     "Vidu_Q3_ShortPlay": "Vidu Q3 短剧成片",
     "FashVSR_Video_Upscale": "FlashVSR 480P 视频超分",
     "VOSR2_Image_Upscale": "VOSR2 4K 图片超分",

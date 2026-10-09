@@ -37,12 +37,14 @@ PURE_IMAGE_NODE_KEYS = (
     "Zhenzhen_Image_G25_Official",
     "Qwen_Image_3_0",
     "Qwen_Image_Global_2_1",
+    "Flux_3_Image",
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_GK_V2",
     "Zhenzhen_Image_GK_V2_Edit",
     "Zhenzhen_Image_GK_V2_Region_Edit",
     "Wan_2_7_Global_Image",
     "Zhenzhen_Image_NB",
+    "Zhenzhen_Image_NB_2_1",
     "VOSR2_Image_Upscale",
 )
 
@@ -69,6 +71,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Minimax_H3_OW_Video",
     "Minimax_H3_OW_Fast_Video",
     "Vidu_Q3_Video",
+    "Vidu_Q4_Preview_Video",
     "Vidu_Q3_ShortPlay",
     "FashVSR_Video_Upscale",
     "VOSR2_Video_Upscale",

@@ -49,9 +49,9 @@ class ConcurrentNodeTests(unittest.TestCase):
         concurrent_nodes.shutdown_concurrent_pools(wait=True)
 
     def test_package_keeps_base_mapping_unchanged_and_adds_concurrent_nodes(self):
-        self.assertEqual(len(nodes.NODE_CLASS_MAPPINGS), 53)
-        self.assertEqual(len(concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS), 44)
-        self.assertEqual(len(plugin.NODE_CLASS_MAPPINGS), 97)
+        self.assertEqual(len(nodes.NODE_CLASS_MAPPINGS), 56)
+        self.assertEqual(len(concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS), 47)
+        self.assertEqual(len(plugin.NODE_CLASS_MAPPINGS), 103)
         for key, value in nodes.NODE_CLASS_MAPPINGS.items():
             self.assertIs(plugin.NODE_CLASS_MAPPINGS[key], value)
 

@@ -24,6 +24,15 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.19.0（2026-10-10）
+
+- 新增独立 `Zhenzhen Image Nano Banana 2.1 生成/编辑` 节点，支持 5–5000 字符提示词、1k/2k/4k、常用画幅及 `auto`、最多 14 张参考图；每次生成一张，不发送输出格式参数。
+- 新增独立 `FLUX 3 Image 图像生成/编辑` 节点，支持文生图、最多 10 张参考图编辑、五档分辨率和 15 种固定比例及 `auto`。
+- 新增独立 `Vidu Q4 Preview 图生/参考视频（4 合 1）` 节点，包含国内/海外 I2V 与 R2V，支持 3–16 秒、540p 至 4k；参考模式支持最多 15 张图片和 3 段 MP3 音频，本地音频自动转换上传。
+- 三个节点均支持标准缓存种子、`skip_error`、可靠下载以及原有图片/视频并发提交。修复当前 ComfyUI 临时计算布局时可能丢失隐藏素材插槽的问题，保留全部插槽与连线。
+- 新增八份无凭据工作流；NB 2.1 和 FLUX 的文生图/图像编辑及 Vidu 四条模型路径均完成真实提交、轮询、下载和媒体解码检查。NB 2.1 两条路径均返回 1024×1024 图片，视频按 3 秒、540p 请求验证。
+- 完整离线回归通过 470 项测试；222 份示例工作流和 17 个前端脚本通过检查。
+
 ## v0.18.0（2026-10-02）
 
 - 原 `Seedream / Dola Seedream` 图像节点新增国内与海外 V5 Flash 文生图/图生图模型，保留 Pro 为默认选项；Flash 支持 5–5000 字符提示词、`1k` / `1.5k` / `2k` 或自定义宽高，以及最多 10 张、单张不超过 30 MB 的参考图。
@@ -514,6 +523,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Image GK v2 文生图` | GK v2 文生图，支持 7 种固定比例和单次 1 到 12 张请求 | `prompt`、`size`、`n` |
 | `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
+| `Zhenzhen Image Nano Banana 2.1 生成/编辑` | 独立 NB 2.1 文生图/参考图编辑 | `prompt`、1k/2k/4k、标准画幅及 `auto`、最多 14 张参考图 |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video G Omni Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
 | `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-1.1-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
@@ -534,6 +544,8 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `MiniMax H3 OW Fast 视频生成（5 合 1）` | MiniMax H3 OW Fast 文生、图生、多图参考和音频驱动视频 | `model`、`prompt`、5/10/15 秒、480p/720p、按模型连接图片与音频 |
 | `Vidu Q3 视频生成` | Vidu Q3 文生、图生、首尾帧和参考生视频 | `model`、`prompt`、时长、比例、可选参考图 |
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
+| `Vidu Q4 Preview 图生/参考视频（4 合 1）` | 国内/海外 I2V 与 R2V | 3–16 秒、540p/720p/1080p/2k/4k、I2V 单图、R2V 最多 15 图/3 音频 |
+| `FLUX 3 Image 图像生成/编辑` | 文生图与最多 10 张参考图编辑 | `prompt`、`resolution`、`aspect_ratio`、`grounding`、`safety_tolerance` |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
@@ -826,6 +838,8 @@ Midjourney 图片与视频：
 - `examples/wan-3.0-*.json`（8 份，覆盖国内/海外标准版与 Prime I2V/R2V）
 - `examples/flowmusic-*.json`（9 份，所有依赖源音乐的操作均通过节点连线传递 `clip_id`）
 - `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
+- `examples/flux-3-image*.json`（2 份，文生图与本地参考图编辑）
+- `examples/vidu-q4-preview*.json`（4 份，国内/海外 I2V 与图片+音频 R2V）
 - `examples/海螺hailuo-h3*.json`（8 份，覆盖国内/海外 H3 T2V、I2V、Multi，以及 H3 Max T2V/I2V）
 - `examples/minmax-h3-context-ir-*.json`（3 份，覆盖 Text、Image、Multimodal）
 - `examples/seedream-v5-pro-图像编辑和文生图.json`
@@ -841,7 +855,8 @@ Midjourney 图片与视频：
 - `examples/zhenzhen-image-g-v2.5-*.json`（6 份，LowPrice、Flare、Sunburst 各含文生图和图像编辑）
 - `examples/zhenzhen-image-gk-v15文生图.json`
 - `examples/zhenzhen-image-gk-v15图像编辑.json`
-- `examples/zhenzhen-image-nb-*.json`（8 份，4 个模型各含文生图和图像编辑）
+- `examples/zhenzhen-image-nb-*.json`（旧节点 8 份，4 个旧模型各含文生图和图像编辑）
+- `examples/zhenzhen-image-nb-2.1*.json`（2 份，独立 NB 2.1 文生图和本地图片编辑）
 - `examples/zhenzhen-video-g-omni-flash文生视频.json`
 - `examples/zhenzhen-video-g-omni-flash图生视频.json`
 - `examples/zhenzhen-video-g-omni-flash-lowprice*.json`（4 份，覆盖文生、首帧、参考图和参考视频）
@@ -1247,6 +1262,8 @@ Zhenzhen Image Nano Banana 参数：
 | `image1` ... `image14` | 可选参考图；未连接时文生图，连接后按槽位顺序提交图像编辑 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
+独立 Nano Banana 2.1 节点使用 `zhenzhen-image-nb-2.1`：`prompt` 必须为 5–5000 字符，`resolution` 为 1k/2k/4k（默认 1k），`size` 支持常用标准比例及 `auto`（默认 1:1），可连接最多 14 张参考图。每次固定输出一张，不提供或发送 `output_format`。无参考图时文生图，有参考图时编辑；保留旧 NB 节点不变，支持 30 路并发提交、`skip_error` 和标准缓存种子。
+
 Zhenzhen Video G / GK / V3.1 参数：
 
 | 参数 | 说明 |
@@ -1427,6 +1444,30 @@ MiniMax H3 OW Fast 节点参数：
 | `audio` | 仅两种 Audio Drive Fast 使用且必填，只接受一段本地音频 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
+
+FLUX 3 Image 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `prompt` | 必填；可直接填写或连接文本节点 |
+| `image1` ... `image10` | 可选参考图片，每个插槽一张，按插槽顺序上传 |
+| `resolution` | `768sq` / `1k` / `1.5k` / `2k` / `4k`，默认 `1k` |
+| `aspect_ratio` | `auto` 或下拉框中的 15 种固定比例，默认 `auto` |
+| `grounding` / `safety_tolerance` | grounding 默认开启；安全容忍度 0–4，默认 2 |
+
+Vidu Q4 Preview 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | 国内/海外 I2V 与 R2V 四种模型；不改变既有 Q3 节点 |
+| `image1` ... `image15` | I2V 必须且只能连接 `image1`；R2V 接受 1–15 张图 |
+| `prompt` | I2V 可留空；R2V 必填 |
+| `audio1` ... `audio3` / `audio_url1` ... `audio_url3` | 仅 R2V；每路选择本地 AUDIO 或公网 MP3 直链之一，最多三段 |
+| `seconds` / `resolution` | 3–16 秒，默认 5；540p/720p/1080p/2k/4k，默认 720p |
+| `ratio` | 仅 R2V：16:9/9:16/1:1/4:3/3:4，默认 16:9 |
+| `generate_audio` / `is_rec` / `watermark` | 音频与智能推荐默认开启；水印默认关闭 |
+
+本地参考音频需安装 FFmpeg 或设置 `SEEDANCE_FFMPEG`，节点自动转换为 MP3。该节点按文档使用 `/v1/video/generations`，不复用 Q3 的提交格式。两个新节点的 seed 只控制 ComfyUI 缓存，不发送给 API。
 
 Vidu Q3 视频节点参数：
 
