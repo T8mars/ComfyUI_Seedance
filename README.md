@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.20.0（2026-10-11）
+
+- 新增独立 `Topaz 视频高清修复` 节点，使用模型 `Topaz-Upscale-LowPirce`，支持单条本地 MP4 自动上传或公网直链。
+- 分辨率支持 `720p / 1080p / 2K / 4K`，修复模型支持 `Ultra / Max / High / Medium / Low`，默认 `1080p / Max`；不需要提示词或输出时长。
+- 沿用可靠视频下载、`skip_error`、标准缓存种子和 10 路视频并发提交；新增本地素材、网址素材两份无凭据示例。
+- 真实节点验证使用 1 秒本地 MP4、`720p / Low`，完成上传、提交、轮询、下载与完整解码，返回 1112×832、24 帧 H.264 视频。完整离线回归通过 484 项测试；224 份工作流及 17 个前端脚本通过检查。
+
 ## v0.19.0（2026-10-10）
 
 - 新增独立 `Zhenzhen Image Nano Banana 2.1 生成/编辑` 节点，支持 5–5000 字符提示词、1k/2k/4k、常用画幅及 `auto`、最多 14 张参考图；每次生成一张，不发送输出格式参数。
@@ -549,6 +556,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
+| `Topaz 视频高清修复` | `Topaz-Upscale-LowPirce` 单视频修复 | 本地 MP4 或公网直链、四档分辨率、五档修复模型 |
 | `Animate 角色动作迁移` | 单角色图片 + 单动作视频迁移 | 本地图片/视频或公网 URL、分辨率、帧率、姿态与动作控制 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
@@ -726,6 +734,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
    - `FlashVSR 480P 视频超分`：连接一段 480P、3 到 15 秒的 `input_video`，或填写公网 `video_url`
    - `VOSR2 4K 图片超分`：连接一张 `input_image`
    - `VOSR2 2K 视频超分`：连接 `input_video`，或填写公网 `video_url`
+   - `Topaz 视频高清修复`：连接 MP4 `input_video` 或填写公网直链，选择分辨率与修复模型
    - `Zhenzhen Upscaler 视频超分`：连接 `input_video` 或填写公网 MP4 `video_url`
 3. 选择 `model`，设置 `seconds`、`resolution`、`ratio`。
 4. 运行工作流。
@@ -744,7 +753,7 @@ SEEDANCE_BASE_URL=https://api.seedance.nz
 | 接收节点 | 可连接的并发提交节点 |
 | --- | --- |
 | `并发接收图片（30 路）` | Seedream / Dola Seedream、Qwen Image Global 2.1、Zhenzhen Image G、GK v1.5、Nano Banana、VOSR2、Midjourney 图片 |
-| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Animate 动作迁移、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、VOSR2、Upscaler、Midjourney 视频 |
+| `并发接收视频（10 路）` | Seedance 文生/图生/多模态、Animate 动作迁移、Zhenzhen Video G/GK/V3.1、HappyHorse、Wan、Kling、Hailuo、Vidu、FlashVSR、VOSR2、Topaz、Upscaler、Midjourney 视频 |
 
 不同原节点的输入参数和素材类型不同，所以每个原节点都有对应的 `并发提交｜...` 版本；它们输出统一的图片 Future 或视频 Future。同类型 Future 可以混接到同一个接收节点，例如 `Seedream future -> future_1`、`Image G future -> future_2`、`Nano Banana future -> future_3`。
 
@@ -1521,6 +1530,22 @@ VOSR2 节点参数：
 | 两个节点 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
+
+Topaz 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `video_url` | 公网 MP4 直链；连接 `input_video` 时留空 |
+| `input_video` | 单条本地 MP4，与 `video_url` 二选一；本地上传最多 50 MB |
+| `resolution` | `720p / 1080p / 2K / 4K`，默认 `1080p`，大小写按文档保留 |
+| `model` | 修复模型 `Ultra / Max / High / Medium / Low`，默认 `Max`，提交为 `metadata.quality` |
+| `api_config` | 复用 `Seedance API Config` 的地址与 API Key |
+| `skip_error` | 默认关闭；开启后失败返回占位视频，不中断其他任务 |
+| `seed` | 仅用于 ComfyUI 缓存，不发送给 API；支持 fixed、randomize、increment、decrement |
+
+提交和查询使用 `/v1/video/generations`；请求的 `metadata.video_url` 为只有一条地址的数组。不发送提示词、时长或画幅参数，输出按总像素预算保持原始宽高比。
+
+示例：[本地 MP4](examples/Topaz视频高清修复本地素材.json)、[公网直链](examples/Topaz视频高清修复网址素材.json)。并发使用 `并发提交 | Topaz 视频高清修复` 连接 `并发接收视频（10 路）`。
 
 Zhenzhen Upscaler 节点参数：
 

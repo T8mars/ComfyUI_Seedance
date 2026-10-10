@@ -1,0 +1,219 @@
+{
+  "id": "feec8980-2964-515c-94e8-0727aa2e5b27",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        430
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadVideo",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        300,
+        320
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "example.mp4",
+        "image"
+      ],
+      "title": "选择需要高清修复的 MP4"
+    },
+    {
+      "id": 3,
+      "type": "Topaz_Video_Upscale",
+      "pos": [
+        440,
+        80
+      ],
+      "size": [
+        450,
+        260
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_video",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 1
+        },
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Topaz_Video_Upscale",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "",
+        "1080p",
+        "Max",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "Topaz 视频高清修复"
+    },
+    {
+      "id": 4,
+      "type": "SaveVideo",
+      "pos": [
+        1020,
+        120
+      ],
+      "size": [
+        300,
+        240
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "seedance/topaz_upscale",
+        "auto",
+        "auto"
+      ],
+      "title": "保存高清修复视频"
+    }
+  ],
+  "links": [
+    [
+      2,
+      1,
+      0,
+      3,
+      1,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

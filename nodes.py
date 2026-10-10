@@ -772,6 +772,9 @@ ZHENZHEN_UPSCALER_RESOLUTIONS = ["720p", "1080p", "2k", "4k"]
 FLASHVSR_VIDEO_UPSCALE_MODEL = "FlashVSR_video_upscale"
 VOSR2_IMAGE_UPSCALE_MODEL = "vosr2-image-upscale"
 VOSR2_VIDEO_UPSCALE_MODEL = "vosr2-video-upscale"
+TOPAZ_VIDEO_UPSCALE_MODEL = "Topaz-Upscale-LowPirce"
+TOPAZ_VIDEO_RESOLUTIONS = ["720p", "1080p", "2K", "4K"]
+TOPAZ_VIDEO_QUALITIES = ["Ultra", "Max", "High", "Medium", "Low"]
 # Backward-compatible import alias; existing workflows use the stable node key below.
 FASHVSR_VIDEO_UPSCALE_MODEL = FLASHVSR_VIDEO_UPSCALE_MODEL
 
@@ -6810,6 +6813,164 @@ class VOSR2VideoUpscale(SeedanceVideoNodeBase):
             task_id,
             final_response,
         )
+
+
+# ---------------------------------------------------------------------------
+# Topaz video restoration
+# ---------------------------------------------------------------------------
+
+class TopazVideoUpscale(SeedanceVideoNodeBase):
+    """Restore one MP4 through the documented compatibility endpoint."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_url": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Public MP4 URL. Leave empty when connecting input_video. | "
+                        "公网 MP4 直链；连接 input_video 时留空。"
+                    ),
+                }),
+                "resolution": (TOPAZ_VIDEO_RESOLUTIONS, {
+                    "default": "1080p",
+                    "tooltip": (
+                        "Output pixel budget; the source aspect ratio is preserved. | "
+                        "输出总像素档位，保持源视频宽高比，不拉伸。"
+                    ),
+                }),
+                "model": (TOPAZ_VIDEO_QUALITIES, {
+                    "default": "Max",
+                    "tooltip": (
+                        "Restoration model, sent as metadata.quality. | "
+                        "修复模型，作为 metadata.quality 提交；默认 Max。"
+                    ),
+                }),
+            },
+            "optional": {
+                "input_video": ("VIDEO", {
+                    "tooltip": (
+                        "One local MP4, uploaded automatically. Use either this input "
+                        "or video_url. | 单条本地 MP4，自动上传；与 video_url 二选一。"
+                    ),
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {
+                    "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
+                }),
+                "skip_error": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Return an error placeholder without stopping other tasks. | "
+                        "失败时返回占位错误视频，不中断其他任务。"
+                    ),
+                }),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video_url=None, resolution=None, model=None, **kwargs):
+        if resolution is not None and resolution not in TOPAZ_VIDEO_RESOLUTIONS:
+            return "Topaz resolution must be 720p, 1080p, 2K, or 4K"
+        if model is not None and model not in TOPAZ_VIDEO_QUALITIES:
+            return "Topaz model must be Ultra, Max, High, Medium, or Low"
+        url_text = str(video_url or "").strip()
+        if url_text:
+            try:
+                parsed = urlparse(url_text)
+                valid_url = parsed.scheme in {"http", "https"} and bool(parsed.hostname)
+            except ValueError:
+                valid_url = False
+            if not valid_url:
+                return "video_url must be a public http(s) MP4 URL | video_url 必须是公网 MP4 直链"
+        return True
+
+    @property
+    def _log_prefix(self) -> str:
+        return TOPAZ_VIDEO_UPSCALE_MODEL
+
+    def collect_media(self, kwargs, config, progress_cb):
+        video_url = str(kwargs.get("video_url") or "").strip()
+        input_video = kwargs.get("input_video")
+        if video_url and input_video is not None:
+            raise SeedanceAPIError(
+                "Topaz accepts exactly one source: input_video or video_url | "
+                "Topaz 只能选择一个来源：input_video 或 video_url"
+            )
+        if video_url:
+            progress_cb(1.0)
+            return {"video_url": video_url}
+        if input_video is None:
+            raise SeedanceAPIError(
+                "connect input_video or provide video_url for Topaz | "
+                "Topaz 需要连接 input_video 或填写 video_url"
+            )
+
+        video_bytes, extension = video_to_bytes(input_video)
+        if extension.lower() != "mp4" or video_bytes[4:8] != b"ftyp":
+            raise SeedanceAPIError("Topaz requires an MP4 video | Topaz 仅支持 MP4 视频")
+        if len(video_bytes) > 50 * 1024 * 1024:
+            raise SeedanceAPIError("Topaz local upload must not exceed 50 MB | 本地视频不能超过 50 MB")
+        video_url = upload_media(
+            video_bytes,
+            "topaz_input.mp4",
+            "video/mp4",
+            config,
+            logger_prefix=self._log_prefix,
+        )
+        progress_cb(1.0)
+        return {"video_url": video_url}
+
+    def build_payload(self, kwargs, media):
+        video_url = str(media.get("video_url") or "").strip()
+        if not video_url:
+            raise SeedanceAPIError("Topaz requires exactly one MP4 URL | Topaz 需要一条 MP4 直链")
+        resolution = kwargs.get("resolution", "1080p")
+        quality = kwargs.get("model", "Max")
+        validation = self.VALIDATE_INPUTS(
+            video_url=video_url, resolution=resolution, model=quality,
+        )
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        return {
+            "model": TOPAZ_VIDEO_UPSCALE_MODEL,
+            "metadata": {
+                "video_url": [video_url],
+                "resolution": resolution,
+                "quality": quality,
+            },
+        }
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        media = self.collect_media(
+            kwargs, config,
+            lambda fraction: self._update_progress(pbar, fraction * self.PROGRESS_UPLOAD_END),
+        )
+        self._update_progress(pbar, self.PROGRESS_UPLOAD_END)
+        task_id = submit_legacy_video_task(
+            self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+        poll_span = self.PROGRESS_POLL_END - self.PROGRESS_SUBMIT_END
+        final_response = poll_legacy_video_task(
+            task_id, config,
+            on_progress=lambda progress: self._update_progress(
+                pbar, self.PROGRESS_SUBMIT_END + progress / 100.0 * poll_span,
+            ),
+            logger_prefix=self._log_prefix,
+        )
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+        result_url = extract_legacy_video_url(final_response)
+        video = download_video(result_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, result_url, task_id, final_response)
 
 
 # ---------------------------------------------------------------------------
@@ -14554,6 +14715,7 @@ NODE_CLASS_MAPPINGS = {
     "FashVSR_Video_Upscale": FlashVSRVideoUpscale,
     "VOSR2_Image_Upscale": VOSR2ImageUpscale,
     "VOSR2_Video_Upscale": VOSR2VideoUpscale,
+    "Topaz_Video_Upscale": TopazVideoUpscale,
     "Animate_Motion_Transfer": AnimateMotionTransfer,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
@@ -14691,6 +14853,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FashVSR_Video_Upscale": "FlashVSR 480P 视频超分",
     "VOSR2_Image_Upscale": "VOSR2 4K 图片超分",
     "VOSR2_Video_Upscale": "VOSR2 2K 视频超分",
+    "Topaz_Video_Upscale": "Topaz 视频高清修复",
     "Animate_Motion_Transfer": "Animate 角色动作迁移",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",

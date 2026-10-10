@@ -75,6 +75,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Vidu_Q3_ShortPlay",
     "FashVSR_Video_Upscale",
     "VOSR2_Video_Upscale",
+    "Topaz_Video_Upscale",
     "Animate_Motion_Transfer",
     "Zhenzhen_Upscaler_Video",
 )

@@ -4,6 +4,12 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.20.0 - 2026-10-11
+
+- Added independent `Topaz_Video_Upscale` restoration with `Topaz-Upscale-LowPirce`, one local MP4 or public URL, four output resolutions, and five restoration models. Defaults are `1080p / Max`; no prompt or duration is needed.
+- Reuses resilient video downloads, `skip_error`, standard cache seeds, and 10-way video submission. Includes credential-free local-input and URL-input workflows.
+- Real node verification uploaded a one-second local MP4 with `720p / Low`, completed submission, polling, download, and full decoding, and returned a 1112x832 H.264 video with 24 frames. All 484 offline tests, 224 workflows, and 17 frontend scripts passed validation.
+
 ## v0.19.0 - 2026-10-10
 
 - Added an independent `Zhenzhen_Image_NB_2_1` node for text generation and up-to-14-image editing, 5-5000 prompt characters, 1k/2k/4k, and standard ratios plus `auto`. It generates one image and never submits output-format fields.
@@ -195,6 +201,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `FashVSR_Video_Upscale` | FlashVSR 480P video upscaling |
 | `VOSR2_Image_Upscale` | VOSR2 single-image 4K upscaling |
 | `VOSR2_Video_Upscale` | VOSR2 single-video 2K upscaling |
+| `Topaz_Video_Upscale` | Single-MP4 restoration with four resolutions and five restoration models |
 | `Animate_Motion_Transfer` | Single-image, single-video motion transfer with local or URL inputs |
 | `Zhenzhen_Upscaler_Video` | Zhenzhen video upscaling |
 | `Seedream_V5_Pro_Image` | Seedream/Dola Seedream V5 Pro/Flash generation and editing |
@@ -259,6 +266,14 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 `VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
+
+## Topaz Video Restoration
+
+`Topaz_Video_Upscale` accepts exactly one source: a connected `input_video` MP4 (up to 50 MB for upload), or an HTTP(S) `video_url`. Resolution is `720p / 1080p / 2K / 4K`, defaulting to `1080p`. The `model` control selects `Ultra / Max / High / Medium / Low`, defaults to `Max`, and maps to `metadata.quality`; the API model remains exactly `Topaz-Upscale-LowPirce`.
+
+Submission and polling use `/v1/video/generations`. The payload contains a one-item `metadata.video_url` array, resolution, and quality only. No prompt, duration, aspect ratio, or cache seed is submitted. Output pixel budgets preserve the source aspect ratio.
+
+The node includes `skip_error`, standard cache seeds, resilient downloads, and the existing 10-slot video concurrent collector. Examples: [local MP4](examples/Topaz视频高清修复本地素材.json), [public URL](examples/Topaz视频高清修复网址素材.json).
 
 ## Zhenzhen Image G v2.5
 
