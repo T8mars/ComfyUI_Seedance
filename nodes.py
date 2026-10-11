@@ -412,6 +412,14 @@ ZHENZHEN_IMAGE_NB_21_MODEL = "zhenzhen-image-nb-2.1"
 ZHENZHEN_IMAGE_NB_21_RESOLUTIONS = ["1k", "2k", "4k"]
 ZHENZHEN_IMAGE_NB_21_SIZES = ["auto", *ZHENZHEN_IMAGE_NB_STANDARD_SIZES]
 MAX_ZHENZHEN_IMAGE_NB_21_IMAGES = 14
+MAI_IMAGE_MODELS = ["mai-image-2-6", "mai-image-2-6-flash"]
+MAI_IMAGE_RESOLUTIONS = ["1k", "2k"]
+MAI_IMAGE_SIZES = [
+    "auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4",
+    "9:16", "16:9", "21:9", "1:4", "4:1", "custom_ratio", "custom_pixels",
+]
+MAX_MAI_IMAGES = 5
+MAI_MAX_PIXELS = 2359296
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
 ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL = "zhenzhen-video-g-omni-flash-lowprice"
@@ -10448,6 +10456,149 @@ class Wan27GlobalImage(SeedanceImageNodeBase):
 # Zhenzhen Image Nano Banana generation and editing
 # ---------------------------------------------------------------------------
 
+class MAIImage26(SeedanceImageNodeBase):
+    """MAI Image 2.6/Flash text generation and ordered reference composition."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (MAI_IMAGE_MODELS, {"default": MAI_IMAGE_MODELS[0]}),
+                "prompt": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "Required description or editing instruction; upstream limit about 32000 tokens. | 必填生成或编辑描述；上游限制约 32000 Token。",
+                }),
+                "resolution": (MAI_IMAGE_RESOLUTIONS, {"default": "1k"}),
+                "size": (MAI_IMAGE_SIZES, {"default": "1:1"}),
+                "custom_ratio": ("STRING", {
+                    "default": "16:9",
+                    "tooltip": "Positive integer W:H, between 1:4 and 4:1. | 正整数宽高比，范围 1:4 至 4:1。",
+                }),
+                "width": ("INT", {"default": 1536, "min": 768, "max": 3072, "step": 32}),
+                "height": ("INT", {"default": 1024, "min": 768, "max": 3072, "step": 32}),
+                "auto_aspect_ratio": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Let the model choose the text-generation aspect ratio. | 由模型选择文生图画幅。",
+                }),
+                "web_grounding": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Search current information with Bing before generation. | 生成前通过 Bing 检索当前信息。",
+                }),
+            },
+            "optional": {
+                **{f"image{i}": ("IMAGE", {
+                    "tooltip": f"Optional reference {i}/5, one image per slot. | 可选参考图 {i}/5，每路一张。",
+                }) for i in range(1, MAX_MAI_IMAGES + 1)},
+                "api_config": ("SEEDANCE_CONFIG", {}),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @staticmethod
+    def sizing_payload(kwargs):
+        if kwargs.get("auto_aspect_ratio", False):
+            return {"size": "auto", "resolution": str(kwargs.get("resolution", "1k")).lower(),
+                    "auto_aspect_ratio": True}
+        size = str(kwargs.get("size", "1:1")).strip()
+        if size == "custom_pixels":
+            width, height = kwargs.get("width", 1536), kwargs.get("height", 1024)
+            if (type(width) is not int or type(height) is not int
+                    or min(width, height) < 768 or width * height > MAI_MAX_PIXELS):
+                raise SeedanceAPIError("MAI pixel dimensions require integer sides >=768 and area <=2359296 | MAI 宽高必须为整数、每边至少 768、总像素不超过 2359296")
+            return {"width": width // 32 * 32, "height": height // 32 * 32}
+        if size == "custom_ratio":
+            size = str(kwargs.get("custom_ratio", "")).strip()
+        if size != "auto":
+            parts = size.split(":")
+            if len(parts) != 2 or not all(part.isascii() and part.isdecimal() for part in parts):
+                raise SeedanceAPIError("MAI size must be auto or a positive integer W:H ratio | MAI 画幅必须为 auto 或正整数宽高比")
+            width, height = map(int, parts)
+            if min(width, height) < 1 or width > height * 4 or height > width * 4:
+                raise SeedanceAPIError("MAI aspect ratio must be between 1:4 and 4:1 | MAI 宽高比范围为 1:4 至 4:1")
+        return {"size": size, "resolution": str(kwargs.get("resolution", "1k")).lower(),
+                "auto_aspect_ratio": False}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, strict=False, has_images=False, **kwargs):
+        if model is not None and model not in MAI_IMAGE_MODELS:
+            return "unsupported MAI model | 不支持该 MAI 模型"
+        if strict and not str(prompt or "").strip():
+            return "MAI prompt is required | MAI 提示词不能为空"
+        references = [kwargs.get(f"image{i}") for i in range(1, MAX_MAI_IMAGES + 1)
+                      if kwargs.get(f"image{i}") is not None]
+        if strict:
+            for image in references:
+                if len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1:
+                    return "each MAI reference input requires one image | MAI 每路只能连接一张图"
+            if not references and not has_images:
+                resolution = str(kwargs.get("resolution", "1k")).lower()
+                if kwargs.get("size") != "custom_pixels" or kwargs.get("auto_aspect_ratio", False):
+                    if resolution not in MAI_IMAGE_RESOLUTIONS:
+                        return "MAI resolution must be 1k or 2k | MAI 分辨率仅支持 1k 或 2k"
+                try:
+                    cls.sizing_payload(kwargs)
+                except SeedanceAPIError as error:
+                    return str(error)
+        return True
+
+    @property
+    def _log_prefix(self):
+        return "MAI_Image_2_6"
+
+    def _update_progress(self, pbar, value):
+        if pbar is not None:
+            pbar.update_absolute(int(value), 100)
+
+    def build_payload(self, kwargs, images):
+        if len(images) > MAX_MAI_IMAGES:
+            raise SeedanceAPIError("MAI accepts at most five references | MAI 最多支持 5 张参考图")
+        # Reference sizing is upstream-controlled, so ignore inactive text controls.
+        validation = self.VALIDATE_INPUTS(**{**kwargs, "has_images": bool(images)}, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        payload = {"model": kwargs.get("model", MAI_IMAGE_MODELS[0]),
+                   "prompt": str(kwargs.get("prompt", "")).strip(), "n": 1,
+                   "web_grounding": bool(kwargs.get("web_grounding", False))}
+        if images:
+            payload["images"] = images
+        else:
+            payload.update(self.sizing_payload(kwargs))
+        return payload
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        references = [(i, kwargs[f"image{i}"]) for i in range(1, MAX_MAI_IMAGES + 1)
+                      if kwargs.get(f"image{i}") is not None]
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        urls = []
+        for index, image in references:
+            urls.append(upload_media(image_to_png_bytes(image), f"mai_reference_{index}.png",
+                                     "image/png", config, logger_prefix=self._log_prefix))
+            self._update_progress(pbar, len(urls) / len(references) * 15)
+        self._update_progress(pbar, 15)
+        task_id = submit_image_task(self.build_payload(kwargs, urls), config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_image_task(task_id, config, logger_prefix=self._log_prefix,
+                                on_progress=lambda value: self._update_progress(pbar, 20 + value * .75))
+        self._update_progress(pbar, 95)
+        image_url = extract_image_url(final)
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [image_url, response]},
+                "result": (image, image_url, task_id, response)}
+
+
 class ZhenzhenImageNB21(SeedanceImageNodeBase):
     """Independent Nano Banana 2.1 text generation and reference editing."""
 
@@ -14691,6 +14842,7 @@ NODE_CLASS_MAPPINGS = {
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Image_NB_2_1": ZhenzhenImageNB21,
+    "MAI_Image_2_6": MAIImage26,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": ZhenzhenVideoGOmniFlashLowprice,
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": ZhenzhenVideoGOmni11FlashLowprice,
@@ -14829,6 +14981,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Image_NB_2_1": "Zhenzhen Image Nano Banana 2.1 生成/编辑",
+    "MAI_Image_2_6": "MAI Image 2.6 / Flash 生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": "Zhenzhen Video G Omni Flash Lowprice（4 模式）",
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": "Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）",

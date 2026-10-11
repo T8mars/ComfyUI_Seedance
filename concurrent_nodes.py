@@ -45,6 +45,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Wan_2_7_Global_Image",
     "Zhenzhen_Image_NB",
     "Zhenzhen_Image_NB_2_1",
+    "MAI_Image_2_6",
     "VOSR2_Image_Upscale",
 )
 

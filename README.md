@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.21.0（2026-10-11）
+
+- 新增独立 `MAI Image 2.6 / Flash 生成/编辑` 节点，合并 `mai-image-2-6` 与 `mai-image-2-6-flash`，支持文生图、单图编辑及最多 5 张参考图合成，每次返回一张 PNG。
+- 文生图支持 1k/2k、常用比例、自定义比例、精确宽高、自动画幅及联网检索；参考图模式自动隐藏并省略不生效的尺寸参数。保留种子缓存、`skip_error` 和 30 路图片并发。
+- 保存六份无凭据示例，覆盖两个模型的文生图、单图编辑和双图合成。六条真实节点路径均完成上传（参考模式）、提交、轮询、下载与解码，返回 1024×1024 图片。
+- 完整离线回归通过 497 项测试，230 份工作流和 18 个前端脚本通过检查；真实 ComfyUI 画布验证覆盖普通/并发节点的尺寸切换、参考连线、缩放及保存重载。
+
 ## v0.20.0（2026-10-11）
 
 - 新增独立 `Topaz 视频高清修复` 节点，使用模型 `Topaz-Upscale-LowPirce`，支持单条本地 MP4 自动上传或公网直链。
@@ -553,6 +560,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Vidu Q4 Preview 图生/参考视频（4 合 1）` | 国内/海外 I2V 与 R2V | 3–16 秒、540p/720p/1080p/2k/4k、I2V 单图、R2V 最多 15 图/3 音频 |
 | `FLUX 3 Image 图像生成/编辑` | 文生图与最多 10 张参考图编辑 | `prompt`、`resolution`、`aspect_ratio`、`grounding`、`safety_tolerance` |
+| `MAI Image 2.6 / Flash 生成/编辑` | 双模型文生图、单图编辑、最多 5 图合成 | `model`、`prompt`、尺寸、自动画幅、联网检索 |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
@@ -1530,6 +1538,25 @@ VOSR2 节点参数：
 | 两个节点 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
+
+MAI Image 2.6 / Flash 节点参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `model` | `mai-image-2-6` 或 `mai-image-2-6-flash` |
+| `prompt` | 必填描述或编辑指令；上游限制约 32000 Token，不是字符数 |
+| `image1..image5` | 可选参考图，每路一张；按连接槽位顺序上传 PNG，不接图时为文生图 |
+| `resolution` | 文生图 1k / 2k，默认 1k |
+| `size` | 常用比例或 `auto`；`custom_ratio` 手填比例，`custom_pixels` 设置精确宽高 |
+| `custom_ratio` | 正整数宽高比，范围 1:4 至 4:1，例如 5:3 |
+| `width` / `height` | 每边至少 768，总像素不超过 2359296；向下对齐到 32 的倍数，优先于预设尺寸 |
+| `auto_aspect_ratio` | 默认关闭；开启后由模型选择文生图画幅 |
+| `web_grounding` | 默认关闭；开启后通过 Bing 检索当前信息 |
+| `skip_error` / `seed` | 跳错占位和标准缓存种子；seed 不发送给 API |
+
+连接参考图时尺寸由上游按参考图决定，节点隐藏并省略 `size`、`resolution`、`width`、`height` 与自动画幅控件。每次固定一张 PNG，不提供蒙版或输出格式设置。并发提交版本连接 `并发接收图片（30 路）`。
+
+示例工作流：[标准文生图](examples/mai-image-2-6文生图.json)、[标准编辑](examples/mai-image-2-6图像编辑.json)、[标准合成](examples/mai-image-2-6多图合成.json)、[Flash 文生图](examples/mai-image-2-6-flash文生图.json)、[Flash 编辑](examples/mai-image-2-6-flash图像编辑.json)、[Flash 合成](examples/mai-image-2-6-flash多图合成.json)。
 
 Topaz 节点参数：
 

@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.21.0 - 2026-10-11
+
+- Added independent `MAI_Image_2_6`, combining `mai-image-2-6` and `mai-image-2-6-flash` for text generation, single-image editing, and up-to-five-image composition. Each task returns one PNG.
+- Text generation supports 1k/2k, common/custom aspect ratios, exact pixel dimensions, automatic aspect ratio, and Bing web grounding. Reference mode hides and omits inactive sizing fields. Includes cache seeds, `skip_error`, and 30-slot image concurrency.
+- Added six credential-free examples. Both models' text, single-reference, and two-reference paths completed actual upload (where applicable), submission, polling, download, and decoding, returning 1024x1024 images.
+- All 497 offline tests, 230 workflows, and 18 frontend scripts passed checks. Actual ComfyUI canvas verification covered serial/concurrent sizing changes, reference links, resizing, and save/reload.
+
 ## v0.20.0 - 2026-10-11
 
 - Added independent `Topaz_Video_Upscale` restoration with `Topaz-Upscale-LowPirce`, one local MP4 or public URL, four output resolutions, and five restoration models. Defaults are `1080p / Max`; no prompt or duration is needed.
@@ -218,6 +225,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Image_GK_V2_Region_Edit` | Zhenzhen Image GK v2 region editing |
 | `Zhenzhen_Image_NB` | Zhenzhen Nano Banana generation and editing |
 | `Zhenzhen_Image_NB_2_1` | Independent NB 2.1 text generation and up-to-14-image editing |
+| `MAI_Image_2_6` | MAI 2.6/Flash text generation, editing, and up-to-five-image composition |
 | `Wan_2_7_Global_Image` | Wan 2.7 global image generation and editing |
 | `Hunyuan3D_V3_1` | Hunyuan 3D text or ordered multi-view image generation |
 | `Doubao_Seed_Audio` | Doubao Seed Audio generation |
@@ -266,6 +274,16 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 `VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
+
+## MAI Image 2.6 / Flash
+
+Select either model in `MAI_Image_2_6`. Supply a non-empty prompt and optionally connect one image to each of `image1..image5`. References are uploaded as PNG in slot order; no references means text generation. Each task produces one PNG, with no mask or output-format parameters.
+
+Text controls provide `resolution=1k|2k`, common `size` ratios, `auto`, `custom_ratio`, and `custom_pixels`. Custom ratios are positive integer W:H values between 1:4 and 4:1. Exact width/height require each side >=768 and total pixels <=2359296, rounded down to multiples of 32; pixel dimensions replace size/resolution. `auto_aspect_ratio=true` lets the model choose the ratio. Optional `web_grounding` uses Bing. Both booleans default to false.
+
+Connected references determine output sizing upstream, so text-sizing controls are hidden and omitted from the request. The seed is cache-only. Standard error skipping and the shared 30-slot image concurrent collector remain available.
+
+Examples: [standard text](examples/mai-image-2-6文生图.json), [standard edit](examples/mai-image-2-6图像编辑.json), [standard composition](examples/mai-image-2-6多图合成.json), [Flash text](examples/mai-image-2-6-flash文生图.json), [Flash edit](examples/mai-image-2-6-flash图像编辑.json), [Flash composition](examples/mai-image-2-6-flash多图合成.json).
 
 ## Topaz Video Restoration
 
