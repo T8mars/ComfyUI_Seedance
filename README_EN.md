@@ -4,6 +4,15 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.22.0 - 2026-10-23
+
+- Added independent `Moss_Image` for `moss-image` text generation and single-reference editing, with eight ratios (default 9:16), resilient downloads, cache-only seeds, `skip_error`, and existing 30-slot image concurrency. Resolution, batch-count, output-format, and API seed fields are not submitted. Includes two credential-free examples.
+- Actual Moss text generation and local-reference editing completed submission, polling, download, and decoding, returning two 1456x1456 images. Both downloads recovered TLS failures through the existing official Tencent COS hostname fallback. All 531 offline tests, 241 workflows, and 19 frontend scripts passed checks; real serial/concurrent canvas resizing and save/reload passed as well.
+- Added independent `Zhenzhen_Image_NB_Lowprice` for the Pro/2.1 Lowprice models: text generation, editing, up to 14 ordered references, 1k/2k/4k, and model-specific ratios. Existing NB nodes are unchanged.
+- Added independent `Doubao_Voice_Clone_ICL` for local/URL voice training, preview downloads, returned speaker IDs, and downstream ICL synthesis, with mode-specific controls and expandable advanced settings.
+- Both nodes include cache seeds and `skip_error`; NB uses existing 30-slot image concurrency. Nine credential-free workflows cover all image modes, training, synthesis, and the connected training-to-synthesis pipeline.
+- Both NB models completed actual 1k text, one-reference, and full-14-reference checks, returning six decoded 1024x1024 images. Doubao completed English-parameter training and connected ICL synthesis; preview WAV and synthesized MP3 downloaded and decoded at 24 kHz. All 519 offline tests, 239 workflows, and 19 frontend scripts passed, alongside actual canvas switching, resizing, and save/reload checks.
+
 ## v0.21.0 - 2026-10-11
 
 - Added independent `MAI_Image_2_6`, combining `mai-image-2-6` and `mai-image-2-6-flash` for text generation, single-image editing, and up-to-five-image composition. Each task returns one PNG.
@@ -225,10 +234,13 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Image_GK_V2_Region_Edit` | Zhenzhen Image GK v2 region editing |
 | `Zhenzhen_Image_NB` | Zhenzhen Nano Banana generation and editing |
 | `Zhenzhen_Image_NB_2_1` | Independent NB 2.1 text generation and up-to-14-image editing |
+| `Zhenzhen_Image_NB_Lowprice` | Pro/2.1 Lowprice text generation and up-to-14-image editing |
 | `MAI_Image_2_6` | MAI 2.6/Flash text generation, editing, and up-to-five-image composition |
+| `Moss_Image` | Moss text generation or single-reference image editing, with eight aspect ratios |
 | `Wan_2_7_Global_Image` | Wan 2.7 global image generation and editing |
 | `Hunyuan3D_V3_1` | Hunyuan 3D text or ordered multi-view image generation |
 | `Doubao_Seed_Audio` | Doubao Seed Audio generation |
+| `Doubao_Voice_Clone_ICL` | Voice training, preview downloads, and ICL synthesis with trained speaker IDs |
 | `Qwen3_TTS` | Qwen3 text-to-speech |
 | `Minimax_Audio` | MiniMax music, speech, and voice clone |
 | `Mureka_BGM` | Mureka background music generation |
@@ -275,6 +287,14 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
 
+## Moss Image
+
+`Moss_Image` uses exactly `moss-image`. A non-empty prompt is required. Leave `image1` disconnected for text generation or connect one local IMAGE for editing; the reference is uploaded as PNG. Image batches are rejected instead of silently selecting their first item.
+
+`ratio` accepts 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, and 21:9, defaulting to 9:16, and maps to `metadata.ratio`. There are no custom resolution, batch-count, or output-format controls. The standard seed only controls ComfyUI caching and is never submitted to this model.
+
+Four outputs retain the standard image/image_url/task_id/response contract. Resilient downloading, `skip_error`, and the existing 30-slot concurrent image collector remain available. Examples: [text generation](examples/moss-image文生图.json), [single-reference editing](examples/moss-image图像编辑.json). Keys are blank; core Load Image and Save Image handle input and saving.
+
 ## MAI Image 2.6 / Flash
 
 Select either model in `MAI_Image_2_6`. Supply a non-empty prompt and optionally connect one image to each of `image1..image5`. References are uploaded as PNG in slot order; no references means text generation. Each task produces one PNG, with no mask or output-format parameters.
@@ -284,6 +304,22 @@ Text controls provide `resolution=1k|2k`, common `size` ratios, `auto`, `custom_
 Connected references determine output sizing upstream, so text-sizing controls are hidden and omitted from the request. The seed is cache-only. Standard error skipping and the shared 30-slot image concurrent collector remain available.
 
 Examples: [standard text](examples/mai-image-2-6文生图.json), [standard edit](examples/mai-image-2-6图像编辑.json), [standard composition](examples/mai-image-2-6多图合成.json), [Flash text](examples/mai-image-2-6-flash文生图.json), [Flash edit](examples/mai-image-2-6-flash图像编辑.json), [Flash composition](examples/mai-image-2-6-flash多图合成.json).
+
+## NB Pro / 2.1 Lowprice
+
+`Zhenzhen_Image_NB_Lowprice` combines both Lowprice models. A 1-5000-character prompt is required; each task produces one image. Zero references means text generation, while up to 14 one-image sockets enable editing in slot order. Resolution supports 1k/2k/4k. Both models offer standard ratios plus `auto`; only 2.1 adds 1:4, 4:1, 1:8, and 8:1. Output-format and cache-seed fields are never submitted.
+
+Progressive reference sockets preserve serialization indexes. Existing cache controls, error skipping, and the 30-slot image collector remain available. Examples: [Pro text](examples/zhenzhen-image-nb-pro-lowprice文生图.json), [Pro edit](examples/zhenzhen-image-nb-pro-lowprice图像编辑.json), [Pro composition](examples/zhenzhen-image-nb-pro-lowprice多图合成.json), [2.1 text](examples/zhenzhen-image-nb-2.1-lowprice文生图.json), [2.1 edit](examples/zhenzhen-image-nb-2.1-lowprice图像编辑.json), [2.1 composition](examples/zhenzhen-image-nb-2.1-lowprice多图合成.json).
+
+## Doubao Voice Training / ICL 2.0
+
+Select `doubao-voice-clone`, supply either one local AUDIO or public `audio_url`, and enter 4-300 preview characters. Encoded local WAV must not exceed 10 MB; remote samples are validated upstream, and raw PCM requires 24 kHz mono. Optional `custom_speaker_id` is 8-256 characters starting with an English letter; blank lets the service assign it. `reference_text` is at most 2000 characters, and language must match the sample. Advanced `training_speaker_id` maps to the provider's `metadata.speaker_id`, not the custom ID.
+
+Training language codes include 0 for Chinese and 1 for English. `api_default` omits the language field; it does not promise automatic language detection. The node downloads the preview and returns `data.result_text` through `speaker`. Connect it to a second node's `speaker` input and select `doubao-seed-icl-2.0`, sharing the same account's API config. The standalone synthesis example needs an existing trained voice ID.
+
+Synthesis supports 1-10000 characters, standard/expressive or API-default voice models, mp3/wav/pcm/ogg_opus, seven sample rates, and rate/loudness/pitch. Specified voice models omit `context_texts`; API-default mode allows up to 500 instruction characters. `advanced_mode` only expands controls: bitrate, timestamps, filters, silence, LaTeX, tone fidelity, and AIGC metadata. Optional booleans use `api_default` to omit or `enabled`/`disabled` to send true/false. LaTeX v2 requires Markdown filtering; bitrate 0 omits the field, and explicit values require 16000-160000.
+
+Examples: [training](examples/doubao-voice-clone音色训练.json), [existing-voice synthesis](examples/doubao-seed-icl-2.0语音合成.json), [connected training and synthesis](examples/doubao音色训练到ICL语音合成.json). Core Save Audio saves and previews results. Seeds are cache-only; skipped failures return one second of silence and empty runtime fields.
 
 ## Topaz Video Restoration
 

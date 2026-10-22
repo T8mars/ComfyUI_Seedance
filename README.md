@@ -24,6 +24,15 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.22.0（2026-10-23）
+
+- 新增独立 `Moss Image 图像生成/编辑` 节点，支持 `moss-image` 文生图、单张本地参考图编辑与 8 种预设画幅（默认 9:16），不发送分辨率、批量或 API 种子参数。保留标准缓存种子、`skip_error`、可靠下载与 30 路图片并发；新增两份无凭据工作流。
+- Moss 文生图和本地单图编辑均已完成真实提交、轮询、下载和解码，返回两张 1456×1456 图片；两次下载均通过已有腾讯 COS 官方域名回退恢复 TLS 连接。完整回归通过 531 项测试，241 份工作流和 19 个前端脚本通过检查；普通/并发节点的真实画布缩放与保存重载通过验证。
+- 新增独立 `Zhenzhen Image NB Pro / 2.1 Lowprice 生成/编辑` 节点，支持两个 Lowprice 模型的文生图、单图编辑、最多 14 张有序参考图、1k/2k/4k 和模型对应的画幅，原 NB 节点不变。
+- 新增独立 `Doubao 音色克隆 / Seed ICL 2.0 语音合成` 节点，支持本地或网址语音样本训练、试听下载、音色 ID 输出及连接后续合成；参数按模式显示，高级选项可展开。
+- 两个节点保留标准缓存种子和 `skip_error`；NB Lowprice 支持现有 30 路图片并发。新增九份无凭据工作流，包含图片模型的文生图/编辑/多图合成和音色训练/合成/完整串联。
+- 两个 NB 模型均通过 1k 文生图、单图和满 14 图真实验证，六条路径返回已下载解码的 1024×1024 图片；Doubao 使用匹配的英语语言参数完成训练及串联合成，试听 WAV 与合成 MP3 均成功下载解码为 24 kHz 音频。519 项离线测试、239 份工作流及 19 个前端脚本通过检查，真实画布验证包含模型切换、缩放与保存重载。
+
 ## v0.21.0（2026-10-11）
 
 - 新增独立 `MAI Image 2.6 / Flash 生成/编辑` 节点，合并 `mai-image-2-6` 与 `mai-image-2-6-flash`，支持文生图、单图编辑及最多 5 张参考图合成，每次返回一张 PNG。
@@ -538,6 +547,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
 | `Zhenzhen Image Nano Banana 2.1 生成/编辑` | 独立 NB 2.1 文生图/参考图编辑 | `prompt`、1k/2k/4k、标准画幅及 `auto`、最多 14 张参考图 |
+| `Zhenzhen Image NB Pro / 2.1 Lowprice 生成/编辑` | 两个 Lowprice 模型的文生图/参考图编辑 | `model`、1-5000 字符、1k/2k/4k、最多 14 张参考图 |
 | `Zhenzhen Video G Omni Flash` | `zhenzhen-video-g-omni-flash` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video G Omni Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
 | `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-1.1-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
@@ -561,6 +571,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Vidu Q4 Preview 图生/参考视频（4 合 1）` | 国内/海外 I2V 与 R2V | 3–16 秒、540p/720p/1080p/2k/4k、I2V 单图、R2V 最多 15 图/3 音频 |
 | `FLUX 3 Image 图像生成/编辑` | 文生图与最多 10 张参考图编辑 | `prompt`、`resolution`、`aspect_ratio`、`grounding`、`safety_tolerance` |
 | `MAI Image 2.6 / Flash 生成/编辑` | 双模型文生图、单图编辑、最多 5 图合成 | `model`、`prompt`、尺寸、自动画幅、联网检索 |
+| `Moss Image 图像生成/编辑` | 独立 Moss 文生图或单张参考图编辑 | 必填 `prompt`、8 种比例、可选 `image1` |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
@@ -568,6 +579,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Animate 角色动作迁移` | 单角色图片 + 单动作视频迁移 | 本地图片/视频或公网 URL、分辨率、帧率、姿态与动作控制 |
 | `Zhenzhen Upscaler 视频超分` | `zhenzhen-upscaler` 视频超分 | `input_video` 或 `video_url`、目标分辨率 |
 | `Doubao Seed Audio 1.0 音频生成` | 异步音频生成，使用 `/v1/audio/generations` | `prompt`、可选音色 ID / 参考图 / 最多 3 段参考音频 |
+| `Doubao 音色克隆 / Seed ICL 2.0 语音合成` | 训练音色和使用已训练音色朗读 | 本地/网址样本、试听文本、`speaker`、合成音频参数 |
 | `Whisper 1 语音转写` | 同步语音转写，使用 `/v1/audio/transcriptions` | `audio`、`response_format` |
 | `Suno 音乐生成与处理（34 合 1）` | 音乐生成、自定义模型、V6 公网音频翻唱/续写、混合、编辑、分轨、导出与分析 | `operation` 和当前操作动态显示的输入 |
 | `Flow Music 音乐生成与处理（9 合 1）` | 音乐生成、歌词、上传、续写、替换、改编、分轨、音频导出和视频渲染 | `operation` 和当前操作动态显示的输入 |
@@ -1539,6 +1551,14 @@ VOSR2 节点参数：
 | 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
 
+Moss Image 节点参数：
+
+- 独立节点 `Moss_Image` 固定使用 `moss-image`；提示词必填，无参考图时文生图，连接 `image1` 时进行单张参考图编辑。本地图片自动上传为 PNG，不会悄悄截取批量图片的第一张。
+- `ratio` 提供 1:1、2:3、3:2、3:4、4:3、9:16、16:9、21:9，默认 9:16；请求中使用 `metadata.ratio`。不提供自定义分辨率、输出格式或批量张数，不发送 API 种子。
+- 沿用标准 IMAGE、图片 URL、任务 ID 和响应四个输出，以及已有的可靠图片下载、固定种子缓存和 `skip_error`。并发使用 `并发提交 | Moss Image 图像生成/编辑` 连接 `并发接收图片（30 路）`。
+
+示例：[文生图](examples/moss-image文生图.json)、[单图编辑](examples/moss-image图像编辑.json)。示例密钥保持为空；编辑示例连接原生 Load Image，两个示例均连接 Save Image。
+
 MAI Image 2.6 / Flash 节点参数：
 
 | 参数 | 说明 |
@@ -1557,6 +1577,23 @@ MAI Image 2.6 / Flash 节点参数：
 连接参考图时尺寸由上游按参考图决定，节点隐藏并省略 `size`、`resolution`、`width`、`height` 与自动画幅控件。每次固定一张 PNG，不提供蒙版或输出格式设置。并发提交版本连接 `并发接收图片（30 路）`。
 
 示例工作流：[标准文生图](examples/mai-image-2-6文生图.json)、[标准编辑](examples/mai-image-2-6图像编辑.json)、[标准合成](examples/mai-image-2-6多图合成.json)、[Flash 文生图](examples/mai-image-2-6-flash文生图.json)、[Flash 编辑](examples/mai-image-2-6-flash图像编辑.json)、[Flash 合成](examples/mai-image-2-6-flash多图合成.json)。
+
+NB Pro / 2.1 Lowprice 节点参数：
+
+- `Zhenzhen_Image_NB_Lowprice` 包含 `zhenzhen-image-nb-pro-lowprice` 与 `zhenzhen-image-nb-2.1-lowprice`，提示词 1-5000 字符，每次固定一张图。`image1..image14` 每路一张，按槽位顺序上传；无参考图为文生图，有参考图为编辑。
+- 分辨率支持 1k/2k/4k；画幅为常用比例及 `auto`，仅 2.1 额外支持 1:4、4:1、1:8、8:1。逐步展开参考插槽，不改变保存的连线。不提供或发送 `output_format`；种子仅参与缓存。
+
+示例：[Pro 文生图](examples/zhenzhen-image-nb-pro-lowprice文生图.json)、[Pro 编辑](examples/zhenzhen-image-nb-pro-lowprice图像编辑.json)、[Pro 多图合成](examples/zhenzhen-image-nb-pro-lowprice多图合成.json)、[2.1 文生图](examples/zhenzhen-image-nb-2.1-lowprice文生图.json)、[2.1 编辑](examples/zhenzhen-image-nb-2.1-lowprice图像编辑.json)、[2.1 多图合成](examples/zhenzhen-image-nb-2.1-lowprice多图合成.json)。并发提交版本连接现有 30 路图片接收节点。
+
+Doubao 音色克隆 / ICL 节点参数：
+
+1. 选择 `doubao-voice-clone`，连接一段清晰本地 `reference_audio`，或填写 `audio_url`，二选一。本地音频编码为 WAV 后须在 10 MB 内；网址素材由上游检查，裸 PCM 必须为 24 kHz 单声道。试听文本为 4-300 字符。
+2. `custom_speaker_id` 可留空，填写时须为 8-256 字符且英文字母开头；`reference_text` 最多 2000 字符。`language` 必须匹配样本，0 为中文、1 为英语；`api_default` 省略代码，不代表自动识别语种。高级 `training_speaker_id` 映射到上游 `metadata.speaker_id`，不是自定义音色 ID。
+3. 节点下载试听音频，并从训练结果 `data.result_text` 返回 `speaker`。连接到另一个相同节点的 `speaker` 输入，选择 `doubao-seed-icl-2.0`；两个节点使用同一账号。单独合成示例须填写已有训练音色 ID。
+4. 合成文本为 1-10000 字符；支持 standard/expressive 或 `api_default`，mp3/wav/pcm/ogg_opus、七种采样率及语速/音量/音高。指定 `voice_model` 时不提交 `context_texts`；未指定模型时可传最多 500 字符音色指令。
+5. `advanced_mode` 展开码率、字幕、文本过滤、静音、LaTeX、音色保真及 AIGC 元数据，只控制显示。可选开关 `api_default` 省略字段，`enabled`/`disabled` 分别发送 true/false；LaTeX v2 必须开启 Markdown 过滤。`bit_rate=0` 省略，手动范围 16000-160000。
+
+示例：[音色训练](examples/doubao-voice-clone音色训练.json)、[已有音色合成](examples/doubao-seed-icl-2.0语音合成.json)、[训练到合成完整工作流](examples/doubao音色训练到ICL语音合成.json)。原生 Save Audio 保存和预览结果；种子只控制缓存，开启跳错后失败返回一秒静音及空运行结果字段。
 
 Topaz 节点参数：
 

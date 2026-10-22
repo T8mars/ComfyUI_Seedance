@@ -100,7 +100,9 @@ class NB21Tests(unittest.TestCase):
         self.assertEqual(result["result"][1:3], ("", ""))
 
     def test_two_examples_keep_credentials_empty_and_link_slots_aligned(self):
-        paths = list((ROOT / "examples").glob("zhenzhen-image-nb-2.1*.json"))
+        paths = [path for path in (ROOT / "examples").glob("zhenzhen-image-nb-2.1*.json")
+                 if any(item["type"] == "Zhenzhen_Image_NB_2_1" for item in
+                        json.loads(path.read_text(encoding="utf-8"))["nodes"])]
         self.assertEqual(len(paths), 2)
         for path in paths:
             with self.subTest(path=path.name):

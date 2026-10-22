@@ -412,6 +412,10 @@ ZHENZHEN_IMAGE_NB_21_MODEL = "zhenzhen-image-nb-2.1"
 ZHENZHEN_IMAGE_NB_21_RESOLUTIONS = ["1k", "2k", "4k"]
 ZHENZHEN_IMAGE_NB_21_SIZES = ["auto", *ZHENZHEN_IMAGE_NB_STANDARD_SIZES]
 MAX_ZHENZHEN_IMAGE_NB_21_IMAGES = 14
+ZHENZHEN_IMAGE_NB_LOWPRICE_MODELS = [
+    "zhenzhen-image-nb-pro-lowprice", "zhenzhen-image-nb-2.1-lowprice",
+]
+ZHENZHEN_IMAGE_NB_LOWPRICE_SIZES = [*ZHENZHEN_IMAGE_NB_21_SIZES, "1:4", "4:1", "1:8", "8:1"]
 MAI_IMAGE_MODELS = ["mai-image-2-6", "mai-image-2-6-flash"]
 MAI_IMAGE_RESOLUTIONS = ["1k", "2k"]
 MAI_IMAGE_SIZES = [
@@ -420,6 +424,8 @@ MAI_IMAGE_SIZES = [
 ]
 MAX_MAI_IMAGES = 5
 MAI_MAX_PIXELS = 2359296
+MOSS_IMAGE_MODEL = "moss-image"
+MOSS_IMAGE_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
 
 ZHENZHEN_VIDEO_G_OMNI_FLASH_MODEL = "zhenzhen-video-g-omni-flash"
 ZHENZHEN_VIDEO_G_OMNI_FLASH_LOWPRICE_MODEL = "zhenzhen-video-g-omni-flash-lowprice"
@@ -792,6 +798,26 @@ DOUBAO_SAMPLE_RATES = ["8000", "16000", "24000", "32000", "44100"]
 DOUBAO_PROMPT_MIN_LENGTH = 5
 DOUBAO_PROMPT_MAX_LENGTH = 2048
 MAX_DOUBAO_REFERENCE_AUDIOS = 3
+DOUBAO_VOICE_CLONE_MODEL = "doubao-voice-clone"
+DOUBAO_ICL_MODEL = "doubao-seed-icl-2.0"
+DOUBAO_VOICE_MODELS = [DOUBAO_VOICE_CLONE_MODEL, DOUBAO_ICL_MODEL]
+DOUBAO_CLONE_LANGUAGES = ["api_default", *[str(i) for i in range(18)], "19", "20", "21"]
+DOUBAO_ICL_VOICE_MODELS = ["api_default", "seed-tts-2.0-standard", "seed-tts-2.0-expressive"]
+DOUBAO_ICL_SAMPLE_RATES = ["8000", "16000", "22050", "24000", "32000", "44100", "48000"]
+DOUBAO_ICL_LANGUAGES = [
+    "api_default", "zh-cn", "en", "ja", "es-mx", "id", "pt-br", "pt", "ko", "de",
+    "fr", "th", "vi", "ru", "fil", "ms", "ar",
+]
+DOUBAO_OPTIONAL_BOOLEAN = ["api_default", "enabled", "disabled"]
+DOUBAO_CLONE_BOOLEAN_FIELDS = ["enable_audio_denoise", "disable_volume_normalization"]
+DOUBAO_ICL_BOOLEAN_FIELDS = [
+    "enable_subtitle", "disable_markdown_filter", "disable_emoji_filter", "enable_latex_tn",
+    "aigc_watermark", "disable_default_bit_rate", "tone_fidelity", "aigc_metadata_enable",
+]
+DOUBAO_ICL_METADATA_STRINGS = [
+    "section_id", "aigc_metadata_content_producer", "aigc_metadata_produce_id",
+    "aigc_metadata_content_propagator", "aigc_metadata_propagate_id",
+]
 QWEN3_TTS_FLASH_MODEL = "qwen3-tts-flash"
 QWEN3_TTS_INSTRUCT_FLASH_MODEL = "qwen3-tts-instruct-flash"
 QWEN3_TTS_MODELS = [QWEN3_TTS_FLASH_MODEL, QWEN3_TTS_INSTRUCT_FLASH_MODEL]
@@ -10456,6 +10482,103 @@ class Wan27GlobalImage(SeedanceImageNodeBase):
 # Zhenzhen Image Nano Banana generation and editing
 # ---------------------------------------------------------------------------
 
+class MossImage(SeedanceImageNodeBase):
+    """Moss text-to-image and single-reference image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "Required generation description or editing instruction. | 必填生成描述或图像编辑指令。",
+                }),
+                "ratio": (MOSS_IMAGE_RATIOS, {"default": "9:16"}),
+            },
+            "optional": {
+                "image1": ("IMAGE", {
+                    "tooltip": "Optional single reference image; disconnect for text generation. | 可选单张参考图；不连接时为文生图。",
+                }),
+                "api_config": ("SEEDANCE_CONFIG", {}),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @property
+    def _log_prefix(self):
+        return "Moss_Image"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, ratio=None, image1=None, strict=False, **kwargs):
+        if ratio is not None and ratio not in MOSS_IMAGE_RATIOS:
+            return "unsupported Moss aspect ratio | Moss 不支持该画面比例"
+        if not strict:
+            return True
+        if not str(prompt or "").strip():
+            return "Moss prompt is required | Moss 提示词不能为空"
+        if image1 is not None:
+            if (not isinstance(image1, torch.Tensor) or image1.ndim != 4 or image1.shape[0] != 1
+                    or min(image1.shape[1:3]) < 1 or image1.shape[3] not in (3, 4)
+                    or not torch.isfinite(image1).all()):
+                return "Moss requires one valid reference image, not a batch | Moss 仅支持单张有效参考图，不能连接批量图片"
+        return True
+
+    def build_payload(self, kwargs, images):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > 1:
+            raise SeedanceAPIError("Moss accepts at most one reference image | Moss 最多支持一张参考图")
+        payload = {
+            "model": MOSS_IMAGE_MODEL,
+            "prompt": str(kwargs["prompt"]).strip(),
+            "metadata": {"ratio": kwargs.get("ratio", "9:16")},
+        }
+        if images:
+            payload["images"] = images
+        return payload
+
+    def _execute_inner(self, prompt, ratio="9:16", image1=None, api_config=None, **kwargs):
+        arguments = {"prompt": prompt, "ratio": ratio, "image1": image1}
+        validation = self.VALIDATE_INPUTS(**arguments, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(api_config)
+        pbar = _make_progress_bar(100)
+
+        def update(value):
+            if pbar is not None:
+                pbar.update_absolute(int(value), 100)
+
+        update(0)
+        images = []
+        if image1 is not None:
+            images.append(upload_media(
+                image_to_png_bytes(image1), "moss_reference.png", "image/png",
+                config, logger_prefix=self._log_prefix,
+            ))
+        update(15)
+        task_id = submit_image_task(self.build_payload(arguments, images), config, logger_prefix=self._log_prefix)
+        update(20)
+        final = poll_image_task(task_id, config, logger_prefix=self._log_prefix,
+                                on_progress=lambda value: update(20 + value * .75))
+        update(95)
+        try:
+            image_url = extract_image_url(final)
+        except SeedanceAPIError:
+            image_url = extract_image_urls(final)[0]
+        image = download_image(image_url, logger_prefix=self._log_prefix)
+        update(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [image_url, response]}, "result": (image, image_url, task_id, response)}
+
+
 class MAIImage26(SeedanceImageNodeBase):
     """MAI Image 2.6/Flash text generation and ordered reference composition."""
 
@@ -10597,6 +10720,96 @@ class MAIImage26(SeedanceImageNodeBase):
         response = json.dumps(final, ensure_ascii=False, indent=2)
         return {"ui": {"text": [image_url, response]},
                 "result": (image, image_url, task_id, response)}
+
+
+class ZhenzhenImageNBLowprice(SeedanceImageNodeBase):
+    """Independent NB Pro/2.1 Lowprice text generation and 14-image editing."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+    @property
+    def _log_prefix(self):
+        return "Zhenzhen_Image_NB_Lowprice"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (ZHENZHEN_IMAGE_NB_LOWPRICE_MODELS, {"default": ZHENZHEN_IMAGE_NB_LOWPRICE_MODELS[0]}),
+                "prompt": ("STRING", {"multiline": True, "default": "",
+                    "tooltip": "Generation or editing instruction, 1-5000 characters. | 生成或编辑描述，1-5000 字符。"}),
+                "resolution": (ZHENZHEN_IMAGE_NB_21_RESOLUTIONS, {"default": "1k"}),
+                "size": (ZHENZHEN_IMAGE_NB_LOWPRICE_SIZES, {"default": "1:1"}),
+            },
+            "optional": {
+                **{f"image{i}": ("IMAGE", {"tooltip": f"Reference {i}/14, one image per slot. | 参考图 {i}/14，每路一张。"})
+                   for i in range(1, 15)},
+                "api_config": ("SEEDANCE_CONFIG", {}),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, resolution=None, size=None, strict=False, **kwargs):
+        if model not in (None, *ZHENZHEN_IMAGE_NB_LOWPRICE_MODELS):
+            return "unsupported NB Lowprice model | 不支持该 NB Lowprice 模型"
+        if strict and not 1 <= len(str(prompt or "").strip()) <= 5000:
+            return "NB Lowprice prompt must contain 1-5000 characters | 提示词必须为 1-5000 字符"
+        if resolution not in (None, *ZHENZHEN_IMAGE_NB_21_RESOLUTIONS):
+            return "NB Lowprice resolution must be 1k, 2k or 4k | 分辨率仅支持 1k、2k、4k"
+        sizes = (ZHENZHEN_IMAGE_NB_21_SIZES if model == ZHENZHEN_IMAGE_NB_LOWPRICE_MODELS[0]
+                 else ZHENZHEN_IMAGE_NB_LOWPRICE_SIZES)
+        if size not in (None, *sizes):
+            return "unsupported NB Lowprice aspect ratio for this model | 此模型不支持该画幅比例"
+        if strict:
+            for i in range(1, 15):
+                image = kwargs.get(f"image{i}")
+                if image is not None and (len(getattr(image, "shape", ())) != 4 or int(image.shape[0]) != 1):
+                    return "each NB Lowprice slot requires one image | 每路参考只能连接一张图"
+        return True
+
+    def build_payload(self, kwargs, images):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        if len(images) > 14:
+            raise SeedanceAPIError("NB Lowprice accepts at most 14 references | 最多支持 14 张参考图")
+        payload = {"model": kwargs["model"], "prompt": str(kwargs["prompt"]).strip(), "n": 1,
+                   "size": kwargs["size"], "metadata": {"resolution": kwargs["resolution"]}}
+        if images:
+            payload["images"] = images
+        return payload
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        update = lambda value: pbar.update_absolute(int(value), 100) if pbar is not None else None
+        prefix = "Zhenzhen_Image_NB_Lowprice"
+        update(0)
+        references = [(i, kwargs[f"image{i}"]) for i in range(1, 15) if kwargs.get(f"image{i}") is not None]
+        urls = []
+        for i, image in references:
+            urls.append(upload_media(image_to_png_bytes(image), f"nb_lowprice_reference_{i}.png",
+                                     "image/png", config, logger_prefix=prefix))
+            update(len(urls) / len(references) * 15)
+        update(15)
+        task_id = submit_image_task(self.build_payload(kwargs, urls), config, logger_prefix=prefix)
+        update(20)
+        final = poll_image_task(task_id, config, logger_prefix=prefix,
+                                on_progress=lambda value: update(20 + value * .75))
+        update(95)
+        image_url = extract_image_url(final)
+        image = download_image(image_url, logger_prefix=prefix)
+        update(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [image_url, response]}, "result": (image, image_url, task_id, response)}
 
 
 class ZhenzhenImageNB21(SeedanceImageNodeBase):
@@ -10956,6 +11169,211 @@ class ZhenzhenImageNB(SeedanceImageNodeBase):
 # ---------------------------------------------------------------------------
 # Doubao Seed Audio generation
 # ---------------------------------------------------------------------------
+
+class DoubaoVoiceCloneICL:
+    """Train a Doubao voice, then synthesize with its returned speaker ID."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "speaker", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (DOUBAO_VOICE_MODELS, {"default": DOUBAO_VOICE_CLONE_MODEL,
+                    "tooltip": "Clone trains a voice; ICL synthesizes with the returned speaker. | Clone 训练音色；ICL 用返回的 speaker 合成。"}),
+                "prompt": ("STRING", {"multiline": True, "default": "",
+                    "tooltip": "Clone preview: 4-300 characters; synthesis: 1-10000. | 克隆试听文本 4-300 字符；合成文本 1-10000。"}),
+                "speaker": ("STRING", {"default": "",
+                    "tooltip": "ICL: connect the training speaker output; use the same account. | ICL：连接训练 speaker 输出，使用同一账号。"}),
+                "audio_url": ("STRING", {"default": "",
+                    "tooltip": "Clone: public sample URL, <=10 MB; OR local AUDIO. Raw PCM requires 24 kHz mono. | 克隆：10 MB 内语音直链，与本地音频二选一；裸 PCM 须为 24 kHz 单声道。"}),
+                "custom_speaker_id": ("STRING", {"default": "",
+                    "tooltip": "Optional ID: 8-256 characters, English initial. Blank lets the API assign it. | 可选 ID：8-256 字符，英文字母开头；留空由服务分配。"}),
+                "language": (DOUBAO_CLONE_LANGUAGES, {"default": "api_default",
+                    "tooltip": "Match the recording: 0=Chinese, 1=English. api_default omits the code. | 匹配样本语种：0 中文、1 英语；api_default 不提交代码。"}),
+                "reference_text": ("STRING", {"multiline": True, "default": "",
+                    "tooltip": "Matching transcript, at most 2000 characters. | 对应参考音频文本，最多 2000 字符。"}),
+                **{name: (DOUBAO_OPTIONAL_BOOLEAN, {"default": "api_default"}) for name in DOUBAO_CLONE_BOOLEAN_FIELDS},
+                "voice_model": (DOUBAO_ICL_VOICE_MODELS, {"default": "seed-tts-2.0-standard",
+                    "tooltip": "Specified models omit context_texts instructions. | 指定模型时不提交 context_texts 指令。"}),
+                "output_format": (DOUBAO_AUDIO_FORMATS, {"default": "mp3"}),
+                "sample_rate": (DOUBAO_ICL_SAMPLE_RATES, {"default": "24000"}),
+                **{name: ("FLOAT", {"default": 0.0, "min": lower, "max": upper, "step": 1})
+                   for name, lower, upper in [("speech_rate", -50, 100), ("loudness_rate", -50, 100), ("pitch", -12, 12)]},
+                "explicit_language": (DOUBAO_ICL_LANGUAGES, {"default": "api_default"}),
+                "context_texts": ("STRING", {"multiline": True, "default": "",
+                    "tooltip": "Voice instructions <=500 characters, only with voice_model=api_default. | 音色指令最多 500 字符，仅 voice_model=api_default 时生效。"}),
+                "advanced_mode": ("BOOLEAN", {"default": False}),
+                "training_speaker_id": ("STRING", {"default": "",
+                    "tooltip": "Provider training ID, NOT custom_speaker_id. | 上游训练 ID，不是 custom_speaker_id。"}),
+                "bit_rate": ("INT", {"default": 0, "min": 0, "max": 160000, "step": 1000,
+                    "tooltip": "0 omits the setting; explicit range 16000-160000. | 0 不提交；手动范围 16000-160000。"}),
+                "max_length_to_filter_parenthesis": (["api_default", "0", "100"], {"default": "api_default"}),
+                "silence_duration": ("INT", {"default": 0, "min": 0, "max": 30000, "step": 100}),
+                **{name: (DOUBAO_OPTIONAL_BOOLEAN, {"default": "api_default"}) for name in DOUBAO_ICL_BOOLEAN_FIELDS},
+                "latex_parser": (["api_default", "v2"], {"default": "api_default"}),
+                **{name: ("STRING", {"default": ""}) for name in DOUBAO_ICL_METADATA_STRINGS},
+            },
+            "optional": {
+                "reference_audio": ("AUDIO", {"tooltip": "One clear voice sample; encoded WAV <=10 MB. | 一段清晰人声，编码后 WAV 不超过 10 MB。"}),
+                "api_config": ("SEEDANCE_CONFIG", {}),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, prompt=None, strict=False, **kwargs):
+        if model not in (None, *DOUBAO_VOICE_MODELS):
+            return "unsupported Doubao voice model | 不支持该 Doubao 音色模型"
+        if not strict:
+            return True
+        clone = model == DOUBAO_VOICE_CLONE_MODEL
+        minimum, maximum = (4, 300) if clone else (1, 10000)
+        if not minimum <= len(str(prompt or "").strip()) <= maximum:
+            return f"Doubao prompt must contain {minimum}-{maximum} characters | 文本长度须为 {minimum}-{maximum} 字符"
+        if clone:
+            audio = kwargs.get("reference_audio")
+            audio_url = str(kwargs.get("audio_url") or "").strip()
+            if (audio is not None) == bool(audio_url):
+                return "provide exactly one reference_audio OR audio_url | 本地音频与音频直链必须二选一"
+            if audio_url and (urlparse(audio_url).scheme not in ("http", "https") or not urlparse(audio_url).netloc):
+                return "audio_url must be a public HTTP(S) URL | 音频须为公网 HTTP(S) 直链"
+            if audio is not None:
+                waveform = audio.get("waveform") if isinstance(audio, dict) else None
+                if (not isinstance(waveform, torch.Tensor) or waveform.ndim != 3
+                        or waveform.shape[0] != 1 or min(waveform.shape[1:]) < 1
+                        or not torch.isfinite(waveform).all() or int(audio.get("sample_rate", 0)) <= 0):
+                    return "reference_audio requires one valid AUDIO waveform | 参考音频必须为一段有效 AUDIO"
+            custom_id = str(kwargs.get("custom_speaker_id") or "").strip()
+            if custom_id and (not 8 <= len(custom_id) <= 256 or custom_id[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"):
+                return "custom_speaker_id requires 8-256 characters and an English initial | 自定义 ID 须为 8-256 字符且英文字母开头"
+            if len(str(kwargs.get("reference_text") or "").strip()) > 2000:
+                return "reference_text exceeds 2000 characters | 参考文本超过 2000 字符"
+            if kwargs.get("language", "api_default") not in DOUBAO_CLONE_LANGUAGES:
+                return "unsupported training language code | 不支持该训练语言代码"
+            boolean_fields = DOUBAO_CLONE_BOOLEAN_FIELDS
+        else:
+            if not str(kwargs.get("speaker") or "").strip():
+                return "speaker is required; connect the trained voice ID | 必须填写或连接训练返回的 speaker"
+            enums = {"voice_model": DOUBAO_ICL_VOICE_MODELS, "output_format": DOUBAO_AUDIO_FORMATS,
+                     "sample_rate": DOUBAO_ICL_SAMPLE_RATES, "explicit_language": DOUBAO_ICL_LANGUAGES,
+                     "max_length_to_filter_parenthesis": ["api_default", "0", "100"], "latex_parser": ["api_default", "v2"]}
+            defaults = {"voice_model": "seed-tts-2.0-standard", "output_format": "mp3", "sample_rate": "24000"}
+            for name, values in enums.items():
+                if str(kwargs.get(name, defaults.get(name, "api_default"))) not in values:
+                    return f"unsupported Doubao {name} | 不支持该 {name}"
+            for name, lower, upper in [("speech_rate", -50, 100), ("loudness_rate", -50, 100),
+                                        ("pitch", -12, 12), ("silence_duration", 0, 30000)]:
+                value = kwargs.get(name, 0)
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not lower <= value <= upper:
+                    return f"{name} must be between {lower} and {upper} | {name} 范围 {lower}-{upper}"
+            bit_rate = kwargs.get("bit_rate", 0)
+            if type(bit_rate) is not int or (bit_rate != 0 and not 16000 <= bit_rate <= 160000):
+                return "bit_rate must be 0 (omit) or 16000-160000 | bit_rate 须为 0（省略）或 16000-160000"
+            if kwargs.get("voice_model", "seed-tts-2.0-standard") == "api_default" and len(str(kwargs.get("context_texts") or "").strip()) > 500:
+                return "context_texts exceeds 500 characters | 音色指令超过 500 字符"
+            for name in DOUBAO_ICL_METADATA_STRINGS:
+                if len(str(kwargs.get(name) or "").strip()) > 128:
+                    return f"{name} exceeds 128 characters | {name} 超过 128 字符"
+            if kwargs.get("latex_parser") == "v2" and kwargs.get("disable_markdown_filter") == "enabled":
+                return "latex_parser v2 requires Markdown filtering | LaTeX v2 不能禁用 Markdown 过滤"
+            boolean_fields = DOUBAO_ICL_BOOLEAN_FIELDS
+        for name in boolean_fields:
+            if kwargs.get(name, "api_default") not in DOUBAO_OPTIONAL_BOOLEAN:
+                return f"{name} must be api_default, enabled or disabled | {name} 设置无效"
+        return True
+
+    def build_payload(self, kwargs, uploaded_audio_url=""):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        clone = kwargs["model"] == DOUBAO_VOICE_CLONE_MODEL
+        if clone:
+            metadata = {"audio_url": uploaded_audio_url or str(kwargs.get("audio_url") or "").strip()}
+            if not metadata["audio_url"]:
+                raise SeedanceAPIError("clone reference has not been uploaded | 克隆参考音频尚未上传")
+            for name in ("custom_speaker_id", "reference_text"):
+                if str(kwargs.get(name) or "").strip():
+                    metadata[name] = str(kwargs[name]).strip()
+            if str(kwargs.get("training_speaker_id") or "").strip():
+                metadata["speaker_id"] = str(kwargs["training_speaker_id"]).strip()
+            if kwargs.get("language", "api_default") != "api_default":
+                metadata["language"] = str(kwargs["language"])
+            boolean_fields = DOUBAO_CLONE_BOOLEAN_FIELDS
+        else:
+            metadata = {"speaker": str(kwargs["speaker"]).strip(), "format": kwargs.get("output_format", "mp3"),
+                        "sample_rate": str(kwargs.get("sample_rate", "24000")),
+                        **{name: kwargs.get(name, 0) for name in ("speech_rate", "loudness_rate", "pitch", "silence_duration")}}
+            voice_model = kwargs.get("voice_model", "seed-tts-2.0-standard")
+            if voice_model != "api_default":
+                metadata["voice_model"] = voice_model
+            elif str(kwargs.get("context_texts") or "").strip():
+                metadata["context_texts"] = str(kwargs["context_texts"]).strip()
+            if kwargs.get("explicit_language", "api_default") != "api_default":
+                metadata["explicit_language"] = kwargs["explicit_language"]
+            if kwargs.get("bit_rate", 0):
+                metadata["bit_rate"] = kwargs["bit_rate"]
+            if kwargs.get("max_length_to_filter_parenthesis", "api_default") != "api_default":
+                metadata["max_length_to_filter_parenthesis"] = int(kwargs["max_length_to_filter_parenthesis"])
+            if kwargs.get("latex_parser") == "v2":
+                metadata.update(latex_parser="v2", disable_markdown_filter=False)
+            for name in DOUBAO_ICL_METADATA_STRINGS:
+                if str(kwargs.get(name) or "").strip():
+                    metadata[name] = str(kwargs[name]).strip()
+            boolean_fields = DOUBAO_ICL_BOOLEAN_FIELDS
+        for name in boolean_fields:
+            value = kwargs.get(name, "api_default")
+            if value != "api_default":
+                metadata[name] = value == "enabled"
+        return {"model": kwargs["model"], "prompt": str(kwargs["prompt"]).strip(), "metadata": metadata}
+
+    def execute(self, skip_error=False, **kwargs):
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as error:
+            if not skip_error:
+                raise
+            response = json.dumps({"error": f"Doubao Voice: {type(error).__name__}: {error}"}, ensure_ascii=False)
+            return {"ui": {"text": [response]}, "result": (make_silent_audio(24000, 1.0), "", "", "", "", response)}
+
+    def _execute_inner(self, **kwargs):
+        validation = self.VALIDATE_INPUTS(**kwargs, strict=True)
+        if validation is not True:
+            raise SeedanceAPIError(validation)
+        prefix = "Doubao_Voice_Clone_ICL"
+        clone = kwargs["model"] == DOUBAO_VOICE_CLONE_MODEL
+        reference = None
+        if clone and kwargs.get("reference_audio") is not None:
+            reference = audio_to_wav_bytes(kwargs["reference_audio"])
+            if len(reference) > 10 * 1024 * 1024:
+                raise SeedanceAPIError("encoded clone reference exceeds 10 MB | 克隆参考音频编码后超过 10 MB")
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        update = lambda value: pbar.update_absolute(int(value), 100) if pbar is not None else None
+        update(0)
+        uploaded = upload_media(reference, "doubao_voice_reference.wav", "audio/wav", config,
+                                logger_prefix=prefix) if reference is not None else ""
+        update(15)
+        task_id = submit_audio_task(self.build_payload(kwargs, uploaded), config, logger_prefix=prefix)
+        update(20)
+        final = poll_audio_task(task_id, config, logger_prefix=prefix,
+                                on_progress=lambda value: update(20 + value * .75))
+        speaker = str(final.get("data", {}).get("result_text") or "").strip() if clone else str(kwargs["speaker"]).strip()
+        if not speaker:
+            raise SeedanceAPIError("training succeeded without a speaker ID | 训练结果缺少音色 ID")
+        update(95)
+        audio_url = extract_audio_url(final)
+        audio, audio_path = download_audio(audio_url, output_format="" if clone else kwargs.get("output_format", "mp3"),
+                                          sample_rate=24000 if clone else int(kwargs.get("sample_rate", "24000")), logger_prefix=prefix)
+        update(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [audio_url, audio_path, speaker, response]},
+                "result": (audio, audio_url, audio_path, speaker, task_id, response)}
+
 
 class DoubaoSeedAudio:
     """Asynchronous doubao-seed-audio-1.0 generation via /v1/audio/generations."""
@@ -14842,7 +15260,9 @@ NODE_CLASS_MAPPINGS = {
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Image_NB_2_1": ZhenzhenImageNB21,
+    "Zhenzhen_Image_NB_Lowprice": ZhenzhenImageNBLowprice,
     "MAI_Image_2_6": MAIImage26,
+    "Moss_Image": MossImage,
     "Zhenzhen_Video_G_Omni_Flash": ZhenzhenVideoGOmniFlash,
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": ZhenzhenVideoGOmniFlashLowprice,
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": ZhenzhenVideoGOmni11FlashLowprice,
@@ -14871,6 +15291,7 @@ NODE_CLASS_MAPPINGS = {
     "Animate_Motion_Transfer": AnimateMotionTransfer,
     "Zhenzhen_Upscaler_Video": ZhenzhenUpscalerVideo,
     "Doubao_Seed_Audio": DoubaoSeedAudio,
+    "Doubao_Voice_Clone_ICL": DoubaoVoiceCloneICL,
     "Qwen3_TTS": Qwen3TTS,
     "Minimax_Audio": MinimaxAudio,
     "Mureka_BGM": MurekaBGM,
@@ -14981,7 +15402,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Image_NB_2_1": "Zhenzhen Image Nano Banana 2.1 生成/编辑",
+    "Zhenzhen_Image_NB_Lowprice": "Zhenzhen Image NB Pro / 2.1 Lowprice 生成/编辑",
     "MAI_Image_2_6": "MAI Image 2.6 / Flash 生成/编辑",
+    "Moss_Image": "Moss Image 图像生成/编辑",
     "Zhenzhen_Video_G_Omni_Flash": "Zhenzhen Video G Omni Flash",
     "Zhenzhen_Video_G_Omni_Flash_Lowprice": "Zhenzhen Video G Omni Flash Lowprice（4 模式）",
     "Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice": "Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）",
@@ -15010,6 +15433,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Animate_Motion_Transfer": "Animate 角色动作迁移",
     "Zhenzhen_Upscaler_Video": "Zhenzhen Upscaler 视频超分",
     "Doubao_Seed_Audio": "Doubao Seed Audio 1.0 音频生成",
+    "Doubao_Voice_Clone_ICL": "Doubao 音色克隆 / Seed ICL 2.0 语音合成",
     "Qwen3_TTS": "Qwen3 TTS 语音合成（2 合 1）",
     "Minimax_Audio": "MiniMax 音乐/语音/声音克隆（4 合 1）",
     "Mureka_BGM": "Mureka BGM 背景音乐（2 合 1）",
