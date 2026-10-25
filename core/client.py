@@ -1035,6 +1035,7 @@ def poll_context_ir_task(
     on_progress: Optional[Callable[[int], None]] = None,
     logger_prefix: str = "Minimax_H3_Context_IR",
     task_label: str = "Context IR",
+    running_statuses=None,
 ) -> Dict[str, Any]:
     """Poll a compatibility task until ``data.status`` is terminal."""
     url = f"{config['base_url']}/v1/video/generations/{task_id}"
@@ -1147,8 +1148,21 @@ def poll_context_ir_task(
                 f"{task_label} task failed: {reason}"
             )
 
-        if status and status not in _CONTEXT_IR_RUNNING_STATUSES:
+        if status and status not in (
+            _CONTEXT_IR_RUNNING_STATUSES if running_statuses is None else running_statuses
+        ):
             _log(logger_prefix, f"  Unknown {task_label} status '{status}', continue polling...")
+
+
+def poll_motion_video_task(task_id, config, on_progress=None, logger_prefix="Motion_Video"):
+    """Preview readiness is intermediate; only a completed render is terminal."""
+    return poll_context_ir_task(
+        task_id, config, on_progress=on_progress, logger_prefix=logger_prefix,
+        task_label="Motion video", running_statuses=_CONTEXT_IR_RUNNING_STATUSES | {
+            "QUEUED", "STORYBOARDING", "CODING", "CHECKING", "MEDIA_GENERATING",
+            "PREVIEW_READY", "RENDERING",
+        },
+    )
 
 
 def submit_legacy_video_task(

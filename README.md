@@ -24,6 +24,16 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.23.0（2026-10-25）
+
+Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会把本地素材上传为临时链接。
+
+- 新增独立 `Zhenzhen_Motion_Video` 动效视频节点，切换 `zhenzhen/motion-video` 与 `zhenzhen/motion-video-pro`，支持生成和已完成任务修订，不改变已有视频节点。
+- 支持 15/30/45/60 秒、三种比例、720p/1080p、10 个模板及文字素材；参考素材只接受最多 4 个持久公网图片 URL，不使用临时上传链接。
+- 提供标准视频输出、可选封面/预览/HTML/字幕 URL、分镜与降级场景信息；沿用固定种子缓存、`skip_error`、可靠下载及 10 路视频并发。
+- 四份空密钥示例覆盖 Standard/Pro 生成与连线修订，见下方 Motion Video 说明。
+- 两个模型均完成 15 秒、720p 真实生成与修订、下载及全片解码；Pro 修订确认 4 个持久图片 URL 已完整到达 API，但参考图实际渲染仍有差异，见下方说明。548 项离线测试、245 份工作流审计、20 个前端脚本和真实画布检查通过。生成场景本身仍可能被上游布局校验拒绝，节点会明确报错而不会把预览当成成功成片。
+
 ## v0.22.0（2026-10-23）
 
 - 新增独立 `Moss Image 图像生成/编辑` 节点，支持 `moss-image` 文生图、单张本地参考图编辑与 8 种预设画幅（默认 9:16），不发送分辨率、批量或 API 种子参数。保留标准缓存种子、`skip_error`、可靠下载与 30 路图片并发；新增两份无凭据工作流。
@@ -553,6 +563,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 | `Zhenzhen Video G Omni 1.1 Flash Lowprice（4 模式）` | `zhenzhen-video-g-omni-1.1-flash-lowprice` 文生、首帧、参考图和参考视频生成 | `mode`、`prompt`、4/6/8/10 秒、720p/1080p/4k、1 或 3 张参考图、可选参考视频 |
 | `Zhenzhen Video GK v1.5` | `zhenzhen-video-gk-v15` 视频生成 | `prompt`、时长、分辨率、比例、可选参考图 |
 | `Zhenzhen Video V3.1` | Fast / Quality / Lite 视频生成；Lite 仅文生视频 | `model`、`prompt`、固定 8 秒、分辨率、比例、按模型可选参考图 |
+| `Zhenzhen Motion Video 动效视频 (Standard / Pro)` | Canvas 2D 动效生成与成片修订 | `model`、`operation`、`prompt`、时长、模板、文字、最多 4 个持久图片 URL |
 | `HappyHorse 1.1 视频生成` | `happyhorse-1.1-t2v` 文生视频、`happyhorse-1.1-i2v` 图生视频或 `happyhorse-1.1-r2v` 参考图生视频 | `model`、`prompt`、时长、分辨率、最多 9 张参考图 |
 | `Wan 2.7 Spicy 图生视频` | `wan-2.7-spicy-i2v` 图生视频 | `first_image`、`prompt`、时长、分辨率、可选音频 URL |
 | `Wan 3.0 图生/参考生视频（8 合 1）` | 国内/海外标准版与 Prime I2V/R2V 八模型统一调用 | I2V 首尾帧；R2V 最多 10 图、5 视频、5 音频及可选文件/网页 URL |
@@ -1550,6 +1561,21 @@ VOSR2 节点参数：
 | 两个节点 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
+
+### Motion Video 动效视频
+
+`Zhenzhen_Motion_Video` 用于 Canvas 2D 动效、片头、动态排版和数据故事，不是实拍视频模型。`model` 切换 Standard/Pro，`operation` 选择 `generate` 或 `revise`。
+
+- `duration`：15、30、45、60 秒；`ratio`：16:9、9:16、1:1；`resolution`：720p、1080p。
+- `template_id`：`api_default` 或文档列出的 10 个模板。标题、副标题、关键词、落款、语言和自动配乐分别设置；留空或 `api_default` 的可选字段不提交。
+- `keywords`：每行一个关键词，或 JSON 字符串数组。`assets`：每行一个持久 HTTP(S) 图片直链，或 JSON 字符串数组，最多 4 个；不接受本地文件或临时上传链接。
+- 修订时填写自己的已完成任务 ID `revise_from` 和修改说明 `revision_instruction`。可以把前一节点的 `task_id` 直接连接到修订节点；明确指出要修改的场景。非修订模式不会提交残留的修订字段。
+- 轮询到最终成功后才下载 `content.video_url`；`preview_ready` 不是成功终态。`video` 连接原生 Save Video。其他可选输出未返回时为空字符串，分镜和降级场景输出为 JSON 文本。上游返回降级场景时会保留成片并在日志中警告；任务成功不保证每张参考图都被实际采用。
+- `seed` 仅控制 ComfyUI 缓存，不发送给 API；固定且其他输入不变时复用缓存。并发提交节点可连接现有 `并发接收视频（10 路）`，失败处理遵循 `skip_error`。
+
+示例：[Standard 生成](examples/MotionVideoStandard动效生成.json)、[Pro 生成](examples/MotionVideoPro动效生成.json)、[Standard 连线修订](examples/MotionVideoStandard成片修订.json)、[Pro 连线修订](examples/MotionVideoPro成片修订.json)。修订示例预接任务 ID，密钥与运行结果保持空白。
+
+实测限制：明确指定分镜场景后，修订文字已生效；但本轮参考图片被渲染为几何占位。服务端 `request_data.motion.assets` 确认收到全部 4 个 URL，分镜也包含图片指令，因此这里只确认参数传递和视频生成成功，不将参考图渲染标为通过；仍需 API 侧检查素材读取或渲染环节。修改默认片尾也未完全按指令生效，建议修订时明确指定正文场景。
 
 Moss Image 节点参数：
 

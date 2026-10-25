@@ -1,0 +1,214 @@
+{
+  "id": "9a737bde-9616-5365-8e7a-f310d429b42a",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Zhenzhen_Motion_Video",
+      "pos": [
+        400,
+        60
+      ],
+      "size": [
+        510,
+        1030
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "api_config",
+          "shape": 7,
+          "type": "SEEDANCE_CONFIG",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "cover_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "preview_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "html_preview_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "subtitle_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "storyboard",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "fallback_scenes",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Zhenzhen_Motion_Video",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "zhenzhen/motion-video-pro",
+        "generate",
+        "Create a simple 15-second Canvas 2D motion graphic. Three short scenes show emerald circles and coral squares moving smoothly on black. Use only the short title T8 in the last scene, centered with generous margins. No other text, no counters. Use layer='2d' for every scene.",
+        15,
+        "16:9",
+        "720p",
+        "swiss-minimal",
+        "T8",
+        "",
+        "",
+        "",
+        "en",
+        "auto",
+        "",
+        "",
+        "",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "Pro 动效视频生成"
+    },
+    {
+      "id": 3,
+      "type": "SaveVideo",
+      "pos": [
+        1020,
+        120
+      ],
+      "size": [
+        300,
+        240
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "seedance/motion_video_original",
+        "auto",
+        "auto"
+      ],
+      "title": "保存原始成片"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

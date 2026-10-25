@@ -58,6 +58,7 @@ from .core.client import (
     poll_3d_task,
     poll_image_task,
     poll_legacy_video_task,
+    poll_motion_video_task,
     poll_midjourney_task,
     poll_minimax_h3_v2_task,
     poll_music_task,
@@ -1902,6 +1903,197 @@ class SeedanceVideoNodeBase:
             task_id,
             final_response,
         )
+
+
+# ---------------------------------------------------------------------------
+# Motion Video
+# ---------------------------------------------------------------------------
+
+MOTION_VIDEO_MODELS = ["zhenzhen/motion-video", "zhenzhen/motion-video-pro"]
+MOTION_VIDEO_TEMPLATES = [
+    "api_default", "hype-kinetic", "cyber-glitch", "blueprint-tech", "synthwave",
+    "swiss-minimal", "code-cinema", "data-story", "chalk-hand", "voxel-world",
+    "cinematic-trailer",
+]
+
+
+def _motion_string_list(value, field):
+    if not isinstance(value, str):
+        raise SeedanceAPIError(f"{field} must be text containing a JSON string array or one item per line")
+    text = value.strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            items = json.loads(text)
+        except ValueError as exc:
+            raise SeedanceAPIError(f"{field} contains invalid JSON") from exc
+    else:
+        items = text.splitlines()
+    if not isinstance(items, list) or any(not isinstance(item, str) or not item.strip() for item in items):
+        raise SeedanceAPIError(f"{field} must contain non-empty strings")
+    return [item.strip() for item in items]
+
+
+def _motion_http_url(value):
+    try:
+        parsed = urlparse(value)
+        return (parsed.scheme in {"http", "https"} and bool(parsed.hostname)
+                and parsed.username is None and parsed.password is None
+                and not any(char.isspace() for char in value))
+    except ValueError:
+        return False
+
+
+class ZhenzhenMotionVideo(SeedanceVideoNodeBase):
+    """Canvas 2D video generation and completed-task revision through the legacy route."""
+
+    RETURN_TYPES = ("VIDEO",) + ("STRING",) * 9
+    RETURN_NAMES = (
+        "video", "video_url", "task_id", "response", "cover_url", "preview_url",
+        "html_preview_url", "subtitle_url", "storyboard", "fallback_scenes",
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (MOTION_VIDEO_MODELS, {"default": MOTION_VIDEO_MODELS[0]}),
+                "operation": (["generate", "revise"], {"default": "generate"}),
+                "prompt": ("STRING", {"default": "", "multiline": True}),
+                "duration": ([15, 30, 45, 60], {"default": 15}),
+                "ratio": (["16:9", "9:16", "1:1"], {"default": "16:9"}),
+                "resolution": (["720p", "1080p"], {"default": "720p"}),
+                "template_id": (MOTION_VIDEO_TEMPLATES, {"default": "api_default"}),
+                "title": ("STRING", {"default": ""}),
+                "subtitle": ("STRING", {"default": ""}),
+                "keywords": ("STRING", {"default": "", "multiline": True,
+                    "tooltip": "One keyword per line, or a JSON string array | 每行一个关键词，或 JSON 字符串数组"}),
+                "signature": ("STRING", {"default": ""}),
+                "language": ("STRING", {"default": "zh-CN"}),
+                "music": (["api_default", "auto"], {"default": "auto"}),
+                "assets": ("STRING", {"default": "", "multiline": True,
+                    "tooltip": "Up to 4 persistent public HTTP(S) image URLs, one per line or JSON array; no local files | 最多4个持久图片直链，不接受本地文件"}),
+                "revise_from": ("STRING", {"default": "",
+                    "tooltip": "Your completed Motion Video task ID | 自己已完成的动效视频任务ID"}),
+                "revision_instruction": ("STRING", {"default": "", "multiline": True}),
+            },
+            "optional": {
+                "api_config": ("SEEDANCE_CONFIG",),
+                "skip_error": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            required = cls.INPUT_TYPES()["required"]
+            for name in ("model", "operation", "duration", "ratio", "resolution", "template_id", "music"):
+                spec = required[name]
+                value = kwargs.get(name, spec[1]["default"])
+                invalid_duration = name == "duration" and (
+                    not isinstance(value, int) or isinstance(value, bool)
+                )
+                if value not in spec[0] or invalid_duration:
+                    return f"Unsupported Motion Video {name}"
+            for name in ("prompt", "title", "subtitle", "signature", "language", "revise_from", "revision_instruction"):
+                if name in kwargs and not isinstance(kwargs[name], str):
+                    return f"Motion Video {name} must be text"
+            _motion_string_list(kwargs.get("keywords", ""), "keywords")
+            assets = _motion_string_list(kwargs.get("assets", ""), "assets")
+            if len(assets) > 4 or any(not _motion_http_url(url) for url in assets):
+                return "assets requires at most 4 persistent public HTTP(S) image URLs | 最多4个持久图片直链"
+            if strict:
+                if not kwargs.get("prompt", "").strip():
+                    return "Motion Video prompt is required | 动效视频必须填写提示词"
+                if kwargs.get("operation", "generate") == "revise":
+                    if not kwargs.get("revise_from", "").strip() or not kwargs.get("revision_instruction", "").strip():
+                        return "Revision requires revise_from and revision_instruction | 修订必须提供原任务ID和修改说明"
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def build_payload(self, kwargs, media=None):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        required = self.INPUT_TYPES()["required"]
+        payload = {
+            name: kwargs.get(name, required[name][1]["default"])
+            for name in ("model", "duration", "ratio", "resolution")
+        }
+        payload["prompt"] = kwargs["prompt"].strip()
+        motion = {}
+        for name in ("template_id", "title", "subtitle", "signature", "language", "music"):
+            value = kwargs.get(name, required[name][1]["default"]).strip()
+            if value and not (name in {"template_id", "music"} and value == "api_default"):
+                motion[name] = value
+        for name in ("keywords", "assets"):
+            values = _motion_string_list(kwargs.get(name, ""), name)
+            if values:
+                motion[name] = values
+        if kwargs.get("operation", "generate") == "revise":
+            for name in ("revise_from", "revision_instruction"):
+                motion[name] = kwargs[name].strip()
+        if motion:
+            payload["motion"] = motion
+        return payload
+
+    @staticmethod
+    def _content(final):
+        current = final
+        for _ in range(4):
+            if not isinstance(current, dict):
+                break
+            content = current.get("content")
+            if isinstance(content, dict) and content.get("video_url"):
+                url = content["video_url"]
+                if isinstance(url, str) and _motion_http_url(url):
+                    normalized = dict(content)
+                    for name in ZhenzhenMotionVideo.RETURN_NAMES[4:]:
+                        if name not in normalized and name in current:
+                            normalized[name] = current[name]
+                    return normalized
+            current = current.get("data")
+        raise SeedanceAPIError("Motion Video completed without content.video_url | 成片响应缺少视频直链")
+
+    def _make_error_result(self, error_msg):
+        result = super()._make_error_result(error_msg)
+        result["result"] += ("",) * 6
+        return result
+
+    def _execute_inner(self, **kwargs):
+        payload = self.build_payload(kwargs)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        task_id = submit_legacy_video_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+        poll_span = self.PROGRESS_POLL_END - self.PROGRESS_SUBMIT_END
+        final = poll_motion_video_task(
+            task_id, config, logger_prefix=self._log_prefix,
+            on_progress=lambda value: self._update_progress(
+                pbar, self.PROGRESS_SUBMIT_END + value / 100.0 * poll_span,
+            ),
+        )
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+        content = self._content(final)
+        fallback = content.get("fallback_scenes")
+        if fallback:
+            print(f"[{self._log_prefix}] WARNING: upstream used fallback scenes; inspect fallback_scenes output.")
+        video = download_video(content["video_url"], logger_prefix=self._log_prefix)
+        result = self._make_success_result(video, content["video_url"], task_id, final)
+        extras = []
+        for name in self.RETURN_NAMES[4:]:
+            value = content.get(name)
+            if value is None:
+                value = ""
+            elif not isinstance(value, str):
+                value = json.dumps(value, ensure_ascii=False)
+            extras.append(value)
+        result["result"] += tuple(extras)
+        self._update_progress(pbar, 100)
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -15239,6 +15431,7 @@ class MidjourneyMultiAction:
 
 NODE_CLASS_MAPPINGS = {
     "Seedance_Config": SeedanceConfig,
+    "Zhenzhen_Motion_Video": ZhenzhenMotionVideo,
     "Seedance_TextToVideo": SeedanceTextToVideo,
     "Seedance_ImageToVideo": SeedanceImageToVideo,
     "Seedance_MultimodalVideo": SeedanceMultimodalVideo,
@@ -15380,6 +15573,7 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Zhenzhen_Motion_Video": "Zhenzhen Motion Video 动效视频 (Standard / Pro)",
     "Seedance_Config": "Seedance API Config",
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",

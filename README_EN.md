@@ -4,6 +4,14 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.23.0 - 2026-10-25
+
+- Added independent `Zhenzhen_Motion_Video` with Standard/Pro selection, creation and completed-task revision, without changing existing video nodes.
+- Supports 15/30/45/60 seconds, three ratios, 720p/1080p, ten templates, text assets, and up to four persistent public image URLs. Temporary upload URLs are not used.
+- Includes video, optional cover/preview/HTML/subtitle URLs and storyboard/fallback outputs, cache-only seeds, `skip_error`, resilient downloads and existing 10-slot video concurrency.
+- Four credential-free workflows cover Standard/Pro generation and connected revision.
+- Both models completed actual 15-second, 720p generation and revision, downloading and full decoding. Pro revision confirmed all four persistent image URLs reached the API, but actual reference-image rendering remains unresolved as noted below. All 548 offline tests, 245 workflow audits, 20 frontend scripts and real-canvas checks passed. Upstream scene-layout checks can still reject generated scenes; previews are never treated as completed videos.
+
 ## v0.22.0 - 2026-10-23
 
 - Added independent `Moss_Image` for `moss-image` text generation and single-reference editing, with eight ratios (default 9:16), resilient downloads, cache-only seeds, `skip_error`, and existing 30-slot image concurrency. Resolution, batch-count, output-format, and API seed fields are not submitted. Includes two credential-free examples.
@@ -214,6 +222,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Video_G_Omni_1_1_Flash_Lowprice` | Omni 1.1 Flash Lowprice text, first-frame, reference-image, and reference-video generation |
 | `Zhenzhen_Video_GK_V15` | Zhenzhen Video GK v1.5 |
 | `Zhenzhen_Video_V31` | Zhenzhen Video V3.1 Fast, Quality, and Lite |
+| `Zhenzhen_Motion_Video` | Standard/Pro Canvas 2D motion graphics and completed-task revision |
 | `FashVSR_Video_Upscale` | FlashVSR 480P video upscaling |
 | `VOSR2_Image_Upscale` | VOSR2 single-image 4K upscaling |
 | `VOSR2_Video_Upscale` | VOSR2 single-video 2K upscaling |
@@ -286,6 +295,22 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 `VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
+
+## Motion Video
+
+`Zhenzhen_Motion_Video` combines `zhenzhen/motion-video` and `zhenzhen/motion-video-pro` for Canvas 2D motion graphics, typography, intros and data stories, not live-action footage. Choose `generate` or `revise`.
+
+Duration is 15/30/45/60 seconds, ratio is 16:9/9:16/1:1, and resolution is 720p/1080p. Select an API-default or one of ten documented templates; optional title, subtitle, keywords, signature, language and automatic music are omitted when blank/API-default. Keywords accept one item per line or a JSON string array.
+
+`assets` accepts up to four persistent public HTTP(S) image URLs, one per line or a JSON string array. Local files and temporary upload links are not supported. Revision requires your own completed `revise_from` task ID and `revision_instruction`; connect the original node's `task_id` directly when chaining revisions. Inactive revision values are never submitted.
+
+Only final success triggers downloading `content.video_url`; `preview_ready` is intermediate. Connect `video` to core Save Video. Optional cover, preview, HTML preview and subtitle URLs remain blank when absent; storyboard and fallback-scene values are JSON text. The seed is cache-only, never sent upstream. The generated submit wrapper uses the existing 10-slot video collector and `skip_error` policy.
+
+When the upstream reports fallback scenes, the node preserves the completed video and logs a warning. Task success does not guarantee that every supplied image is used in the render.
+
+Examples: [Standard](examples/MotionVideoStandard动效生成.json), [Pro](examples/MotionVideoPro动效生成.json), [Standard revision chain](examples/MotionVideoStandard成片修订.json), [Pro revision chain](examples/MotionVideoPro成片修订.json). Keys and runtime results are blank; revision task IDs are connected, not hardcoded.
+
+Observed limitation: explicitly targeted scene-text revision took effect, but the reference image appeared as a geometric placeholder. Server-side `request_data.motion.assets` retained all four URLs and the storyboard included image instructions. Parameter delivery and video generation are verified; reference-image rendering is not. API-side asset loading/rendering still needs investigation. Default end-card edits also did not fully follow the instruction; target an explicit main-content scene when revising.
 
 ## Moss Image
 

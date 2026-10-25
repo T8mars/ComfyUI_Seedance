@@ -52,6 +52,7 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Zhenzhen_Motion_Video",
     "Seedance_TextToVideo",
     "Seedance_ImageToVideo",
     "Seedance_MultimodalVideo",
