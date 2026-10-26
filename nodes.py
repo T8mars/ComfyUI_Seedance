@@ -23,6 +23,7 @@ field and skip_error support for batch workflows.
 import copy
 import json
 import math
+import mimetypes
 from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -76,6 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
+from .core import kling_v4
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -3571,6 +3573,256 @@ class ZhenzhenVideoV31(ZhenzhenVideoGenerationBase):
 # ---------------------------------------------------------------------------
 # Kling video
 # ---------------------------------------------------------------------------
+
+class Kling4VideoBase(SeedanceVideoNodeBase):
+    KIND = "t2v"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {
+            "prompt": ("STRING", {"default": "", "multiline": True,
+                "tooltip": "English/26000 + non-English/11000 <=1 | 混合语言长度按文档计算"}),
+            "seconds": ("INT", {"default": 3, "min": 3, "max": 30}),
+            "resolution": (kling_v4.RESOLUTIONS, {"default": "720p"}),
+        }
+        if cls.KIND != "i2v":
+            required["ratio"] = (kling_v4.RATIOS + (["adaptive"] if cls.KIND == "omni" else []), {"default": "16:9"})
+        required["watermark"] = (kling_v4.WATERMARKS, {"default": "api_default"})
+        optional = {}
+        if cls.KIND in {"i2v", "omni"}:
+            optional.update({f"image{i}": ("IMAGE",) for i in range(1, 3 if cls.KIND == "i2v" else 11)})
+        if cls.KIND == "omni":
+            optional.update({f"video{i}": ("VIDEO",) for i in range(1, 6)})
+            for name, tooltip in (
+                ("video_urls", "Public video URLs, appended after local videos; <=5 total, <=30s combined. URL size/duration is validated by API. | 公网视频按行填写，排在本地视频之后，总共最多5段、30秒，每段最多300MB"),
+                ("image_element_ids", "Image-element IDs, one per line or JSON array. They precede video-element IDs in elementIds. | 图片主体ID，每行一个，排在视频主体ID之前"),
+                ("video_element_ids", "At most 3 video-element IDs; videos plus video elements <=5. | 最多3个视频主体ID，与参考视频合计最多5项"),
+                ("voice_ids", "Up to 3 voice IDs, one per line or JSON array | 最多3个音色ID，每行一个或JSON数组"),
+            ):
+                required[name] = ("STRING", {"default": "", "multiline": True, "tooltip": tooltip})
+        optional.update({"api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False})})
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            kling_v4.validate_video(cls.KIND, kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def collect_media(self, kwargs, config, progress_cb):
+        kling_v4.validate_video(self.KIND, kwargs, strict=True)
+        images = [kwargs[f"image{i}"] for i in range(1, 3 if self.KIND == "i2v" else 11)
+                  if kwargs.get(f"image{i}") is not None] if self.KIND != "t2v" else []
+        videos = [kwargs[f"video{i}"] for i in range(1, 6) if kwargs.get(f"video{i}") is not None] if self.KIND == "omni" else []
+        encoded_images = [kling_v4.image_bytes(image, image_to_png_bytes) for image in images]
+        encoded_videos = []
+        total_duration = 0.0
+        for video in videos:
+            data, extension = video_to_bytes(video)
+            info = kling_v4.validate_local_video(data, extension)
+            total_duration += info["duration"]
+            encoded_videos.append((data, extension))
+        if total_duration > 30:
+            raise SeedanceAPIError("Kling 4 Omni reference videos must total at most 30 seconds")
+        count = len(encoded_images) + len(encoded_videos)
+        media = {"images": [], "videos": []}
+        done = 0
+        for i, data in enumerate(encoded_images, start=1):
+            media["images"].append(upload_media(data, f"kling4_image_{i}.png", "image/png", config, logger_prefix=self._log_prefix))
+            done += 1
+            progress_cb(done / max(1, count))
+        for i, (data, extension) in enumerate(encoded_videos, start=1):
+            filename = f"kling4_video_{i}.{extension}"
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            media["videos"].append(upload_media(data, filename, content_type, config, logger_prefix=self._log_prefix))
+            done += 1
+            progress_cb(done / max(1, count))
+        if self.KIND == "omni":
+            media["videos"].extend(kling_v4.string_list(kwargs.get("video_urls", ""), "video_urls"))
+        progress_cb(1.0)
+        return media
+
+    def build_payload(self, kwargs, media):
+        return kling_v4.video_payload(self.KIND, kwargs, media)
+
+    def _execute_inner(self, **kwargs):
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        media = self.collect_media(kwargs, config, lambda value: self._update_progress(pbar, value * self.PROGRESS_UPLOAD_END))
+        payload = self.build_payload(kwargs, media)
+        task_id = submit_legacy_video_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, self.PROGRESS_SUBMIT_END)
+        final = poll_legacy_video_task(task_id, config, logger_prefix=self._log_prefix,
+            on_progress=lambda value: self._update_progress(pbar, self.PROGRESS_SUBMIT_END + value * 0.75))
+        self._update_progress(pbar, self.PROGRESS_POLL_END)
+        url = extract_legacy_video_url(final)
+        video = download_video(url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, url, task_id, final)
+
+
+class Kling4TextToVideo(Kling4VideoBase):
+    KIND = "t2v"
+
+
+class Kling4ImageToVideo(Kling4VideoBase):
+    KIND = "i2v"
+
+
+class Kling4Omni(Kling4VideoBase):
+    KIND = "omni"
+
+
+class Kling4CustomElement(SeedanceVideoNodeBase):
+    RETURN_TYPES = ("STRING",) * 5
+    RETURN_NAMES = ("element_id", "voice_id", "trial_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "element_name": ("STRING", {"default": "", "tooltip": "1-20 characters | 主体名称1-20字"}),
+            "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": "1-100 characters | 主体描述1-100字"}),
+            "reference_type": (["image_refer", "video_refer"], {"default": "image_refer"}),
+            "video_url": ("STRING", {"default": "", "tooltip": "MP4/MOV, 3-8s, 1080p, 16:9 or 9:16, <=200MB; API validates URL media"}),
+            "element_voice_id": ("STRING", {"default": ""}),
+            "tag_list": ("STRING", {"default": "", "tooltip": "One tag per line or JSON string array; o_101 ... o_108"}),
+        }, "optional": {
+            **{f"image{i}": ("IMAGE",) for i in range(1, 5)}, "input_video": ("VIDEO",),
+            "api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            kling_v4.validate_element(kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def collect_media(self, kwargs, config, progress_cb):
+        kling_v4.validate_element(kwargs, strict=True)
+        if kwargs.get("reference_type", "image_refer") == "image_refer":
+            data = [kling_v4.image_bytes(kwargs[f"image{i}"], image_to_png_bytes, element=True)
+                    for i in range(1, 5) if kwargs.get(f"image{i}") is not None]
+            if len(set(data)) != len(data):
+                raise SeedanceAPIError("Element references must show different views; duplicate images were provided")
+            urls = []
+            for i, value in enumerate(data, start=1):
+                urls.append(upload_media(value, f"kling4_element_{i}.png", "image/png", config, logger_prefix=self._log_prefix))
+                progress_cb(i / len(data))
+            return {"images": urls}
+        if kwargs.get("input_video") is not None:
+            data, extension = video_to_bytes(kwargs["input_video"])
+            kling_v4.validate_local_video(data, extension, element=True)
+            filename = f"kling4_element.{extension}"
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            url = upload_media(data, filename, content_type, config, logger_prefix=self._log_prefix)
+        else:
+            url = kwargs["video_url"].strip()
+        progress_cb(1.0)
+        return {"videos": [url]}
+
+    def build_payload(self, kwargs, media):
+        return kling_v4.element_payload(kwargs, media)
+
+    def _make_error_result(self, error_msg):
+        response = json.dumps({"error": error_msg}, ensure_ascii=False)
+        return {"ui": {"text": [response]}, "result": ("", "", "", "", response)}
+
+    def _execute_inner(self, **kwargs):
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        media = self.collect_media(kwargs, config, lambda value: self._update_progress(pbar, value * 15))
+        task_id = submit_legacy_video_task(self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(task_id, config, logger_prefix=self._log_prefix,
+            on_progress=lambda value: self._update_progress(pbar, 20 + value * 0.75))
+        values = kling_v4.named_results(final)
+        if not values.get("element_id"):
+            raise SeedanceAPIError("Kling 4 custom element completed without element_id")
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        self._update_progress(pbar, 100)
+        return {"ui": {"text": [response]}, "result": (
+            values["element_id"], values.get("voice_id", ""), values.get("trial_url", ""), task_id, response,
+        )}
+
+
+class Kling4CustomVoice(SeedanceVideoNodeBase):
+    RETURN_TYPES = ("STRING", "AUDIO", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("voice_id", "trial_audio", "trial_url", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "voice_name": ("STRING", {"default": ""}),
+            "source_mode": (["audio", "video_id"], {"default": "audio"}),
+            "audio_url": ("STRING", {"default": "", "tooltip": "Public audio URL up to 10MB; leave empty for local AUDIO | 音频直链，最多10MB，与本地音频二选一"}),
+            "video_id": ("STRING", {"default": "", "tooltip": "Provider videoId, not a generic local task_id | 上游视频ID，不是通用本地任务ID"}),
+        }, "optional": {"audio": ("AUDIO",), "api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            kling_v4.validate_voice(kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def collect_media(self, kwargs, config, progress_cb):
+        kling_v4.validate_voice(kwargs, strict=True)
+        if kwargs.get("source_mode", "audio") == "video_id":
+            progress_cb(1.0)
+            return {}
+        url = kwargs.get("audio_url", "").strip()
+        if kwargs.get("audio") is not None:
+            data = audio_to_wav_bytes(kwargs["audio"])
+            if len(data) > 10 * 1024 * 1024:
+                raise SeedanceAPIError("Kling 4 voice sample must not exceed 10 MB")
+            url = upload_media(data, "kling4_voice.wav", "audio/wav", config, logger_prefix=self._log_prefix)
+        progress_cb(1.0)
+        return {"audio_url": url}
+
+    def build_payload(self, kwargs, media):
+        kling_v4.validate_voice(kwargs)
+        if not kwargs.get("voice_name", "").strip():
+            raise SeedanceAPIError("voice_name is required")
+        metadata = {"voiceName": kwargs["voice_name"].strip()}
+        if kwargs.get("source_mode", "audio") == "video_id":
+            if not kwargs.get("video_id", "").strip():
+                raise SeedanceAPIError("video_id is required")
+            metadata["videoId"] = kwargs["video_id"].strip()
+        else:
+            if not media.get("audio_url"):
+                raise SeedanceAPIError("An audio source is required")
+            metadata["audio_url"] = media["audio_url"]
+        return {"model": "kling-v4-custom-voice", "metadata": metadata}
+
+    def _make_error_result(self, error_msg):
+        response = json.dumps({"error": error_msg}, ensure_ascii=False)
+        return {"ui": {"text": [response]}, "result": ("", make_silent_audio(), "", "", response)}
+
+    def _execute_inner(self, **kwargs):
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        media = self.collect_media(kwargs, config, lambda value: self._update_progress(pbar, value * 15))
+        task_id = submit_legacy_video_task(self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(task_id, config, logger_prefix=self._log_prefix,
+            on_progress=lambda value: self._update_progress(pbar, 20 + value * 0.75))
+        values = kling_v4.named_results(final)
+        if not values.get("voice_id"):
+            raise SeedanceAPIError("Kling 4 custom voice completed without voice_id")
+        url = values.get("trial_url", "")
+        audio = download_audio(url, logger_prefix=self._log_prefix)[0] if url else make_silent_audio()
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        self._update_progress(pbar, 100)
+        return {"ui": {"text": [response]}, "result": (values["voice_id"], audio, url, task_id, response)}
+
 
 class KlingVideo(SeedanceVideoNodeBase):
     """Kling t2v/i2v/r2v via /v1/videos."""
@@ -15431,6 +15683,11 @@ class MidjourneyMultiAction:
 
 NODE_CLASS_MAPPINGS = {
     "Seedance_Config": SeedanceConfig,
+    "Kling_V4_Custom_Element": Kling4CustomElement,
+    "Kling_V4_Custom_Voice": Kling4CustomVoice,
+    "Kling_V4_T2V": Kling4TextToVideo,
+    "Kling_V4_I2V": Kling4ImageToVideo,
+    "Kling_V4_Omni": Kling4Omni,
     "Zhenzhen_Motion_Video": ZhenzhenMotionVideo,
     "Seedance_TextToVideo": SeedanceTextToVideo,
     "Seedance_ImageToVideo": SeedanceImageToVideo,
@@ -15573,6 +15830,11 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Kling_V4_Custom_Element": "Kling 4 主体创建",
+    "Kling_V4_Custom_Voice": "Kling 4 音色创建",
+    "Kling_V4_T2V": "Kling 4 文生视频",
+    "Kling_V4_I2V": "Kling 4 首尾帧图生视频",
+    "Kling_V4_Omni": "Kling 4 Omni 全能参考视频",
     "Zhenzhen_Motion_Video": "Zhenzhen Motion Video 动效视频 (Standard / Pro)",
     "Seedance_Config": "Seedance API Config",
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",

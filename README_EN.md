@@ -4,6 +4,15 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.24.0 - 2026-10-27
+
+- Added five independent Kling 4 nodes: T2V, first/last-frame I2V, Omni, custom element and custom voice. Existing Kling nodes and workflows are unchanged.
+- Video models support 3-30 seconds, 720p/1080p, documented ratios and optional watermark. Omni validates combined image/video/element limits and accepts voice IDs.
+- Element and voice IDs connect directly to Omni STRING controls. All nodes include `skip_error`, cache-only seeds and reliable downloading; video nodes use existing 10-slot concurrency.
+- All five models completed actual requests. Omni simultaneously accepted an image, video, element ID and voice ID; video-reference element creation also passed. All three videos downloaded and fully decoded as H.264/AAC; voice preview WAV downloaded and decoded as well.
+- Eleven credential-free workflows cover every model and the connected-ID pipeline. The optional video-ID voice source requires your own valid provider video ID; the actual voice test used local audio.
+- All 568 offline tests, 256 workflow JSON/sensitive-data checks and 21 frontend syntax checks passed, alongside serial/concurrent real-canvas acceptance and bundled Python loading.
+
 ## v0.23.0 - 2026-10-25
 
 - Added independent `Zhenzhen_Motion_Video` with Standard/Pro selection, creation and completed-task revision, without changing existing video nodes.
@@ -204,6 +213,11 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Wan_2_7_Spicy_I2V` | Wan 2.7 Spicy image-to-video |
 | `HappyHorse_1_1_Video` | HappyHorse T2V, I2V, and reference video |
 | `Kling_Video` | Kling T2V, I2V, start/end, and O3 reference video |
+| `Kling_V4_T2V` | Kling 4 text-to-video |
+| `Kling_V4_I2V` | Kling 4 first-frame and optional last-frame video |
+| `Kling_V4_Omni` | Kling 4 images, videos, custom elements and voices |
+| `Kling_V4_Custom_Element` | Create reusable image/video element IDs |
+| `Kling_V4_Custom_Voice` | Create voice IDs and download preview audio |
 | `Kling_Edit_Video` | Kling O3 video editing |
 | `Hailuo_2_3_Video` | Hailuo 2.3 T2V and I2V |
 | `Hailuo_H3_Video` | Hailuo H3 domestic/global T2V, I2V, and Multi |
@@ -295,6 +309,20 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 `VOSR2_Image_Upscale` accepts exactly one connected ComfyUI image, uploads it, and sends only `model=vosr2-image-upscale` with a one-item `images` array to `POST /v1/image/generations`. It downloads the 4K result as a standard ComfyUI `IMAGE`.
 
 `VOSR2_Video_Upscale` accepts either one connected ComfyUI video or one public URL, then sends only `model=vosr2-video-upscale` with `metadata.video_url` to `POST /v1/video/generations`. It downloads the 2K result as a standard ComfyUI `VIDEO`. Both nodes include `skip_error`, cache-only seed controls, resilient result downloads, concurrent submit wrappers, and credential-free example workflows.
+
+## Kling 4
+
+Five independent nodes use fixed model IDs and the `/v1/video/generations` submission/query route. Video nodes retain the standard VIDEO, URL, task ID and response outputs. Supported duration is 3-30 integer seconds; resolution is 720p/1080p. T2V ratios are 21:9/16:9/1:1/9:16; Omni also supports adaptive. I2V sends no ratio. Mixed prompt length must satisfy English/26000 + non-English/11000 <=1. No native seed, sound or multi-shot toggle is submitted.
+
+I2V requires `image1` and optionally accepts `image2` as the last frame. Omni accepts up to ten images and five videos, each video up to 300 MB, with at most 30 seconds of reference video. Local VIDEO inputs precede public `video_urls`. IDs and URLs accept one item per line or JSON string arrays. `image_element_ids` precede `video_element_ids` in `metadata.elementIds`. At most seven elements (three video elements), three voices, fifteen images/videos/elements combined and five videos/video elements combined are allowed.
+
+Image elements require one front image plus one to three distinct references: JPG/PNG, at most 10 MB each, shortest edge >=300px and ratio between 1:2.5 and 2.5:1. Video elements require MP4/MOV, 3-8 seconds, 1080p, 16:9 or 9:16, up to 200 MB by public URL. Optional voice association and o_101-o_108 tags are supported. Local images upload as PNG; batches are rejected.
+
+Voice creation accepts one clear, authorized local AUDIO or public audio URL up to 10 MB, or your valid provider `videoId`, not the generic API task ID. Modes are mutually exclusive. Returned `voice_id` connects to Omni. Preview audio downloads automatically when supplied; absent preview means an empty URL and one-second silent AUDIO. Successful responses missing an ID fail explicitly.
+
+The shared upload endpoint allows 50 MB, so larger videos require public URLs. Local videos are probed for decodability/duration and element dimensions; the API validates remote media limits. Seeds are cache-only. Keep element/voice controls fixed to reuse completed IDs; examples default to fixed. `skip_error` preserves typed placeholders with empty IDs. The three video submit wrappers share the existing ten-slot collector.
+
+Examples: [T2V](examples/kling-v4-t2v文生视频.json), [first frame](examples/kling-v4-i2v首帧.json), [first/last frames](examples/kling-v4-i2v首尾帧.json), [image/video reference](examples/kling-v4-omni图片视频参考.json), [connected elements and voices](examples/kling-v4-omni主体音色连线.json), [image element](examples/kling-v4-custom-element图片主体.json), [local video element](examples/kling-v4-custom-element本地视频主体.json), [URL video element](examples/kling-v4-custom-element网址视频主体.json), [local voice audio](examples/kling-v4-custom-voice本地音频.json), [URL voice audio](examples/kling-v4-custom-voice网址音频.json), [provider video ID](examples/kling-v4-custom-voice视频ID来源.json). Fill your key and choose your own media; replace example URLs and supply a real provider ID for the video-ID voice example.
 
 ## Motion Video
 

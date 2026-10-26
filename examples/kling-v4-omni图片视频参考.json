@@ -1,0 +1,357 @@
+{
+  "id": "b89abde2-8061-503a-b73b-ca6cc260e1ab",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ],
+      "title": "API 配置：填写自己的密钥"
+    },
+    {
+      "id": 2,
+      "type": "Kling_V4_Omni",
+      "pos": [
+        440,
+        60
+      ],
+      "size": [
+        510,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 2
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image5",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image6",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image7",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image8",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image9",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image10",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video1",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": 3
+        },
+        {
+          "name": "video2",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video3",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video4",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video5",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "shape": 7,
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "video_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Kling_V4_Omni",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "Keep the subject in @1 consistent and animate a gentle wave, matching the reference video's style.",
+        3,
+        "720p",
+        "16:9",
+        "api_default",
+        "",
+        "",
+        "",
+        "",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "Kling 4 Omni 图片和视频参考"
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        30
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "选择参考图"
+    },
+    {
+      "id": 4,
+      "type": "LoadVideo",
+      "pos": [
+        40,
+        520
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "example.mp4",
+        "image"
+      ],
+      "title": "选择参考视频，总时长最多30秒"
+    },
+    {
+      "id": 5,
+      "type": "SaveVideo",
+      "pos": [
+        1050,
+        80
+      ],
+      "size": [
+        310,
+        240
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "seedance/kling4_omni",
+        "auto",
+        "auto"
+      ],
+      "title": "保存视频"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      15,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      3,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      4,
+      0,
+      2,
+      10,
+      "VIDEO"
+    ],
+    [
+      4,
+      2,
+      0,
+      5,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

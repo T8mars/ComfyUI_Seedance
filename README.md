@@ -24,6 +24,15 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.24.0（2026-10-27）
+
+- 新增 5 个独立 Kling 4 节点：文生视频、首尾帧图生视频、Omni 全能参考、主体创建和音色创建；原 Kling 节点与旧工作流保持不变。
+- 三个视频模型支持 3-30 秒、720p/1080p、文档规定的画幅和可选水印；Omni 支持图片、视频、图片/视频主体 ID 与音色 ID，并校验交叉数量限制。
+- 主体、音色 ID 可通过 STRING 端口连到 Omni；全部新节点保留 `skip_error`、缓存种子与可靠下载，三个视频节点可连接现有 10 路并发接收节点。
+- 5 个模型均已完成真实调用。Omni 的图片、视频、主体 ID、音色 ID 同时传入测试及视频主体创建也已通过；三个视频下载后完成 H.264/AAC 全片解码，音色试听 WAV 也已下载解码。
+- 新增 11 份空密钥示例，包含主体/音色与 Omni 连线流程；视频 ID 创建音色入口需自备有效的上游视频 ID，本轮实测的是本地音频入口。
+- 完整离线回归通过568项测试，256份工作流通过JSON与敏感信息审计，21个前端脚本通过语法检查；普通与并发节点的真实画布检查及整合包Python加载也通过。
+
 ## v0.23.0（2026-10-25）
 
 Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会把本地素材上传为临时链接。
@@ -568,6 +577,11 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `Wan 2.7 Spicy 图生视频` | `wan-2.7-spicy-i2v` 图生视频 | `first_image`、`prompt`、时长、分辨率、可选音频 URL |
 | `Wan 3.0 图生/参考生视频（8 合 1）` | 国内/海外标准版与 Prime I2V/R2V 八模型统一调用 | I2V 首尾帧；R2V 最多 10 图、5 视频、5 音频及可选文件/网页 URL |
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
+| `Kling 4 文生视频` | `kling-v4-t2v` | 提示词、3-30秒、720p/1080p、画幅、水印 |
+| `Kling 4 首尾帧图生视频` | `kling-v4-i2v` | 首帧、可选尾帧、提示词、时长、分辨率；不发送画幅 |
+| `Kling 4 Omni 全能参考视频` | `kling-v4-omni` | 最多10图、5视频、7主体、3音色ID，受交叉上限约束 |
+| `Kling 4 主体创建` | `kling-v4-custom-element` | 正面图加1-3张不同视角图，或单条主体视频；输出 element_id |
+| `Kling 4 音色创建` | `kling-v4-custom-voice` | 音频或上游视频ID；输出 voice_id 与试听音频 |
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
 | `Hailuo 2.3 视频生成` | Hailuo 2.3 文生视频、图生视频和 fast 图生视频 | `model`、`prompt`、时长、分辨率、首帧图 |
 | `Hailuo H3 视频生成` | Hailuo H3 国内/海外文生、首尾帧图生和多模态参考生视频 | `model`、`prompt`、5 到 15 秒、768P/2K、按模型使用图片/视频/音频 |
@@ -1561,6 +1575,20 @@ VOSR2 节点参数：
 | 两个节点 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | 两个节点 | `skip_error` | 开启后失败时输出对应媒体占位结果，不中断整个工作流 |
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
+
+### Kling 4.0
+
+5 个节点使用各自固定的模型 ID，统一通过 `/v1/video/generations` 创建任务并查询同一路径。三个视频节点输出标准 `VIDEO / video_url / task_id / response`，可连接原生 Save Video。
+
+- 视频时长为 3-30 的整数秒；分辨率 `720p|1080p`。文生视频画幅 `21:9|16:9|1:1|9:16`，Omni 额外支持 `adaptive`；I2V 不发送比例。提示词限制是英文字符数/26000 + 非英文字符数/11000 ≤1。未提供原生 seed、声音或多镜头开关，不发送这些字段。
+- I2V 必须连接 `image1`，`image2` 可选，依次表示首尾帧。Omni 图片最多10张；视频最多5段、每段最多300MB、总时长最多30秒。本地视频使用原生 VIDEO，公网 URL 可按行或 JSON 数组填写，顺序为本地视频在前、URL 在后。
+- Omni 的 `image_element_ids` 与 `video_element_ids` 分开填写，发送时按图片主体在前、视频主体在后合并为 `metadata.elementIds`。主体最多7个，其中视频主体最多3个；图片+视频+主体合计最多15项，视频+视频主体合计最多5项。`voice_ids` 最多3个。ID 支持每行一个或 JSON 字符串数组，也可以从创建节点直接连线。
+- 图片主体需要1张正面图和1-3张不同参考图；每张最多10MB，最短边至少300px，画幅介于1:2.5与2.5:1。主体视频为 MP4/MOV、3-8秒、1080p、16:9或9:16，公网素材最多200MB。可关联 `element_voice_id` 和文档列出的 `o_101` 至 `o_108` 标签。
+- 音色创建使用自己的清晰语音，最多10MB，或填入有效的上游 `videoId`；它不是通用 API 任务ID。两种来源互斥。`voice_id` 可直接连接 Omni，API 返回试听时自动下载为 AUDIO；未返回试听时 `trial_url` 为空、试听输出为1秒静音。缺少 ID 的成功响应会报错，不伪造 ID。
+- 通用上传接口上限为50MB，因此更大的视频请使用公网直链。本地视频在节点侧检查可解码性、时长及主体规格；公网素材的时长和大小由 API 校验。每个 IMAGE 插槽只接收一张图片，不会悄悄截取批量图片中的第一张。
+- `seed` 仅控制 ComfyUI 缓存，不发送给 API。主体和音色创建建议使用 `fixed`；全部示例已设为 fixed。跳错时视频返回占位视频、音色返回静音及空 ID、主体返回空 ID。三个视频并发提交节点可混用现有10路视频接收节点。
+
+示例：[文生视频](examples/kling-v4-t2v文生视频.json)、[首帧](examples/kling-v4-i2v首帧.json)、[首尾帧](examples/kling-v4-i2v首尾帧.json)、[图片视频参考](examples/kling-v4-omni图片视频参考.json)、[主体音色自动连线](examples/kling-v4-omni主体音色连线.json)、[图片主体](examples/kling-v4-custom-element图片主体.json)、[本地视频主体](examples/kling-v4-custom-element本地视频主体.json)、[网址视频主体](examples/kling-v4-custom-element网址视频主体.json)、[本地音频创建音色](examples/kling-v4-custom-voice本地音频.json)、[网址音频](examples/kling-v4-custom-voice网址音频.json)、[上游视频ID](examples/kling-v4-custom-voice视频ID来源.json)。加载后填写密钥、选择自己的素材，URL 示例需要替换示意网址；视频ID示例需要填入自己的有效上游ID。
 
 ### Motion Video 动效视频
 

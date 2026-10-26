@@ -52,6 +52,9 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Kling_V4_T2V",
+    "Kling_V4_I2V",
+    "Kling_V4_Omni",
     "Zhenzhen_Motion_Video",
     "Seedance_TextToVideo",
     "Seedance_ImageToVideo",
