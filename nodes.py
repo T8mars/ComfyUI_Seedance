@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4
+from .core import kling_v4, preview_models, flux3_variants
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -9228,6 +9228,168 @@ class ZhenzhenImageG25Official(_ZhenzhenImageG25Base):
 # Qwen Image 3.0 image generation and editing
 # ---------------------------------------------------------------------------
 
+class _ReferenceImageGeneration(SeedanceImageNodeBase):
+    """Single-image tasks with fully checked, ordered local references."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+    KIND = ""
+    MAX_REFERENCES = 9
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, cls.MAX_REFERENCES + 1)}
+        optional["api_config"] = ("SEEDANCE_CONFIG",)
+        optional["skip_error"] = ("BOOLEAN", {"default": False})
+        return {"required": cls.controls(), "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        if cls.KIND == "flux":
+            return flux3_variants.validate(kwargs, strict=strict)
+        return preview_models.validate(cls.KIND, kwargs, strict=strict)
+
+    @property
+    def _log_prefix(self):
+        return self.__class__.__name__
+
+    @classmethod
+    def build_payload(cls, kwargs, images):
+        if cls.KIND == "flux":
+            return flux3_variants.payload(kwargs, images)
+        return preview_models.payload(cls.KIND, kwargs, images)
+
+    def _execute_inner(self, **kwargs):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        encoded = preview_models.encode_references(
+            kwargs, self.MAX_REFERENCES,
+            per_file=10 * 1024 * 1024 if self.KIND == "flux" else 50 * 1024 * 1024,
+            total=preview_models.MUSE_REFERENCE_BYTES if self.KIND == "muse_image" else None,
+        )
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None
+        progress(0)
+        urls = []
+        for index, data in encoded:
+            urls.append(upload_media(data, f"reference_{index}.png", "image/png", config,
+                                     logger_prefix=self._log_prefix))
+            progress(len(urls) / len(encoded) * 15)
+        task_id = submit_image_task(self.build_payload(kwargs, urls), config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll_image_task(task_id, config, on_progress=lambda value: progress(20 + value * .75),
+                                logger_prefix=self._log_prefix)
+        progress(95)
+        url = extract_image_url(final)
+        image = download_image(url, logger_prefix=self._log_prefix)
+        progress(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [url, response]}, "result": (image, url, task_id, response)}
+
+
+class HunyuanImage35Preview(_ReferenceImageGeneration):
+    KIND = "hy"
+    MAX_REFERENCES = 5
+
+    @classmethod
+    def controls(cls):
+        return {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "size": (preview_models.HY_SIZES, {"default": "auto"}),
+            "resolution": (preview_models.HY_RESOLUTIONS, {"default": "1K"}),
+            "width": ("INT", {"default": 1024, "min": 256, "max": 8192, "step": 1}),
+            "height": ("INT", {"default": 1024, "min": 256, "max": 8192, "step": 1}),
+            "negative_prompt": ("STRING", {"default": "", "multiline": True}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 9007199254740991,
+                              "tooltip": "0 selects a random API result | 0 表示上游随机"}),
+        }
+
+
+class MuseImage(_ReferenceImageGeneration):
+    KIND = "muse_image"
+
+    @classmethod
+    def controls(cls):
+        return {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "size": (preview_models.MUSE_SIZES, {"default": "auto"}),
+        }
+
+
+class Flux3ImageVariants(_ReferenceImageGeneration):
+    KIND = "flux"
+    MAX_REFERENCES = 10
+
+    @classmethod
+    def controls(cls):
+        return {
+            "model": (flux3_variants.MODELS, {"default": flux3_variants.MODELS[0]}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "resolution": (flux3_variants.RESOLUTIONS, {"default": "1k"}),
+            "aspect_ratio": (flux3_variants.RATIOS, {"default": "auto"}),
+            "grounding": ("BOOLEAN", {"default": True}),
+            "safety_tolerance": ("INT", {"default": 2, "min": 0, "max": 4}),
+            "steps": ("INT", {"default": 0, "min": 0, "max": 16,
+                               "tooltip": "0 uses the API default | 0 使用接口默认步数"}),
+            "output_format": (["api_default", "jpeg", "png"], {"default": "api_default"}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647,
+                              "tooltip": "Klein: API seed; standard: cache only | Klein 传给接口，标准版仅控制缓存"}),
+        }
+
+
+class MuseVideo(SeedanceVideoNodeBase):
+    """Fixed ten-second Muse video with optional composition references."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, 10)}
+        optional["api_config"] = ("SEEDANCE_CONFIG",)
+        optional["skip_error"] = ("BOOLEAN", {"default": False})
+        return {
+            "required": {
+                "prompt": ("STRING", {"default": "", "multiline": True}),
+                "size": (preview_models.MUSE_SIZES, {"default": "auto"}),
+            },
+            "optional": optional,
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        return preview_models.validate("muse_video", kwargs, strict=strict)
+
+    def build_payload(self, kwargs, media=None):
+        return preview_models.payload("muse_video", kwargs, (media or {}).get("images", []))
+
+    def _execute_inner(self, **kwargs):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        encoded = preview_models.encode_references(kwargs, 9, total=preview_models.MUSE_REFERENCE_BYTES)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        self._update_progress(pbar, 0)
+        images = []
+        for index, data in encoded:
+            images.append(upload_media(data, f"reference_{index}.png", "image/png", config,
+                                       logger_prefix=self._log_prefix))
+            self._update_progress(pbar, len(images) / len(encoded) * 15)
+        task_id = submit_legacy_video_task(self.build_payload(kwargs, {"images": images}), config,
+                                            logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(task_id, config, logger_prefix=self._log_prefix,
+            on_progress=lambda value: self._update_progress(pbar, 20 + value * .75))
+        self._update_progress(pbar, 95)
+        url = extract_legacy_video_url(final)
+        video = download_video(url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, url, task_id, final)
+
+
 class Flux3Image(SeedanceImageNodeBase):
     """FLUX 3 text generation and reference-image editing."""
 
@@ -15701,6 +15863,10 @@ NODE_CLASS_MAPPINGS = {
     "Qwen_Image_3_0": QwenImage30,
     "Qwen_Image_Global_2_1": QwenImageGlobal21,
     "Flux_3_Image": Flux3Image,
+    "Flux_3_Image_Variants": Flux3ImageVariants,
+    "HY_Image_3_5_Preview": HunyuanImage35Preview,
+    "Muse_Image": MuseImage,
+    "Muse_Video": MuseVideo,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
     "Zhenzhen_Image_GK_V2_Edit": ZhenzhenImageGKV2Edit,
@@ -15849,6 +16015,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Qwen_Image_3_0": "Qwen Image 3.0 / Pro 图像生成/编辑（8 合 1）",
     "Qwen_Image_Global_2_1": "Qwen Image Global 2.1 文生图/图像编辑",
     "Flux_3_Image": "FLUX 3 Image 图像生成/编辑",
+    "Flux_3_Image_Variants": "FLUX 3 Image / Klein 文生图与编辑（4 合 1）",
+    "HY_Image_3_5_Preview": "HY Image 3.5 Preview 图像生成/编辑",
+    "Muse_Image": "Muse Image 图像生成/合成",
+    "Muse_Video": "Muse Video 文生/参考生视频",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
     "Zhenzhen_Image_GK_V2_Edit": "Zhenzhen Image GK v2 图像编辑（1-3 图）",

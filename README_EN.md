@@ -4,6 +4,15 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.25.0 - 2026-11-01
+
+- Added independent HY Image 3.5 Preview, Muse Image, Muse Video and four-model FLUX 3 Image / Klein nodes. Existing FLUX registrations, sockets and workflows remain unchanged.
+- HY supports up to five references, 1K/2K/4K, common ratios, custom pixel dimensions, negative prompts and native seeds. Muse accepts up to nine references totaling at most 11 MiB; video is fixed at approximately 10 seconds, 720p, with audio.
+- FLUX uses distinct standard/Klein and T2I/I2I contracts. The four new models omit legacy `n`; Klein supports native seeds, optional steps and JPEG/PNG.
+- All new nodes retain `skip_error`, standard Fixed/Randomize controls, resilient downloads and existing 30-image/10-video concurrency. Eleven credential-free examples are included below.
+- Rechecked Motion Video against the latest documentation. Its request protocol and sockets are unchanged; Standard completed a fresh 15-second/720p generation, download and full decode. Server-side backing model names are not new client parameters.
+- On 2026-11-01, all eleven actual paths across seven new model IDs and Motion Standard passed. All 607 offline tests, 267 workflow audits and 22 frontend syntax checks passed. The eleven new examples, four existing Motion examples and four new concurrent node types passed actual-canvas acceptance.
+
 ## v0.24.0 - 2026-10-27
 
 - Added five independent Kling 4 nodes: T2V, first/last-frame I2V, Omni, custom element and custom voice. Existing Kling nodes and workflows are unchanged.
@@ -538,7 +547,32 @@ The independent NB 2.1 node uses `zhenzhen-image-nb-2.1` and the shared `/v1/ima
 
 The existing four-model NB node remains unchanged. NB 2.1 supports standard cache-only seeds, default-off `skip_error`, resilient downloads, and the optional 30-way image concurrent submit wrapper.
 
-## FLUX 3 Image and Vidu Q4
+## HY Preview, Muse and New FLUX Models
+
+These are independent registrations and do not replace older nodes. Connect one IMAGE per socket using ComfyUI LoadImage. References preserve socket order, and all count/encoded-size checks run before any upload.
+
+| Node | Supported inputs |
+| --- | --- |
+| `HY_Image_3_5_Preview` | `zhenzhen-image-hy-v3.5-preview`; 0-5 references; 1K/2K/4K; common `size` ratios or `custom`; custom width/height each 256-8192, at most 8,294,400 pixels. Multiples of 16 are recommended, not required. |
+| `Muse_Image` | `zhenzhen-image-muse`; 0-9 references totaling at most 11 MiB; auto, 1:1, 16:9, 9:16, 4:3, 3:4, 3:2 or 2:3. The model chooses output dimensions and format. |
+| `Muse_Video` | `zhenzhen-video-muse`; the same reference and ratio limits; fixed approximately 10-second 720p video with audio. References guide composition, not exact first/last frames. |
+| `Flux_3_Image_Variants` | `flux-3-image-t2i`, `flux-3-image-i2i`, `flux-3-image-klein-t2i`, `flux-3-image-klein-i2i`. T2I rejects images; I2I requires 1-10 references, each encoded file at most 10 MB. |
+
+HY `custom` submits paired width/height, while preset modes omit hidden dimensions. HY seed 0 requests upstream randomness. Muse seeds are cache-only: Fixed reuses cached results when all inputs remain unchanged.
+
+All four FLUX models support 768sq/1k/1.5k/2k/4k, the existing 15 ratios plus auto, and safety tolerance 0-4. Standard shows grounding; Klein shows steps and output format. Steps 0 and format api_default omit those fields. Klein seeds accept 0-2147483647; Standard seeds only control the cache. The four new models do not submit `n` or inherit the legacy `flux-3-image` payload.
+
+Credential-free examples:
+
+- HY: [text](examples/HY35Preview文生图.json), [two references](examples/HY35Preview多图编辑.json), [custom dimensions](examples/HY35Preview自定义尺寸.json).
+- Muse Image: [text](examples/MuseImage文本生成.json), [two references](examples/MuseImage多图参考.json).
+- Muse Video: [text](examples/MuseVideo文本生成.json), [two references](examples/MuseVideo多图参考.json).
+- FLUX Standard: [text](examples/flux-3-image-t2i文生图.json), [editing](examples/flux-3-image-i2i图像编辑.json).
+- FLUX Klein: [text](examples/flux-3-image-klein-t2i文生图.json), [editing](examples/flux-3-image-klein-i2i图像编辑.json).
+
+Actual verification on 2026-11-01: HY returned 1024x1024 text generation and 1280x720 two-reference custom-size output. Muse Image returned 1600x1600 text output and 1920x1280 two-reference output. All four FLUX models returned 768x768 images. Both Muse video paths returned 10-second 1280x720 H.264/AAC videos; Motion Standard returned 15-second 1280x720 H.264/AAC. All videos downloaded and fully decoded, not merely reached a successful task status.
+
+## Legacy FLUX 3 Image and Vidu Q4
 
 FLUX requires a non-empty prompt and accepts up to ten ordered local images. Resolution is `768sq`, `1k` (default), `1.5k`, `2k`, or `4k`. Select `auto` or one of 15 fixed aspect ratios; `grounding` defaults to true and `safety_tolerance` accepts 0-4 (default 2). The request uses `/v1/image/generations` and produces one IMAGE result.
 
@@ -554,7 +588,7 @@ The [`examples`](examples) directory contains safe workflows with empty API key 
 - Eight Wan 3.0 standard/Prime domestic/global I2V/R2V workflows.
 - Four Omni 1.1 Flash Lowprice workflows covering text, first-frame, reference-image, and reference-video generation.
 - FLUX 3, Hailuo H3/H3 Max, MiniMax H3, Kling, Vidu, HappyHorse, and Zhenzhen Video workflows.
-- `flux-3-image*.json`: two FLUX image generation/editing workflows.
+- `flux-3-image*.json`: two legacy FLUX workflows and four new Standard/Klein T2I/I2I workflows.
 - `vidu-q4-preview*.json`: four domestic/global I2V and image-plus-audio R2V workflows.
 - `zhenzhen-image-nb-2.1*.json`: independent NB 2.1 text generation and local-image editing workflows.
 - Seedream Pro/Flash, Qwen Image, Zhenzhen Image including six G v2.5 generation/editing examples, Midjourney, segmentation, region-editing, and layer-decomposition workflows.

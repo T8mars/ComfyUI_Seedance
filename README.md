@@ -24,6 +24,16 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.25.0（2026-11-01）
+
+- 新增独立 HY Image 3.5 Preview、Muse Image、Muse Video 节点，以及四模型 FLUX 3 Image / Klein 节点；旧 FLUX 节点及原工作流不改名、不改端口。
+- HY 支持文生图、最多 5 张参考图、1K/2K/4K、常用画幅与自定义像素尺寸、负面提示词及原生种子。
+- Muse 图像与视频各支持最多 9 张参考图，上传前检查合计不超过 11 MiB；视频固定约 10 秒、720p、带音频，不伪造首尾帧或静音控制。
+- 四个 FLUX 新型号区分文生图/编辑与标准版/Klein 参数；新型号不提交旧接口的 `n`，Klein 使用原生种子、可选步数及 JPEG/PNG。
+- 新节点保留 `skip_error`、标准 Fixed/Randomize 控制、可靠下载和 30 路图片/10 路视频并发；新增 11 份空密钥工作流，见下方说明。
+- Motion Video 已按最新文档重新核对，请求协议和原有端口未变；标准版重新完成 15 秒、720p 生成、下载与全片解码，不把服务端底层模型名称作为客户端参数。
+- 2026-11-01，7 个新型号及 Motion 标准版共 11 条实际调用路径均通过。完整离线回归 607 项、267 份工作流审计、22 个前端脚本语法检查通过；11 份新示例、4 份旧 Motion 示例及 4 类新并发节点通过真实画布检查。
+
 ## v0.24.0（2026-10-27）
 
 - 新增 5 个独立 Kling 4 节点：文生视频、首尾帧图生视频、Omni 全能参考、主体创建和音色创建；原 Kling 节点与旧工作流保持不变。
@@ -595,6 +605,10 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `Vidu Q3 短剧成片` | Vidu Q3 短剧 / 广告短片成片 | `model`、`prompt`、`script_name`、参考资产图 |
 | `Vidu Q4 Preview 图生/参考视频（4 合 1）` | 国内/海外 I2V 与 R2V | 3–16 秒、540p/720p/1080p/2k/4k、I2V 单图、R2V 最多 15 图/3 音频 |
 | `FLUX 3 Image 图像生成/编辑` | 文生图与最多 10 张参考图编辑 | `prompt`、`resolution`、`aspect_ratio`、`grounding`、`safety_tolerance` |
+| `FLUX 3 Image / Klein 文生图与编辑（4 合 1）` | 四个独立型号，编辑最多 10 张参考图 | `model`、画幅、分辨率；Klein 原生种子、步数和格式 |
+| `HY Image 3.5 Preview 图像生成/编辑` | 文生图、最多 5 图参考及精确尺寸 | 画幅、自定义宽高、1K/2K/4K、负面提示词、种子 |
+| `Muse Image 图像生成/合成` | 文生图、最多 9 图参考合成 | 常用画幅；素材总计不超过 11 MiB |
+| `Muse Video 文生/参考生视频` | 文生视频、最多 9 图构图参考 | 常用画幅；固定约 10 秒、720p、带音频 |
 | `MAI Image 2.6 / Flash 生成/编辑` | 双模型文生图、单图编辑、最多 5 图合成 | `model`、`prompt`、尺寸、自动画幅、联网检索 |
 | `Moss Image 图像生成/编辑` | 独立 Moss 文生图或单张参考图编辑 | 必填 `prompt`、8 种比例、可选 `image1` |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
@@ -892,7 +906,7 @@ Midjourney 图片与视频：
 - `examples/wan-3.0-*.json`（8 份，覆盖国内/海外标准版与 Prime I2V/R2V）
 - `examples/flowmusic-*.json`（9 份，所有依赖源音乐的操作均通过节点连线传递 `clip_id`）
 - `examples/flux-3-video-*.json`（8 份，覆盖国内/海外 T2V、I2V、V2V、Draft Enhance）
-- `examples/flux-3-image*.json`（2 份，文生图与本地参考图编辑）
+- `examples/flux-3-image*.json`（旧节点 2 份，新 Standard/Klein 文生图与编辑各 1 份，共 6 份）
 - `examples/vidu-q4-preview*.json`（4 份，国内/海外 I2V 与图片+音频 R2V）
 - `examples/海螺hailuo-h3*.json`（8 份，覆盖国内/海外 H3 T2V、I2V、Multi，以及 H3 Max T2V/I2V）
 - `examples/minmax-h3-context-ir-*.json`（3 份，覆盖 Text、Image、Multimodal）
@@ -1499,7 +1513,32 @@ MiniMax H3 OW Fast 节点参数：
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 
-FLUX 3 Image 节点参数：
+### HY Preview、Muse 与 FLUX 新型号
+
+四类新节点独立注册，不替换旧节点。参考图直接连接 ComfyUI `LoadImage`，每路只能连接一张图片；未接图时 HY、Muse 使用文本生成。图片按插槽顺序上传，数量或编码大小超限时会在上传前报错，不会静默截断。
+
+| 节点 | 支持范围 |
+| --- | --- |
+| `HY_Image_3_5_Preview` | `zhenzhen-image-hy-v3.5-preview`；0-5 图；`resolution=1K/2K/4K`；`size` 选常用比例或 `custom`；自定义每边 256-8192、总像素不超过 8,294,400。16 的倍数只是建议，不强制。 |
+| `Muse_Image` | `zhenzhen-image-muse`；0-9 图、合计不超过 11 MiB；`auto`、1:1、16:9、9:16、4:3、3:4、3:2、2:3；图片分辨率和格式由模型决定。 |
+| `Muse_Video` | `zhenzhen-video-muse`；0-9 图、合计不超过 11 MiB；画幅同 Muse Image。固定约 10 秒、720p、带音频。参考图是构图参考，不保证成为精确首帧。 |
+| `Flux_3_Image_Variants` | `flux-3-image-t2i`、`flux-3-image-i2i`、`flux-3-image-klein-t2i`、`flux-3-image-klein-i2i`。T2I 不接受图片，I2I 必须连接 1-10 图，编码后单图不超过 10 MB。 |
+
+HY 的 `custom` 会发送成对的 `width/height`；非自定义模式不发送隐藏的宽高值。HY 的 `seed=0` 表示上游随机。Muse 没有上游种子，节点中的种子仅用于 ComfyUI 缓存；Fixed 且输入不变时复用缓存。
+
+FLUX 四型号支持 `768sq/1k/1.5k/2k/4k` 和原有 15 种比例加 `auto`。标准版显示 `grounding`，Klein 显示 `steps`、`output_format`；安全容忍度均为 0-4。`steps=0`、`output_format=api_default` 表示不发送该字段，使用接口默认。Klein 种子范围 0-2147483647；标准版种子仅控制缓存。四个新型号不发送 `n`，不套用旧 `flux-3-image` 的请求体。
+
+新增工作流（API Key 均为空）：
+
+- HY：[文生图](examples/HY35Preview文生图.json)、[双图编辑](examples/HY35Preview多图编辑.json)、[自定义尺寸](examples/HY35Preview自定义尺寸.json)。
+- Muse 图像：[文本生成](examples/MuseImage文本生成.json)、[双图参考](examples/MuseImage多图参考.json)。
+- Muse 视频：[文本生成](examples/MuseVideo文本生成.json)、[双图参考](examples/MuseVideo多图参考.json)。
+- FLUX 标准：[文生图](examples/flux-3-image-t2i文生图.json)、[图像编辑](examples/flux-3-image-i2i图像编辑.json)。
+- FLUX Klein：[文生图](examples/flux-3-image-klein-t2i文生图.json)、[图像编辑](examples/flux-3-image-klein-i2i图像编辑.json)。
+
+真实验证（2026-11-01）：HY 文生图为 1024×1024，双图自定义尺寸为 1280×720；Muse 文生图为 1600×1600、双图参考为 1920×1280；四个 FLUX 型号均返回 768×768 图片。Muse 文本/双图视频均为 10 秒、1280×720、H.264/AAC，并完成全片解码。Motion 标准版为 15 秒、1280×720、H.264/AAC。没有把任务提交成功等同于下载成功。
+
+下面的参数表仍描述兼容保留的旧 `Flux_3_Image` 节点：
 
 | 参数 | 说明 |
 | --- | --- |

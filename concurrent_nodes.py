@@ -38,6 +38,9 @@ PURE_IMAGE_NODE_KEYS = (
     "Qwen_Image_3_0",
     "Qwen_Image_Global_2_1",
     "Flux_3_Image",
+    "Flux_3_Image_Variants",
+    "HY_Image_3_5_Preview",
+    "Muse_Image",
     "Zhenzhen_Image_GK_V15",
     "Zhenzhen_Image_GK_V2",
     "Zhenzhen_Image_GK_V2_Edit",
@@ -52,6 +55,7 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Muse_Video",
     "Kling_V4_T2V",
     "Kling_V4_I2V",
     "Kling_V4_Omni",

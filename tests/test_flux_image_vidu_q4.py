@@ -170,6 +170,8 @@ class WorkflowTests(unittest.TestCase):
     def test_all_six_examples_preserve_input_slots_and_cache_controls(self):
         files = list((ROOT / "examples").glob("flux-3-image*.json"))
         files += list((ROOT / "examples").glob("vidu-q4-preview*.json"))
+        files = [path for path in files if any(node["type"] in ("Flux_3_Image", "Vidu_Q4_Preview_Video")
+                 for node in json.loads(path.read_text(encoding="utf-8"))["nodes"])]
         self.assertEqual(len(files), 6)
         for path in files:
             with self.subTest(path=path.name):
