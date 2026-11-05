@@ -63,8 +63,8 @@ class _FallbackFile3D:
 File3D = _ComfyTypes.File3D if _ComfyTypes is not None else _FallbackFile3D
 
 
-def file3d_from_path(path: str):
-    return File3D(str(path), file_format="glb")
+def file3d_from_path(path: str, file_format: str = "glb"):
+    return File3D(str(path), file_format=file_format)
 
 
 def minimal_glb_bytes(label: str = "Seedance placeholder") -> bytes:

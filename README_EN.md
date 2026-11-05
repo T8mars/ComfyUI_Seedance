@@ -4,6 +4,17 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.26.0 - 2026-11-05
+
+- Added independent Image G 2.6 image/GIF, Z-image T2I and Krea V3 image nodes without changing G 2.5. All three G 2.6 models support GIF mode, original-file saving, complete frame output and animated previews. Thirteen credential-free examples include three-model GIF concurrency.
+- On 2026-11-05, nine actual paths across six image model IDs passed: three G 2.6 GIFs, three two-reference static edits, Krea text/edit and Z-image. GIF checks verify actual format, frames, motion and original timing; a static result is never presented as animation.
+- Final verification passed 649 offline tests, 285 workflow audits and 25 frontend syntax checks. All thirteen new examples and three submit-wrapper types passed actual-canvas acceptance, including serial/concurrent GIF playback and byte-preserving original downloads.
+- Added three independent 3D nodes: Hitem3D v2, Hitem3D Portrait v2.1 and Meshy 6 Global. They reuse existing 3D submission, polling and reliable downloading without changing Hunyuan nodes.
+- Each Hitem3D node combines single-image and multi-image models. Multi-image requires 2-4 contiguous views in front, back, left, right order, unlike Hunyuan's ordering.
+- Outputs include native `FILE_3D`, model URL, local path, task ID and response, with `skip_error` and standard cache seeds. Five credential-free preview/save workflows are included.
+- The current API documentation explicitly withdraws Meshy text-to-3D temporarily. Only its available image-to-3D model is exposed; no nonfunctional text workflow is included.
+- On 2026-11-05, all five available models completed actual upload, submission, polling, download and non-empty GLB mesh checks. All 627 offline tests, 272 workflow audits and 23 frontend syntax checks passed, alongside native preview/save, orbit and narrow-viewport checks.
+
 ## v0.25.0 - 2026-11-01
 
 - Added independent HY Image 3.5 Preview, Muse Image, Muse Video and four-model FLUX 3 Image / Klein nodes. Existing FLUX registrations, sockets and workflows remain unchanged.
@@ -271,6 +282,12 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Moss_Image` | Moss text generation or single-reference image editing, with eight aspect ratios |
 | `Wan_2_7_Global_Image` | Wan 2.7 global image generation and editing |
 | `Hunyuan3D_V3_1` | Hunyuan 3D text or ordered multi-view image generation |
+| `Hitem3D_V2` | Hitem3D v2 single-image or 2-4-view generation |
+| `Zhenzhen_Image_G26` | LowPrice/Flare/Sunburst static images, editing and GIF animation with original-file saving |
+| `Z_Image_T2I` | Z-image text generation, eight ratios and native seeds |
+| `Krea_V3_Image` | Krea text generation or editing with up to eight references, preset/custom dimensions and native seeds |
+| `Hitem3D_Portrait_V2_1` | Hitem3D Portrait v2.1 single-image or 2-4-view generation |
+| `Meshy_6_Global` | Available Meshy 6 Global image-to-3D model |
 | `Doubao_Seed_Audio` | Doubao Seed Audio generation |
 | `Doubao_Voice_Clone_ICL` | Voice training, preview downloads, and ICL synthesis with trained speaker IDs |
 | `Qwen3_TTS` | Qwen3 text-to-speech |
@@ -546,6 +563,57 @@ Specialized nodes may expose multiple images, videos, audio tracks, masks, text,
 The independent NB 2.1 node uses `zhenzhen-image-nb-2.1` and the shared `/v1/image/generations` submit/poll/download path. Prompt length is 5-5000 characters. Choose `1k` (default), `2k`, or `4k`, and `auto` or one of ten standard aspect ratios (default `1:1`). No reference images means text generation; connect up to 14 ordered single-image references for editing. Each request generates exactly one image and omits all output-format fields.
 
 The existing four-model NB node remains unchanged. NB 2.1 supports standard cache-only seeds, default-off `skip_error`, resilient downloads, and the optional 30-way image concurrent submit wrapper.
+
+## Image G 2.6, Krea V3 and Z-image
+
+All three independent nodes use asynchronous image endpoints and retain `skip_error`, Fixed/Randomize controls and existing 30-slot image concurrency. G 2.6 seeds control local caching only. Krea and Z-image forward nonnegative native seeds; `-1` omits the upstream seed.
+
+| Models | Supported controls and limits |
+| --- | --- |
+| `zhenzhen-image-g-v2.6-lowprice` | Static images or GIF, 0-2 ordered references, fixed 1k and one result. GIF is requested through the prompt; output-format and frame parameters are omitted. Upstream selects actual dimensions and frames. |
+| `zhenzhen-image-g-v2.6-flare` / `sunburst` | Static: 0-16 references, 1k/2k/4k, PNG/JPEG/WebP, 1-4 results, quality and optional complexity. Mask/markup URLs are mutually exclusive and must align with the first reference. GIF is text-only, 2-16 frames, auto/preset/custom pixel dimensions, at least 20ms per frame in 10ms increments. The node validates the documented complete contact-sheet limits. |
+| `krea-v3-t2i` / `i2i` | Text generation or 1-8 references, each at most 30MB. Preset/custom dimensions, each side 256-4096, maximum 4,220,000 pixels. Uses `metadata.model_variant=berry/jam` and `reasoning_level=low/medium`; PNG/JPEG, negative prompts and native seeds. |
+| `z-image-t2i` | Text only, eight ratios and native seeds. No references, resolution, output-format or batch-count fields are sent. |
+
+G 2.6 automatically saves original downloaded files under the ComfyUI output subdirectory selected by `filename_prefix`. GIF bytes, frames and timing are preserved, not converted to PNG. `image` contains all frames; `local_path`, `urls_json`, `paths_json` and `durations_json` expose files and timing for each result. GIF examples use the generation node's animated preview and automatic original saving, not `SaveImage`, which would split frames. The concurrent image collector also retains GIF previews. GIF mode rejects a static upstream result. This node exposes static images and GIF, not SVG.
+
+Examples:
+
+| Model | Text | Edit | GIF |
+| --- | --- | --- | --- |
+| G 2.6 LowPrice | [Open](examples/zhenzhen-image-g-v2.6-lowprice文生图.json) | [Open](examples/zhenzhen-image-g-v2.6-lowprice图像编辑.json) | [Open](examples/zhenzhen-image-g-v2.6-lowpriceGIF动画.json) |
+| G 2.6 Flare | [Open](examples/zhenzhen-image-g-v2.6-flare文生图.json) | [Open](examples/zhenzhen-image-g-v2.6-flare图像编辑.json) | [Open](examples/zhenzhen-image-g-v2.6-flareGIF动画.json) |
+| G 2.6 Sunburst | [Open](examples/zhenzhen-image-g-v2.6-sunburst文生图.json) | [Open](examples/zhenzhen-image-g-v2.6-sunburst图像编辑.json) | [Open](examples/zhenzhen-image-g-v2.6-sunburstGIF动画.json) |
+| Krea V3 | [Open](examples/krea-v3-t2i文生图.json) | [Open](examples/krea-v3-i2i图像编辑.json) | Unsupported |
+| Z-image | [Open](examples/z-image-t2i文生图.json) | Unsupported | Unsupported |
+
+Concurrent example: [three G 2.6 GIF models with original saving and previews](examples/G26GIF三模型并发.json).
+
+Actual verification: LowPrice returned a nine-frame 412x411 GIF at 140ms per frame. Flare/Sunburst returned two-frame 512x512 GIFs at 200ms per frame. All original GIFs downloaded and passed frame checks. Three two-reference static edits, both 256x256 Krea paths and 1024x1024 Z-image also downloaded and decoded. These are actual tested configurations, not a claim that every optional parameter combination was called.
+
+## Hitem3D and Meshy 6
+
+These independent nodes live under `Seedance/3D` and use POST/GET `/v1/3d/generations`. Local images upload automatically. They do not send Hunyuan's prompt, face_count or generate_type fields.
+
+| Node | Models and parameters |
+| --- | --- |
+| `Hitem3D_V2` | `hitem3d-v2-image-to-3d`, `hitem3d-v2-multi-image-to-3d`; request_type mesh/both; resolution 1536/1536pro; face 100000-2000000, default 1000000. |
+| `Hitem3D_Portrait_V2_1` | `hitem3d-portrait-v2.1-image-to-3d`, `hitem3d-portrait-v2.1-multi-image-to-3d`; resolution 1536pro only; other controls as above. |
+| `Meshy_6_Global` | `meshy-6-global-image-to-3d`; exactly one image; topology triangle/quad, target_polycount 100-300000, symmetry_mode off/auto/on, should_remesh, enable_pbr, ta_pose and should_texture. |
+
+Single-image models require exactly image1. Hitem multi-image models require 2-4 contiguous sockets in front, back, left, right order. Every socket requires one image, not a batch. All count/shape/encoded-file checks run before the first upload.
+
+Meshy api_default omits optional fields. Target polygon count 0 likewise requests API defaults without submitting 0. Explicit true/false choices become JSON booleans; false is preserved. The documented `meshy-6-global-text-to-3d` model is temporarily withdrawn and is not exposed.
+
+Outputs include a native FILE_3D for recent ComfyUI Preview3D/SaveGLB (Save 3D Model), plus URL, local path, task ID and response. GLB is preferred and its header, length and JSON are checked. A GLB inside a ZIP is safely extracted rather than relabeling the archive. Seeds are cache-only; Fixed reuses cached results when inputs stay unchanged. Default-off skip_error returns a valid native placeholder on failure.
+
+Five credential-free examples connect image loading, native preview and saving:
+
+- Hitem3D v2: [single image](examples/hitem3d-v2-image-to-3d图生3D.json), [front/back views](examples/hitem3d-v2-multi-image-to-3d多图生3D.json).
+- Portrait v2.1: [single image](examples/hitem3d-portrait-v2.1-image-to-3d图生3D.json), [front/back views](examples/hitem3d-portrait-v2.1-multi-image-to-3d多图生3D.json).
+- Meshy 6 Global: [image-to-3D](examples/meshy-6-global-image-to-3d图生3D.json).
+
+Actual verification on 2026-11-05 used face=100000 for all four Hitem models: mesh for single-image paths and both with front/back references for multi-image paths. All four GLBs contained actual meshes; each multi-image result contained two textures. Meshy completed with target_polycount=100, triangle topology, remeshing enabled, and texture/PBR disabled. The textured Hitem multi-image runs took approximately 18-20 minutes; wait for a terminal status instead of submitting again during processing. No runtime outputs or task information are stored in examples.
 
 ## HY Preview, Muse and New FLUX Models
 

@@ -106,8 +106,8 @@ class GenerationSkipErrorTests(unittest.TestCase):
                     result = node.execute(skip_error=True)
 
                 self.assertEqual(set(result), {"ui", "result"})
-                self.assertEqual(len(result["result"]), 4)
-                image, image_url, task_id, response = result["result"]
+                self.assertEqual(len(result["result"]), len(node.RETURN_TYPES))
+                image, image_url, task_id, response = result["result"][:4]
                 self.assertTrue(torch.is_tensor(image))
                 self.assertEqual(tuple(image.shape), (1, 512, 512, 3))
                 self.assertEqual(image_url, "")

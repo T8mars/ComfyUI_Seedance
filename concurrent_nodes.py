@@ -31,6 +31,9 @@ IMAGE_ENV_NAME = "SEEDANCE_IMAGE_CONCURRENCY"
 VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 
 PURE_IMAGE_NODE_KEYS = (
+    "Zhenzhen_Image_G26",
+    "Z_Image_T2I",
+    "Krea_V3_Image",
     "Seedream_V5_Pro_Image",
     "Zhenzhen_Image_G2",
     "Zhenzhen_Image_G25_Lowprice",
@@ -553,6 +556,7 @@ class _ConcurrentAwaitBase:
 
         failure_placeholder = None
         outputs = [None] * self.SLOT_COUNT
+        animated_previews = {}
         statuses: Dict[int, Dict[str, Any]] = {
             slot: {
                 "slot": slot,
@@ -597,6 +601,8 @@ class _ConcurrentAwaitBase:
                     try:
                         result = future.result()
                         outputs[slot - 1] = self._extract_media(handle, result)
+                        if self.KIND == "image" and isinstance(result, dict) and result.get("ui", {}).get("animated"):
+                            animated_previews[slot] = result["ui"].get("images", [])
                         statuses[slot]["state"] = "completed"
                         metadata = self._metadata_summary(handle, result)
                         if metadata:
@@ -645,7 +651,11 @@ class _ConcurrentAwaitBase:
             ),
             "slots": [statuses[slot] for slot in sorted(statuses)],
         }
-        return tuple(outputs) + (json.dumps(summary, ensure_ascii=False),)
+        result = tuple(outputs) + (json.dumps(summary, ensure_ascii=False),)
+        if animated_previews:
+            return {"ui": {"images": [entry for slot in sorted(animated_previews) for entry in animated_previews[slot]],
+                           "animated": (True,)}, "result": result}
+        return result
 
 
 class SeedanceConcurrentImageAwait(_ConcurrentAwaitBase):

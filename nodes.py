@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -9250,6 +9250,8 @@ class _ReferenceImageGeneration(SeedanceImageNodeBase):
     def VALIDATE_INPUTS(cls, strict=False, **kwargs):
         if cls.KIND == "flux":
             return flux3_variants.validate(kwargs, strict=strict)
+        if cls.KIND in ("krea", "z_image"):
+            return image_models_26.validate_basic(cls.KIND, kwargs, strict=strict)
         return preview_models.validate(cls.KIND, kwargs, strict=strict)
 
     @property
@@ -9260,6 +9262,8 @@ class _ReferenceImageGeneration(SeedanceImageNodeBase):
     def build_payload(cls, kwargs, images):
         if cls.KIND == "flux":
             return flux3_variants.payload(kwargs, images)
+        if cls.KIND in ("krea", "z_image"):
+            return image_models_26.basic_payload(cls.KIND, kwargs, images)
         return preview_models.payload(cls.KIND, kwargs, images)
 
     def _execute_inner(self, **kwargs):
@@ -9268,7 +9272,7 @@ class _ReferenceImageGeneration(SeedanceImageNodeBase):
             raise SeedanceAPIError(valid)
         encoded = preview_models.encode_references(
             kwargs, self.MAX_REFERENCES,
-            per_file=10 * 1024 * 1024 if self.KIND == "flux" else 50 * 1024 * 1024,
+            per_file=(10 if self.KIND == "flux" else 30 if self.KIND == "krea" else 50) * 1024 * 1024,
             total=preview_models.MUSE_REFERENCE_BYTES if self.KIND == "muse_image" else None,
         )
         config = get_config(kwargs.get("api_config"))
@@ -9290,6 +9294,134 @@ class _ReferenceImageGeneration(SeedanceImageNodeBase):
         progress(100)
         response = json.dumps(final, ensure_ascii=False, indent=2)
         return {"ui": {"text": [url, response]}, "result": (image, url, task_id, response)}
+
+
+class ZImageT2I(_ReferenceImageGeneration):
+    KIND = "z_image"
+    MAX_REFERENCES = 0
+
+    @classmethod
+    def controls(cls):
+        return {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "ratio": (image_models_26.RATIOS, {"default": "1:1"}),
+            "seed": ("INT", {"default": -1, "min": -1, "max": 9007199254740991}),
+        }
+
+
+class KreaV3Image(_ReferenceImageGeneration):
+    KIND = "krea"
+    MAX_REFERENCES = 8
+
+    @classmethod
+    def controls(cls):
+        return {
+            "model": (image_models_26.KREA_MODELS, {"default": image_models_26.KREA_MODELS[0]}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "size": ([*image_models_26.KREA_SIZES, "custom"], {"default": "1:1"}),
+            "width": ("INT", {"default": 1024, "min": 256, "max": 4096}),
+            "height": ("INT", {"default": 1024, "min": 256, "max": 4096}),
+            "model_variant": (["berry", "jam"], {"default": "berry"}),
+            "reasoning_level": (["low", "medium"], {"default": "low"}),
+            "output_format": (["png", "jpeg"], {"default": "png"}),
+            "negative_prompt": ("STRING", {"default": "", "multiline": True}),
+            "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+        }
+
+
+class ZhenzhenImageG26(SeedanceImageNodeBase):
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE",) + ("STRING",) * 7
+    RETURN_NAMES = ("image", "image_url", "task_id", "response", "local_path", "urls_json", "paths_json", "durations_json")
+    _log_prefix = "Image G 2.6"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, 17)}
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": {
+            "model": (image_models_26.G26_MODELS, {"default": image_models_26.G26_MODELS[0]}),
+            "mode": (["image", "gif"], {"default": "image", "tooltip": "GIF preserves all frames and automatically saves the original animation | GIF 保留全部帧并自动保存原始动图"}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "size": (image_models_26.IMAGE_SIZES, {"default": "1:1"}),
+            "width": ("INT", {"default": 1024, "min": 16, "max": 3840, "step": 16}),
+            "height": ("INT", {"default": 1024, "min": 16, "max": 3840, "step": 16}),
+            "resolution": (["1k", "2k", "4k"], {"default": "1k"}),
+            "quality": (image_models_26.QUALITIES, {"default": "auto"}),
+            "complexity": (["api_default", "low", "medium", "high"], {"default": "api_default"}),
+            "n": ("INT", {"default": 1, "min": 1, "max": 4}),
+            "output_format": (["png", "jpeg", "webp"], {"default": "png"}),
+            "output_compression": ("INT", {"default": -1, "min": -1, "max": 100}),
+            "frame_size": (image_models_26.FRAME_SIZES, {"default": "512x512"}),
+            "frame_width": ("INT", {"default": 512, "min": 16, "max": 3840, "step": 16}),
+            "frame_height": ("INT", {"default": 512, "min": 16, "max": 3840, "step": 16}),
+            "frame_count": ("INT", {"default": 9, "min": 2, "max": 16}),
+            "frame_duration_ms": ("INT", {"default": 200, "min": 20, "step": 10}),
+            "mask_url": ("STRING", {"default": ""}),
+            "markup_url": ("STRING", {"default": ""}),
+            "filename_prefix": ("STRING", {"default": "seedance/g26"}),
+        }, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        return image_models_26.validate_g26(kwargs, strict=strict)
+
+    @classmethod
+    def build_payload(cls, kwargs, images):
+        return image_models_26.g26_payload(kwargs, images)
+
+    def _make_error_result(self, error_msg):
+        result = super()._make_error_result(error_msg)
+        result["result"] += ("", "[]", "[]", "[]")
+        return result
+
+    def execute(self, **kwargs):
+        # The collector owns per-slot failure handling inside a concurrent worker.
+        if progress_is_suppressed():
+            kwargs["skip_error"] = False
+        return super().execute(**kwargs)
+
+    def _execute_inner(self, **kwargs):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        prefix = kwargs.get("filename_prefix", "seedance/g26")
+        image_artifacts.output_target(prefix)
+        lowprice = kwargs.get("model", image_models_26.G26_MODELS[0]) == image_models_26.G26_MODELS[0]
+        encoded = preview_models.encode_references(kwargs, 2 if lowprice else 16)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None
+        progress(0)
+        refs = [upload_media(data, f"reference_{index}.png", "image/png", config, logger_prefix=self._log_prefix)
+                for index, data in encoded]
+        task_id = submit_image_task(self.build_payload(kwargs, refs), config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll_image_task(task_id, config, on_progress=lambda value: progress(20 + value * .7), logger_prefix=self._log_prefix)
+        urls = extract_image_urls(final)
+        if not urls:
+            raise SeedanceAPIError("Image task returned no result URLs")
+        images, paths, entries, durations = [], [], [], []
+        animated = False
+        for index, url in enumerate(urls):
+            image, path, entry, timing, extension = image_artifacts.download_original(
+                url, prefix, kwargs.get("mode", "image") == "gif", self._log_prefix)
+            images.append(image)
+            paths.append(path)
+            entries.append(entry)
+            durations.append(timing)
+            animated |= image.shape[0] > 1
+            progress(90 + 10 * (index + 1) / len(urls))
+        if len({tuple(image.shape[1:]) for image in images}) != 1:
+            raise SeedanceAPIError("Result images have different dimensions; originals were saved but cannot form one IMAGE batch")
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        ui = {"images": entries, "text": [paths[0]]}
+        if animated:
+            ui["animated"] = (True,)
+        return {"ui": ui, "result": (torch.cat(images), urls[0], task_id, response, paths[0],
+                    json.dumps(urls), json.dumps(paths), json.dumps(durations))}
 
 
 class HunyuanImage35Preview(_ReferenceImageGeneration):
@@ -10425,6 +10557,109 @@ class ZhenzhenImageGKV2Edit(SeedanceImageNodeBase):
 # ---------------------------------------------------------------------------
 # Hunyuan 3D v3.1
 # ---------------------------------------------------------------------------
+
+class _Image3DGeneration:
+    """Image-only 3D families with native files and shared transport reliability."""
+
+    CATEGORY = "Seedance/3D"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("FILE_3D", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("model_3d", "model_url", "local_path", "task_id", "response")
+    FAMILY = "hitem"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {"model": (hitem_meshy.models(cls.FAMILY), {"default": hitem_meshy.models(cls.FAMILY)[0]})}
+        if cls.FAMILY == "meshy":
+            required.update({
+                "topology": (["api_default", "triangle", "quad"], {"default": "api_default",
+                    "tooltip": "API default, triangular or quad topology | 接口默认、三角面或四边面"}),
+                "target_polycount": ("INT", {"default": 0, "min": 0, "max": 300000,
+                    "tooltip": "0 omits this field; explicit values: 100-300000 | 0 使用接口默认，指定值范围100-300000"}),
+                "symmetry_mode": (["api_default", "off", "auto", "on"], {"default": "api_default",
+                    "tooltip": "API default; symmetry off, auto or on | 接口默认；对称关闭、自动或开启"}),
+            })
+            labels = {"should_remesh": "重网格", "enable_pbr": "PBR 材质", "ta_pose": "T 姿态", "should_texture": "生成纹理"}
+            for name in hitem_meshy.BOOLEAN_FIELDS:
+                required[name] = (hitem_meshy.OPTIONAL_BOOLEAN, {"default": "api_default",
+                    "tooltip": f"{labels[name]}: api_default 不发送此参数，true 开启，false 关闭"})
+        else:
+            required.update({
+                "request_type": (["mesh", "both"], {"default": "both",
+                    "tooltip": "mesh: geometry; both: geometry and texture | mesh 生成几何体，both 生成几何体与纹理"}),
+                "resolution": (["1536pro"] if cls.FAMILY == "portrait" else ["1536", "1536pro"],
+                    {"default": "1536pro" if cls.FAMILY == "portrait" else "1536"}),
+                "face": ("INT", {"default": 1000000, "min": 100000, "max": 2000000, "step": 10000}),
+            })
+        maximum = 1 if cls.FAMILY == "meshy" else 4
+        optional = {f"image{i}": ("IMAGE", {"tooltip": "Exactly one source image | 连接一张参考图" if cls.FAMILY == "meshy"
+                     else f"{hitem_meshy.VIEWS[i - 1]} view | 正、后、左、右顺序连续连接，每路一张图"})
+                    for i in range(1, maximum + 1)}
+        optional["api_config"] = ("SEEDANCE_CONFIG",)
+        optional["skip_error"] = ("BOOLEAN", {"default": False})
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        return hitem_meshy.validate(cls.FAMILY, kwargs, strict=strict)
+
+    @classmethod
+    def build_payload(cls, kwargs, images):
+        return hitem_meshy.payload(cls.FAMILY, kwargs, images)
+
+    def execute(self, **kwargs):
+        skip_error = bool(kwargs.pop("skip_error", False))
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as exc:
+            if not skip_error:
+                raise
+            response = json.dumps({"error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False)
+            return {"ui": {"text": ["", response]},
+                    "result": (placeholder_file3d(str(exc)), "", "", "", response)}
+
+    def _execute_inner(self, **kwargs):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        maximum = 1 if self.FAMILY == "meshy" else 4
+        encoded = preview_models.encode_references(kwargs, maximum)
+        config = get_config(kwargs.get("api_config"))
+        prefix = self.__class__.__name__
+        pbar = _make_progress_bar(100)
+        progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None
+        progress(0)
+        images = []
+        for index, data in encoded:
+            images.append(upload_media(data, f"{hitem_meshy.VIEWS[index - 1]}.png", "image/png",
+                                       config, logger_prefix=prefix))
+            progress(len(images) / len(encoded) * 15)
+        task_id = submit_3d_task(self.build_payload(kwargs, images), config, logger_prefix=prefix)
+        progress(20)
+        final = poll_3d_task(task_id, config, logger_prefix=prefix,
+                             on_progress=lambda value: progress(20 + value * .75))
+        progress(95)
+        url = extract_3d_url(final)
+        downloaded = download_file(url, filename_prefix=self.FAMILY + "_3d", default_extension="glb", logger_prefix=prefix)
+        path, format_ = hitem_meshy.prepare_model(downloaded)
+        model = file3d_from_path(path, file_format=format_)
+        progress(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [url, path, response]}, "result": (model, url, path, task_id, response)}
+
+
+class Hitem3DV2(_Image3DGeneration):
+    FAMILY = "hitem"
+
+
+class Hitem3DPortrait21(_Image3DGeneration):
+    FAMILY = "portrait"
+
+
+class Meshy6Global(_Image3DGeneration):
+    FAMILY = "meshy"
+
 
 class Hunyuan3DV31:
     """Hunyuan text/image to GLB with native ComfyUI 3D output."""
@@ -15866,6 +16101,9 @@ NODE_CLASS_MAPPINGS = {
     "Flux_3_Image_Variants": Flux3ImageVariants,
     "HY_Image_3_5_Preview": HunyuanImage35Preview,
     "Muse_Image": MuseImage,
+    "Zhenzhen_Image_G26": ZhenzhenImageG26,
+    "Z_Image_T2I": ZImageT2I,
+    "Krea_V3_Image": KreaV3Image,
     "Muse_Video": MuseVideo,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
     "Zhenzhen_Image_GK_V2": ZhenzhenImageGKV2,
@@ -15873,6 +16111,9 @@ NODE_CLASS_MAPPINGS = {
     "Zhenzhen_Image_GK_V2_Segment": ZhenzhenImageGKV2Segment,
     "Zhenzhen_Image_GK_V2_Region_Edit": ZhenzhenImageGKV2RegionEdit,
     "Hunyuan3D_V3_1": Hunyuan3DV31,
+    "Hitem3D_V2": Hitem3DV2,
+    "Hitem3D_Portrait_V2_1": Hitem3DPortrait21,
+    "Meshy_6_Global": Meshy6Global,
     "Wan_2_7_Global_Image": Wan27GlobalImage,
     "Zhenzhen_Image_NB": ZhenzhenImageNB,
     "Zhenzhen_Image_NB_2_1": ZhenzhenImageNB21,
@@ -16018,6 +16259,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Flux_3_Image_Variants": "FLUX 3 Image / Klein 文生图与编辑（4 合 1）",
     "HY_Image_3_5_Preview": "HY Image 3.5 Preview 图像生成/编辑",
     "Muse_Image": "Muse Image 图像生成/合成",
+    "Zhenzhen_Image_G26": "Zhenzhen Image G 2.6 图像 / GIF",
+    "Z_Image_T2I": "Z-image 文生图",
+    "Krea_V3_Image": "Krea V3 图像生成/编辑",
     "Muse_Video": "Muse Video 文生/参考生视频",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",
     "Zhenzhen_Image_GK_V2": "Zhenzhen Image GK v2 文生图",
@@ -16025,6 +16269,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Zhenzhen_Image_GK_V2_Segment": "Zhenzhen Image GK v2 智能分割",
     "Zhenzhen_Image_GK_V2_Region_Edit": "Zhenzhen Image GK v2 区域编辑",
     "Hunyuan3D_V3_1": "混元 3D v3.1 生成（文生/多视图图生）",
+    "Hitem3D_V2": "Hitem3D v2 单图/多图生成 3D",
+    "Hitem3D_Portrait_V2_1": "Hitem3D Portrait v2.1 单图/多图生成 3D",
+    "Meshy_6_Global": "Meshy 6 Global 图生 3D",
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Image_NB_2_1": "Zhenzhen Image Nano Banana 2.1 生成/编辑",

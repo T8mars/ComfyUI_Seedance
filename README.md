@@ -24,6 +24,17 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.26.0（2026-11-05）
+
+- 新增独立 `Zhenzhen Image G 2.6 图像 / GIF`、`Z-image 文生图`、`Krea V3 图像生成/编辑` 节点，旧 2.5 节点不变。三个 G 2.6 型号均支持 GIF 模式、原始动图自动保存、全部帧输出与动画预览；新增 13 份空密钥示例，包含三模型 GIF 并发。
+- 2026-11-05，六个图像型号的 9 条真实路径通过：三个 G 2.6 GIF、三个双图静态编辑、Krea 文生图/编辑及 Z-image。GIF 检查包含实际格式、帧数、帧间差异和原始时长，不将单张静态图当成动画。
+- 本批完整验证通过 649 项离线测试、285 份工作流审计和 25 个前端脚本语法检查；13 份新示例和 3 类并发提交节点通过真实画布检查，普通/并发 GIF 动画播放及原文件下载均已验证。
+- 新增三个独立 3D 节点：Hitem3D v2、Hitem3D Portrait v2.1、Meshy 6 Global，沿用现有 3D 提交、轮询及可靠下载流程，不修改旧混元节点。
+- 两个 Hitem3D 节点各包含单图和多图型号；多图需要 2-4 张，顺序为正、后、左、右，与混元多视图顺序不同。
+- 新节点输出原生 `FILE_3D`、模型 URL、本地路径、任务 ID 和响应，可连接 ComfyUI 的预览/保存节点；保留 `skip_error` 和标准缓存种子。
+- 新增 5 份空密钥工作流。当前文档明确 Meshy 文生型号已暂时下架，因此只开放图生入口，不提供无法执行的文生示例。
+- 2026-11-05，5 个可用型号均完成真实上传、提交、轮询、下载和非空 GLB 网格检查。627 项离线测试、272 份工作流审计及 23 个前端脚本语法检查通过；原生预览、保存、旋转和窄屏显示检查也通过。
+
 ## v0.25.0（2026-11-01）
 
 - 新增独立 HY Image 3.5 Preview、Muse Image、Muse Video 节点，以及四模型 FLUX 3 Image / Klein 节点；旧 FLUX 节点及原工作流不改名、不改端口。
@@ -608,9 +619,15 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `FLUX 3 Image / Klein 文生图与编辑（4 合 1）` | 四个独立型号，编辑最多 10 张参考图 | `model`、画幅、分辨率；Klein 原生种子、步数和格式 |
 | `HY Image 3.5 Preview 图像生成/编辑` | 文生图、最多 5 图参考及精确尺寸 | 画幅、自定义宽高、1K/2K/4K、负面提示词、种子 |
 | `Muse Image 图像生成/合成` | 文生图、最多 9 图参考合成 | 常用画幅；素材总计不超过 11 MiB |
+| `Zhenzhen Image G 2.6 图像 / GIF` | LowPrice、Flare、Sunburst；静态生成/编辑与 GIF | 按型号显示参考图、画幅、格式及帧参数，自动保存原文件 |
+| `Z-image 文生图` | `z-image-t2i` | 8 种画幅、原生种子，不接受参考图 |
+| `Krea V3 图像生成/编辑` | T2I / I2I，最多 8 张参考图 | 预设/自定义尺寸、Berry/Jam、推理等级、PNG/JPEG、原生种子 |
 | `Muse Video 文生/参考生视频` | 文生视频、最多 9 图构图参考 | 常用画幅；固定约 10 秒、720p、带音频 |
 | `MAI Image 2.6 / Flash 生成/编辑` | 双模型文生图、单图编辑、最多 5 图合成 | `model`、`prompt`、尺寸、自动画幅、联网检索 |
 | `Moss Image 图像生成/编辑` | 独立 Moss 文生图或单张参考图编辑 | 必填 `prompt`、8 种比例、可选 `image1` |
+| `Hitem3D v2 单图/多图生成 3D` | 单图及正/后/左/右多视图 | `request_type`、`resolution`、`face`，输出原生 3D 文件 |
+| `Hitem3D Portrait v2.1 单图/多图生成 3D` | 人像单图及 2-4 多视图 | 分辨率只支持 `1536pro`，其余参数同 Hitem3D |
+| `Meshy 6 Global 图生 3D` | 单张参考图 | 拓扑、多边形数量、对称、重网格、纹理、PBR 和 T 姿态 |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
@@ -1512,6 +1529,57 @@ MiniMax H3 OW Fast 节点参数：
 | `audio` | 仅两种 Audio Drive Fast 使用且必填，只接受一段本地音频 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
+
+### Image G 2.6、Krea V3 与 Z-image
+
+三个新节点均使用异步图像接口，保留 `skip_error`、Fixed/Randomize 种子控制和现有 30 路图片并发。G 2.6 的种子只控制本地缓存；Krea 与 Z-image 将非负种子传给 API，`-1` 省略上游种子。
+
+| 型号 | 支持与限制 |
+| --- | --- |
+| `zhenzhen-image-g-v2.6-lowprice` | 静态图/GIF，0-2 张有序参考图，固定 1k、一次一个结果。GIF 由提示词要求循环动画，不发送输出格式和帧参数，尺寸与帧数由上游决定。 |
+| `zhenzhen-image-g-v2.6-flare` / `sunburst` | 静态图支持 0-16 图、1k/2k/4k、PNG/JPEG/WebP、1-4 个结果、质量与可选复杂度。蒙版 URL 与标注 URL 二选一，必须与第一张参考图对齐。GIF 仅文生，2-16 帧；单帧尺寸为 auto、预设像素或 custom，时长至少 20ms 且以 10ms 递增。节点校验文档规定的整张拼图边长、面积和比例限制。 |
+| `krea-v3-t2i` / `i2i` | 文生图/1-8 图编辑；每张参考图不超过 30MB。常用比例预设或自定义宽高，每边 256-4096，总像素不超过 4,220,000。使用 `metadata.model_variant=berry/jam`、`reasoning_level=low/medium`，支持 PNG/JPEG、负面提示词和原生种子。 |
+| `z-image-t2i` | 文生图，8 种画幅和原生种子；不传参考图、分辨率、输出格式或批量参数。 |
+
+G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载的原始文件。GIF 不转成 PNG、不丢帧或修改时长；`image` 输出所有帧，`local_path`、`urls_json`、`paths_json`、`durations_json` 保留本地路径及每个结果的帧时长。GIF 示例直接使用生成节点的动画预览与原文件保存，不接会将动画拆成静态帧的 `SaveImage`。并发接收节点同样保留 GIF 预览。GIF 模式若收到静态结果会明确报错。当前节点提供静态图片与 GIF，不开放 SVG。
+
+示例工作流：
+
+| 型号 | 文生图 | 编辑 | GIF |
+| --- | --- | --- | --- |
+| G 2.6 LowPrice | [打开](examples/zhenzhen-image-g-v2.6-lowprice文生图.json) | [打开](examples/zhenzhen-image-g-v2.6-lowprice图像编辑.json) | [打开](examples/zhenzhen-image-g-v2.6-lowpriceGIF动画.json) |
+| G 2.6 Flare | [打开](examples/zhenzhen-image-g-v2.6-flare文生图.json) | [打开](examples/zhenzhen-image-g-v2.6-flare图像编辑.json) | [打开](examples/zhenzhen-image-g-v2.6-flareGIF动画.json) |
+| G 2.6 Sunburst | [打开](examples/zhenzhen-image-g-v2.6-sunburst文生图.json) | [打开](examples/zhenzhen-image-g-v2.6-sunburst图像编辑.json) | [打开](examples/zhenzhen-image-g-v2.6-sunburstGIF动画.json) |
+| Krea V3 | [打开](examples/krea-v3-t2i文生图.json) | [打开](examples/krea-v3-i2i图像编辑.json) | 不支持 |
+| Z-image | [打开](examples/z-image-t2i文生图.json) | 不支持 | 不支持 |
+
+并发示例：[G 2.6 三模型 GIF 并发生成、保存与预览](examples/G26GIF三模型并发.json)。
+
+实际验证：LowPrice GIF 返回 9 帧、412×411、每帧 140ms；Flare 与 Sunburst 返回 2 帧、512×512、每帧 200ms，原始 GIF 均已下载并校验。三个静态双图编辑结果、两种 Krea 256×256 结果和 Z-image 1024×1024 结果也均已下载解码。以上是实际测试配置，不代表每个可选参数组合都已真实调用。
+
+### Hitem3D 与 Meshy 6
+
+三个节点位于 `Seedance/3D`。接口均为 `POST /v1/3d/generations` 和 `GET /v1/3d/generations/{task_id}`，本地图片自动上传，无需额外填写提示词。它们不复用混元的 `face_count`、`generate_type` 或多视图顺序。
+
+| 节点 | 型号与参数 |
+| --- | --- |
+| `Hitem3D_V2` | `hitem3d-v2-image-to-3d`、`hitem3d-v2-multi-image-to-3d`；`request_type=mesh/both`；`resolution=1536/1536pro`；`face=100000..2000000`，默认 1000000。 |
+| `Hitem3D_Portrait_V2_1` | `hitem3d-portrait-v2.1-image-to-3d`、`hitem3d-portrait-v2.1-multi-image-to-3d`；只支持 `1536pro`，其余参数同上。 |
+| `Meshy_6_Global` | `meshy-6-global-image-to-3d`；恰好一张图片；`topology=triangle/quad`、`target_polycount=100..300000`、`symmetry_mode=off/auto/on`，以及 `should_remesh`、`enable_pbr`、`ta_pose`、`should_texture`。 |
+
+单图型号必须且只能连接 `image1`。Hitem 多图型号必须连续连接 2-4 张，固定为 `image1` 正、`image2` 后、`image3` 左、`image4` 右；每路只能输入一张图片，不可把批次悄悄当作第一张。所有素材先完成数量、形状与编码检查，再开始上传。
+
+Meshy 的 `api_default` 表示不发送相应可选参数；`target_polycount=0` 同样表示使用接口默认，不会把 0 发给上游。`true/false` 会转成 JSON 布尔值，显式 false 不会被遗漏。文档当前注明 `meshy-6-global-text-to-3d` 已暂时下架，节点不提供该入口。
+
+新节点返回原生 `FILE_3D`，需要支持该类型的新版 ComfyUI。可以连接 `Preview3D` 或 `SaveGLB`（界面显示“Save 3D Model”）；模型下载时优先选择 GLB，并检查文件头、长度和 JSON。ZIP 内的 GLB 会安全提取，不会把压缩包改个后缀冒充 GLB。源文件 URL、本地路径、任务 ID 和完整响应另有独立输出。种子仅用于 ComfyUI 缓存，不发送给这些 3D 模型；Fixed 在输入不变时复用缓存。
+
+五份空密钥示例均已连接图片加载、3D 预览与保存：
+
+- Hitem3D v2：[单图](examples/hitem3d-v2-image-to-3d图生3D.json)、[正后双图](examples/hitem3d-v2-multi-image-to-3d多图生3D.json)。
+- Hitem3D Portrait v2.1：[单图](examples/hitem3d-portrait-v2.1-image-to-3d图生3D.json)、[正后双图](examples/hitem3d-portrait-v2.1-multi-image-to-3d多图生3D.json)。
+- Meshy 6 Global：[图生 3D](examples/meshy-6-global-image-to-3d图生3D.json)。
+
+实测记录（2026-11-05）：四个 Hitem 型号均使用 `face=100000`；单图测试 `mesh`，多图测试正后双图加 `both`。四份 GLB 均包含实际网格，多图结果分别包含两张纹理。Meshy 使用 100 的目标多边形数量、三角拓扑、重网格开启、纹理/PBR 关闭，下载得到有效 GLB。Hitem 带纹理多图任务本轮约 18-20 分钟，应等待接口终态，不要因长时间 processing 而重复提交。测试输出与真实任务信息未写入示例。
 
 ### HY Preview、Muse 与 FLUX 新型号
 
