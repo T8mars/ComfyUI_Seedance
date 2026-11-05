@@ -1,4 +1,4 @@
-"""Documented Hitem3D and available Meshy 6 image generation contracts."""
+"""Documented Hitem3D and Meshy 6 generation contracts."""
 
 import json
 import os
@@ -12,7 +12,8 @@ from .client import SeedanceAPIError
 
 HITEM_MODELS = ["hitem3d-v2-image-to-3d", "hitem3d-v2-multi-image-to-3d"]
 PORTRAIT_MODELS = ["hitem3d-portrait-v2.1-image-to-3d", "hitem3d-portrait-v2.1-multi-image-to-3d"]
-MESHY_MODELS = ["meshy-6-global-image-to-3d"]
+MESHY_TEXT_MODEL = "meshy-6-global-text-to-3d"
+MESHY_MODELS = ["meshy-6-global-image-to-3d", MESHY_TEXT_MODEL]
 VIEWS = ["front", "back", "left", "right"]
 BOOLEAN_FIELDS = ("should_remesh", "enable_pbr", "ta_pose", "should_texture")
 OPTIONAL_BOOLEAN = ["api_default", "true", "false"]
@@ -41,6 +42,7 @@ def validate(family, kwargs, strict=False):
     model = kwargs.get("model", models(family)[0])
     if model not in models(family):
         return "Unsupported or unavailable 3D model"
+    text = family == "meshy" and model == MESHY_TEXT_MODEL
     if family == "meshy":
         for name, values in (("topology", ["api_default", "triangle", "quad"]),
                              ("symmetry_mode", ["api_default", "off", "auto", "on"])):
@@ -50,8 +52,20 @@ def validate(family, kwargs, strict=False):
         if not integer(count, 0, 300000) or 0 < count < 100:
             return "target_polycount must be 0 (API default) or an integer from 100 to 300000"
         for name in BOOLEAN_FIELDS:
+            if text and name == "should_texture":
+                continue
             if kwargs.get(name, "api_default") not in OPTIONAL_BOOLEAN:
                 return f"{name} must be api_default, true or false"
+        if text:
+            prompt = kwargs.get("prompt")
+            if prompt is not None and (not isinstance(prompt, str) or len(prompt.strip()) > 600):
+                return "Meshy text-to-3D prompt must contain 1-600 characters"
+            if strict and (not isinstance(prompt, str) or not prompt.strip()):
+                return "Meshy text-to-3D requires a non-empty prompt (1-600 characters)"
+            if kwargs.get("art_style", "realistic") not in ("realistic", "sculpture"):
+                return "Meshy art_style must be realistic or sculpture"
+            if not isinstance(kwargs.get("enable_prompt_expansion", False), bool):
+                return "enable_prompt_expansion must be a boolean"
     else:
         if kwargs.get("request_type", "both") not in ("mesh", "both"):
             return "request_type must be mesh or both"
@@ -64,6 +78,8 @@ def validate(family, kwargs, strict=False):
         slots = image_slots(kwargs)
     except SeedanceAPIError as exc:
         return str(exc)
+    if text:
+        return "Meshy text-to-3D does not accept image references; disconnect image1" if slots else True
     if strict:
         multi = "multi-image" in model
         if multi and not 2 <= len(slots) <= 4:
@@ -80,12 +96,24 @@ def payload(family, kwargs, images):
     if valid is not True:
         raise SeedanceAPIError(valid)
     model = kwargs.get("model", models(family)[0])
+    text = family == "meshy" and model == MESHY_TEXT_MODEL
     multi = "multi-image" in model
-    if not (2 <= len(images) <= 4 if multi else len(images) == 1):
+    valid_count = len(images) == 0 if text else 2 <= len(images) <= 4 if multi else len(images) == 1
+    if not valid_count:
         raise SeedanceAPIError("Incorrect reference image count for the selected 3D model")
-    result = {"model": model, "images": list(images)}
+    result = {"model": model}
+    if text:
+        valid = validate(family, kwargs, strict=True)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        result.update(prompt=kwargs["prompt"].strip(), art_style=kwargs.get("art_style", "realistic"),
+                      enable_prompt_expansion=kwargs.get("enable_prompt_expansion", False))
+    else:
+        result["images"] = list(images)
     if family == "meshy":
         for name in ("topology", "symmetry_mode", *BOOLEAN_FIELDS):
+            if text and name == "should_texture":
+                continue
             value = kwargs.get(name, "api_default")
             if value != "api_default":
                 result[name] = value == "true" if name in BOOLEAN_FIELDS else value

@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.26.1（2026-11-06）
+
+- 按恢复后的文档，在现有 `Meshy_6_Global` 节点补回 `meshy-6-global-text-to-3d`，图生仍为默认型号。文生支持 1-600 字符提示词、realistic/sculpture 风格和可选提示词扩写；图生不发送这些字段，文生不发送图片或 `should_texture`。
+- 新控件追加在原有种子控件之后，保留旧图生工作流的控件顺序、插槽、Fixed 缓存及原生 3D 输出；新增一份空密钥文生预览/保存工作流。
+- 2026-11-06，文生型号完成真实提交、轮询、下载与 GLB 网格检查：约 168 秒，2,210,916 字节，包含非空网格。原有图生路径不重复生成。
+- 完整回归 653 项、286 份工作流审计和 25 个前端脚本检查通过；六份 3D 示例、旧版图生工作流兼容，以及实际模型的原生预览/保存均已验证。
+
 ## v0.26.0（2026-11-05）
 
 - 新增独立 `Zhenzhen Image G 2.6 图像 / GIF`、`Z-image 文生图`、`Krea V3 图像生成/编辑` 节点，旧 2.5 节点不变。三个 G 2.6 型号均支持 GIF 模式、原始动图自动保存、全部帧输出与动画预览；新增 13 份空密钥示例，包含三模型 GIF 并发。
@@ -32,7 +39,7 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 - 新增三个独立 3D 节点：Hitem3D v2、Hitem3D Portrait v2.1、Meshy 6 Global，沿用现有 3D 提交、轮询及可靠下载流程，不修改旧混元节点。
 - 两个 Hitem3D 节点各包含单图和多图型号；多图需要 2-4 张，顺序为正、后、左、右，与混元多视图顺序不同。
 - 新节点输出原生 `FILE_3D`、模型 URL、本地路径、任务 ID 和响应，可连接 ComfyUI 的预览/保存节点；保留 `skip_error` 和标准缓存种子。
-- 新增 5 份空密钥工作流。当前文档明确 Meshy 文生型号已暂时下架，因此只开放图生入口，不提供无法执行的文生示例。
+- 首发时新增 5 份空密钥工作流。当时 Meshy 文生型号暂时下架，因此该版本先开放图生入口；后续恢复见上方更新记录。
 - 2026-11-05，5 个可用型号均完成真实上传、提交、轮询、下载和非空 GLB 网格检查。627 项离线测试、272 份工作流审计及 23 个前端脚本语法检查通过；原生预览、保存、旋转和窄屏显示检查也通过。
 
 ## v0.25.0（2026-11-01）
@@ -627,7 +634,7 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `Moss Image 图像生成/编辑` | 独立 Moss 文生图或单张参考图编辑 | 必填 `prompt`、8 种比例、可选 `image1` |
 | `Hitem3D v2 单图/多图生成 3D` | 单图及正/后/左/右多视图 | `request_type`、`resolution`、`face`，输出原生 3D 文件 |
 | `Hitem3D Portrait v2.1 单图/多图生成 3D` | 人像单图及 2-4 多视图 | 分辨率只支持 `1536pro`，其余参数同 Hitem3D |
-| `Meshy 6 Global 图生 3D` | 单张参考图 | 拓扑、多边形数量、对称、重网格、纹理、PBR 和 T 姿态 |
+| `Meshy 6 Global 文生/图生 3D` | 文字或单张参考图 | 文生风格与扩写、拓扑、多边形数量、对称、重网格、纹理、PBR 和 T 姿态 |
 | `FlashVSR 480P 视频超分` | `FlashVSR_video_upscale` 单视频超分 | 480P、3 到 15 秒的 `input_video` 或 `video_url` |
 | `VOSR2 4K 图片超分` | `vosr2-image-upscale` 单图片超分 | 必须连接且只提交一张 `input_image` |
 | `VOSR2 2K 视频超分` | `vosr2-video-upscale` 单视频超分 | `input_video` 或 `video_url` 二选一 |
@@ -1559,25 +1566,25 @@ G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载�
 
 ### Hitem3D 与 Meshy 6
 
-三个节点位于 `Seedance/3D`。接口均为 `POST /v1/3d/generations` 和 `GET /v1/3d/generations/{task_id}`，本地图片自动上传，无需额外填写提示词。它们不复用混元的 `face_count`、`generate_type` 或多视图顺序。
+三个节点位于 `Seedance/3D`。接口均为 `POST /v1/3d/generations` 和 `GET /v1/3d/generations/{task_id}`；图生路径自动上传本地图片，不需要提示词，Meshy 文生路径使用提示词且不接图片。它们不复用混元的 `face_count`、`generate_type` 或多视图顺序。
 
 | 节点 | 型号与参数 |
 | --- | --- |
 | `Hitem3D_V2` | `hitem3d-v2-image-to-3d`、`hitem3d-v2-multi-image-to-3d`；`request_type=mesh/both`；`resolution=1536/1536pro`；`face=100000..2000000`，默认 1000000。 |
 | `Hitem3D_Portrait_V2_1` | `hitem3d-portrait-v2.1-image-to-3d`、`hitem3d-portrait-v2.1-multi-image-to-3d`；只支持 `1536pro`，其余参数同上。 |
-| `Meshy_6_Global` | `meshy-6-global-image-to-3d`；恰好一张图片；`topology=triangle/quad`、`target_polycount=100..300000`、`symmetry_mode=off/auto/on`，以及 `should_remesh`、`enable_pbr`、`ta_pose`、`should_texture`。 |
+| `Meshy_6_Global` | 默认 `meshy-6-global-image-to-3d`，恰好一张图片；另含 `meshy-6-global-text-to-3d`，提示词 1-600 字符、`art_style=realistic/sculpture`、`enable_prompt_expansion`。两者均支持拓扑、100-300000 目标多边形、对称、重网格、PBR、T 姿态；`should_texture` 仅用于图生。 |
 
 单图型号必须且只能连接 `image1`。Hitem 多图型号必须连续连接 2-4 张，固定为 `image1` 正、`image2` 后、`image3` 左、`image4` 右；每路只能输入一张图片，不可把批次悄悄当作第一张。所有素材先完成数量、形状与编码检查，再开始上传。
 
-Meshy 的 `api_default` 表示不发送相应可选参数；`target_polycount=0` 同样表示使用接口默认，不会把 0 发给上游。`true/false` 会转成 JSON 布尔值，显式 false 不会被遗漏。文档当前注明 `meshy-6-global-text-to-3d` 已暂时下架，节点不提供该入口。
+Meshy 的 `api_default` 表示不发送相应可选参数；`target_polycount=0` 同样表示使用接口默认，不会把 0 发给上游。`true/false` 会转成 JSON 布尔值，显式 false 不会被遗漏。文生默认 realistic、关闭提示词扩写；切换型号仅显示适用控件，不删除已连接插槽，文生时若仍接图片会明确要求断开。
 
 新节点返回原生 `FILE_3D`，需要支持该类型的新版 ComfyUI。可以连接 `Preview3D` 或 `SaveGLB`（界面显示“Save 3D Model”）；模型下载时优先选择 GLB，并检查文件头、长度和 JSON。ZIP 内的 GLB 会安全提取，不会把压缩包改个后缀冒充 GLB。源文件 URL、本地路径、任务 ID 和完整响应另有独立输出。种子仅用于 ComfyUI 缓存，不发送给这些 3D 模型；Fixed 在输入不变时复用缓存。
 
-五份空密钥示例均已连接图片加载、3D 预览与保存：
+六份空密钥示例已连接原生 3D 预览与保存，图生示例另有图片加载：
 
 - Hitem3D v2：[单图](examples/hitem3d-v2-image-to-3d图生3D.json)、[正后双图](examples/hitem3d-v2-multi-image-to-3d多图生3D.json)。
 - Hitem3D Portrait v2.1：[单图](examples/hitem3d-portrait-v2.1-image-to-3d图生3D.json)、[正后双图](examples/hitem3d-portrait-v2.1-multi-image-to-3d多图生3D.json)。
-- Meshy 6 Global：[图生 3D](examples/meshy-6-global-image-to-3d图生3D.json)。
+- Meshy 6 Global：[图生 3D](examples/meshy-6-global-image-to-3d图生3D.json)、[文生 3D](examples/meshy-6-global-text-to-3d文生3D.json)。
 
 实测记录（2026-11-05）：四个 Hitem 型号均使用 `face=100000`；单图测试 `mesh`，多图测试正后双图加 `both`。四份 GLB 均包含实际网格，多图结果分别包含两张纹理。Meshy 使用 100 的目标多边形数量、三角拓扑、重网格开启、纹理/PBR 关闭，下载得到有效 GLB。Hitem 带纹理多图任务本轮约 18-20 分钟，应等待接口终态，不要因长时间 processing 而重复提交。测试输出与真实任务信息未写入示例。
 

@@ -111,7 +111,10 @@
         "api_default",
         false,
         0,
-        "fixed"
+        "fixed",
+        "",
+        "realistic",
+        false
       ],
       "title": "meshy-6-global-image-to-3d"
     },

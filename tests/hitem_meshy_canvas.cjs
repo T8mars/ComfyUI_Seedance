@@ -17,7 +17,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
         await page.keyboard.press("Escape");
         const folder = path.join(__dirname, "..", "examples");
         const files = fs.readdirSync(folder).filter((name) => /^(hitem3d-|meshy-6-)/.test(name));
-        assert.equal(files.length, 5);
+        assert.equal(files.length, 6);
         for (const filename of files) {
             const workflow = JSON.parse(fs.readFileSync(path.join(folder, filename), "utf8"));
             const report = await page.evaluate(async (workflow) => {
@@ -45,13 +45,36 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
             }, workflow);
             assert.equal(report.output, "FILE_3D");
             assert.equal(report.control, "fixed");
-            assert.ok(Array.isArray(report.inputs.image1) && Array.isArray(report.inputs.api_config));
+            assert.ok(Array.isArray(report.inputs.api_config));
+            if (filename.includes("text-to-3d")) {
+                assert.equal(report.inputs.model, "meshy-6-global-text-to-3d");
+                assert.ok(report.inputs.prompt.length > 0);
+                assert.equal(report.inputs.art_style, "realistic");
+                assert.equal(report.inputs.enable_prompt_expansion, false);
+                assert.equal(report.inputs.image1, undefined);
+            } else assert.ok(Array.isArray(report.inputs.image1));
             assert.equal(report.inputs.seed, 0);
             assert.deepEqual(report.inputNames, report.type === "Meshy_6_Global" ? ["image1", "api_config"]
                 : ["image1", "image2", "image3", "image4", "api_config"]);
             if (filename.includes("multi-image")) assert.ok(Array.isArray(report.inputs.image2));
             console.log(`CANVAS PASS ${filename}: model switch, resize, reload, native links and fixed seed`);
         }
+        const legacy = JSON.parse(fs.readFileSync(path.join(folder, "meshy-6-global-image-to-3d图生3D.json"), "utf8"));
+        const legacyGenerator = legacy.nodes.find((node) => node.type === "Meshy_6_Global");
+        legacyGenerator.widgets_values = legacyGenerator.widgets_values.slice(0, 11);
+        const legacyReport = await page.evaluate(async (workflow) => {
+            const app = window.__threeApp;
+            await app.loadGraphData(workflow);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const node = app.graph._nodes.find((node) => node.comfyClass === "Meshy_6_Global");
+            const result = (await app.graphToPrompt()).output[String(node.id)].inputs;
+            return { inputs: result, fixed: node.widgets.find((widget) => widget.name === "control_after_generate").value };
+        }, legacy);
+        assert.equal(legacyReport.inputs.model, "meshy-6-global-image-to-3d");
+        assert.equal(legacyReport.inputs.seed, 0);
+        assert.equal(legacyReport.fixed, "fixed");
+        assert.ok(Array.isArray(legacyReport.inputs.image1));
+        console.log("CANVAS PASS legacy Meshy image workflow without new text widgets");
         const file = process.env.SEEDANCE_3D_FIXTURE_FILE ?? "sample.glb";
         const execution = await page.evaluate(async (filename) => {
             const app = window.__threeApp;

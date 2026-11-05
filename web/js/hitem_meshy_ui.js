@@ -1,5 +1,5 @@
 import { app } from "../../../scripts/app.js";
-import { resizeSeedanceNode, setSeedanceInputVisible } from "./dynamic_widget_ui.js";
+import { resizeSeedanceNode, setSeedanceInputVisible, setSeedanceWidgetVisible } from "./dynamic_widget_ui.js";
 
 const NAMES = new Set(["Hitem3D_V2", "Hitem3D_Portrait_V2_1", "Meshy_6_Global"]);
 const INSTALLED = Symbol("seedanceHitemMeshyInstalled");
@@ -7,7 +7,15 @@ const INSTALLED = Symbol("seedanceHitemMeshyInstalled");
 function refresh(node) {
     const model = String(node.widgets?.find((widget) => widget.name === "model")?.value ?? "");
     const multi = model.includes("multi-image");
-    let visible = multi ? 2 : 1;
+    const meshy = model.startsWith("meshy-");
+    const text = model === "meshy-6-global-text-to-3d";
+    let visible = text ? 0 : multi ? 2 : 1;
+    if (meshy) {
+        for (const name of ["prompt", "art_style", "enable_prompt_expansion"]) {
+            setSeedanceWidgetVisible(node.widgets?.find((widget) => widget.name === name), text);
+        }
+        setSeedanceWidgetVisible(node.widgets?.find((widget) => widget.name === "should_texture"), !text);
+    }
     if (multi) {
         for (const input of node.inputs ?? []) {
             if (/^image[1-4]$/.test(input.name) && input.link != null) {

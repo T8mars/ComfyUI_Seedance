@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.26.1 - 2026-11-06
+
+- Restored `meshy-6-global-text-to-3d` in the existing Meshy node using the updated documentation. Image-to-3D remains the default. Text accepts a 1-600-character prompt, realistic/sculpture style and optional prompt expansion; image mode omits these fields, while text mode omits images and should_texture.
+- New controls follow the complete legacy seed-control prefix, preserving old image workflows, socket order, Fixed caching and native 3D outputs. Added one credential-free text-to-3D preview/save workflow.
+- On 2026-11-06, actual text submission, polling, download and GLB mesh checks passed in approximately 168 seconds: 2,210,916 bytes with non-empty geometry. The previously verified image path was not generated again.
+- All 653 regression tests, 286 workflow audits and 25 frontend syntax checks passed. Six 3D examples, legacy image-workflow compatibility, and native preview/save of the actual generated model were verified.
+
 ## v0.26.0 - 2026-11-05
 
 - Added independent Image G 2.6 image/GIF, Z-image T2I and Krea V3 image nodes without changing G 2.5. All three G 2.6 models support GIF mode, original-file saving, complete frame output and animated previews. Thirteen credential-free examples include three-model GIF concurrency.
@@ -12,7 +19,7 @@ ComfyUI nodes for video, image, audio, speech, music, and 3D generation through 
 - Added three independent 3D nodes: Hitem3D v2, Hitem3D Portrait v2.1 and Meshy 6 Global. They reuse existing 3D submission, polling and reliable downloading without changing Hunyuan nodes.
 - Each Hitem3D node combines single-image and multi-image models. Multi-image requires 2-4 contiguous views in front, back, left, right order, unlike Hunyuan's ordering.
 - Outputs include native `FILE_3D`, model URL, local path, task ID and response, with `skip_error` and standard cache seeds. Five credential-free preview/save workflows are included.
-- The current API documentation explicitly withdraws Meshy text-to-3D temporarily. Only its available image-to-3D model is exposed; no nonfunctional text workflow is included.
+- At the initial release, Meshy text-to-3D was temporarily withdrawn and only image-to-3D was exposed. Restoration is documented in the release above.
 - On 2026-11-05, all five available models completed actual upload, submission, polling, download and non-empty GLB mesh checks. All 627 offline tests, 272 workflow audits and 23 frontend syntax checks passed, alongside native preview/save, orbit and narrow-viewport checks.
 
 ## v0.25.0 - 2026-11-01
@@ -287,7 +294,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Z_Image_T2I` | Z-image text generation, eight ratios and native seeds |
 | `Krea_V3_Image` | Krea text generation or editing with up to eight references, preset/custom dimensions and native seeds |
 | `Hitem3D_Portrait_V2_1` | Hitem3D Portrait v2.1 single-image or 2-4-view generation |
-| `Meshy_6_Global` | Available Meshy 6 Global image-to-3D model |
+| `Meshy_6_Global` | Meshy 6 Global text-to-3D or single-image-to-3D |
 | `Doubao_Seed_Audio` | Doubao Seed Audio generation |
 | `Doubao_Voice_Clone_ICL` | Voice training, preview downloads, and ICL synthesis with trained speaker IDs |
 | `Qwen3_TTS` | Qwen3 text-to-speech |
@@ -593,25 +600,25 @@ Actual verification: LowPrice returned a nine-frame 412x411 GIF at 140ms per fra
 
 ## Hitem3D and Meshy 6
 
-These independent nodes live under `Seedance/3D` and use POST/GET `/v1/3d/generations`. Local images upload automatically. They do not send Hunyuan's prompt, face_count or generate_type fields.
+These independent nodes live under `Seedance/3D` and use POST/GET `/v1/3d/generations`. Image paths upload local references without a prompt; Meshy text mode requires a prompt and no image. They do not reuse Hunyuan's face_count, generate_type or view ordering.
 
 | Node | Models and parameters |
 | --- | --- |
 | `Hitem3D_V2` | `hitem3d-v2-image-to-3d`, `hitem3d-v2-multi-image-to-3d`; request_type mesh/both; resolution 1536/1536pro; face 100000-2000000, default 1000000. |
 | `Hitem3D_Portrait_V2_1` | `hitem3d-portrait-v2.1-image-to-3d`, `hitem3d-portrait-v2.1-multi-image-to-3d`; resolution 1536pro only; other controls as above. |
-| `Meshy_6_Global` | `meshy-6-global-image-to-3d`; exactly one image; topology triangle/quad, target_polycount 100-300000, symmetry_mode off/auto/on, should_remesh, enable_pbr, ta_pose and should_texture. |
+| `Meshy_6_Global` | Default image-to-3D requires one image. Text-to-3D requires a 1-600-character prompt, art_style realistic/sculpture and optional enable_prompt_expansion. Both support topology, target_polycount 100-300000, symmetry_mode, should_remesh, enable_pbr and ta_pose; should_texture is image-only. |
 
 Single-image models require exactly image1. Hitem multi-image models require 2-4 contiguous sockets in front, back, left, right order. Every socket requires one image, not a batch. All count/shape/encoded-file checks run before the first upload.
 
-Meshy api_default omits optional fields. Target polygon count 0 likewise requests API defaults without submitting 0. Explicit true/false choices become JSON booleans; false is preserved. The documented `meshy-6-global-text-to-3d` model is temporarily withdrawn and is not exposed.
+Meshy api_default omits optional fields. Target polygon count 0 likewise requests API defaults without submitting 0. Explicit true/false choices become JSON booleans; false is preserved. Text defaults to realistic style with prompt expansion disabled. Mode switching shows applicable controls without deleting linked sockets; text execution rejects still-connected images.
 
 Outputs include a native FILE_3D for recent ComfyUI Preview3D/SaveGLB (Save 3D Model), plus URL, local path, task ID and response. GLB is preferred and its header, length and JSON are checked. A GLB inside a ZIP is safely extracted rather than relabeling the archive. Seeds are cache-only; Fixed reuses cached results when inputs stay unchanged. Default-off skip_error returns a valid native placeholder on failure.
 
-Five credential-free examples connect image loading, native preview and saving:
+Six credential-free examples connect native preview and saving; image workflows also include image loading:
 
 - Hitem3D v2: [single image](examples/hitem3d-v2-image-to-3d图生3D.json), [front/back views](examples/hitem3d-v2-multi-image-to-3d多图生3D.json).
 - Portrait v2.1: [single image](examples/hitem3d-portrait-v2.1-image-to-3d图生3D.json), [front/back views](examples/hitem3d-portrait-v2.1-multi-image-to-3d多图生3D.json).
-- Meshy 6 Global: [image-to-3D](examples/meshy-6-global-image-to-3d图生3D.json).
+- Meshy 6 Global: [image-to-3D](examples/meshy-6-global-image-to-3d图生3D.json), [text-to-3D](examples/meshy-6-global-text-to-3d文生3D.json).
 
 Actual verification on 2026-11-05 used face=100000 for all four Hitem models: mesh for single-image paths and both with front/back references for multi-image paths. All four GLBs contained actual meshes; each multi-image result contained two textures. Meshy completed with target_polycount=100, triangle topology, remeshing enabled, and texture/PBR disabled. The textured Hitem multi-image runs took approximately 18-20 minutes; wait for a terminal status instead of submitting again during processing. No runtime outputs or task information are stored in examples.
 

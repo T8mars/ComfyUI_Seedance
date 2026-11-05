@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
-import { setSeedanceInputVisible } from "../web/js/dynamic_widget_ui.js";
+import { setSeedanceInputVisible, setSeedanceWidgetVisible } from "../web/js/dynamic_widget_ui.js";
 
 let extension;
 let id = 0;
 const frames = new Map();
 const context = vm.createContext({
     app: { registerExtension(value) { extension = value; } },
-    setSeedanceInputVisible, resizeSeedanceNode: () => {},
+    setSeedanceInputVisible, setSeedanceWidgetVisible, resizeSeedanceNode: () => {},
     requestAnimationFrame(callback) { frames.set(++id, callback); return id; },
     cancelAnimationFrame(frame) { frames.delete(frame); },
 });
@@ -19,7 +19,8 @@ function flush() { for (const [key, callback] of [...frames]) { frames.delete(ke
 for (const name of ["Hitem3D_V2", "Hitem3D_Portrait_V2_1", "Meshy_6_Global"]) {
     class Node {
         constructor() {
-            this.widgets = [{ name: "model", value: "hitem3d-v2-image-to-3d", callback() {} }];
+            this.widgets = [{ name: "model", value: name.startsWith("Meshy") ? "meshy-6-global-image-to-3d" : "hitem3d-v2-image-to-3d", callback() {} },
+                ...["prompt", "art_style", "enable_prompt_expansion", "should_texture"].map((name) => ({ name, type: "text", value: "" }))];
             this.inputs = [...Array.from({ length: name.startsWith("Meshy") ? 1 : 4 }, (_, i) => ({ name: `image${i + 1}`, link: null })),
                 { name: "api_config", link: null }];
         }
@@ -43,6 +44,22 @@ for (const name of ["Hitem3D_V2", "Hitem3D_Portrait_V2_1", "Meshy_6_Global"]) {
         node.widgets[0].callback(); flush();
         assert.ok(!node.inputs[1].hidden && !node.inputs[2].hidden);
         assert.equal(node.inputs.length, 5);
+    } else {
+        const widget = (name) => node.widgets.find((item) => item.name === name);
+        assert.ok(widget("prompt").type.includes("seedance-hidden"));
+        node.widgets[0].value = "meshy-6-global-text-to-3d";
+        node.widgets[0].callback(); flush();
+        assert.ok(node.inputs[0].hidden);
+        assert.equal(widget("prompt").type, "text");
+        assert.ok(widget("should_texture").type.includes("seedance-hidden"));
+        node.inputs[0].link = 1;
+        node.onConnectionsChange(); flush();
+        assert.ok(!node.inputs[0].hidden);
+        node.widgets[0].value = "meshy-6-global-image-to-3d";
+        node.widgets[0].callback(); flush();
+        assert.ok(widget("prompt").type.includes("seedance-hidden"));
+        assert.equal(widget("should_texture").type, "text");
+        assert.equal(node.inputs.length, 2);
     }
     node.onConfigure(); flush();
     assert.equal(node.inputs.at(-1).name, "api_config");

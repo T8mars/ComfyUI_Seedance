@@ -10659,6 +10659,21 @@ class Hitem3DPortrait21(_Image3DGeneration):
 
 class Meshy6Global(_Image3DGeneration):
     FAMILY = "meshy"
+    SEEDANCE_EXPLICIT_CACHE_ONLY_SEED = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = super().INPUT_TYPES()
+        # Preserve the complete original widget prefix, including seed controls.
+        inputs["optional"].update({
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1,
+                             "control_after_generate": True}),
+            "prompt": ("STRING", {"default": "", "multiline": True,
+                                  "tooltip": "Text-to-3D: 1-600 characters | 文生3D：1-600字符"}),
+            "art_style": (["realistic", "sculpture"], {"default": "realistic"}),
+            "enable_prompt_expansion": ("BOOLEAN", {"default": False}),
+        })
+        return inputs
 
 
 class Hunyuan3DV31:
@@ -16271,7 +16286,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Hunyuan3D_V3_1": "混元 3D v3.1 生成（文生/多视图图生）",
     "Hitem3D_V2": "Hitem3D v2 单图/多图生成 3D",
     "Hitem3D_Portrait_V2_1": "Hitem3D Portrait v2.1 单图/多图生成 3D",
-    "Meshy_6_Global": "Meshy 6 Global 图生 3D",
+    "Meshy_6_Global": "Meshy 6 Global 文生/图生 3D",
     "Wan_2_7_Global_Image": "Wan 2.7 海外图像生成/编辑（3 合 1）",
     "Zhenzhen_Image_NB": "Zhenzhen Image Nano Banana 生成/编辑",
     "Zhenzhen_Image_NB_2_1": "Zhenzhen Image Nano Banana 2.1 生成/编辑",

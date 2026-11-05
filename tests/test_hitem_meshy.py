@@ -38,11 +38,11 @@ class HitemMeshyTests(unittest.TestCase):
             self.assertFalse(hasattr(cls, "IS_CHANGED"))
             self.assertNotIn(f"SeedanceConcurrent_{key}_Submit", concurrent_nodes.CONCURRENT_NODE_CLASS_MAPPINGS)
 
-    def test_only_five_currently_documented_available_models(self):
+    def test_six_currently_documented_available_models(self):
         self.assertEqual(len(contracts.HITEM_MODELS), 2)
         self.assertEqual(len(contracts.PORTRAIT_MODELS), 2)
-        self.assertEqual(contracts.MESHY_MODELS, ["meshy-6-global-image-to-3d"])
-        self.assertIsNot(contracts.validate("meshy", {"model": "meshy-6-global-text-to-3d"}), True)
+        self.assertEqual(contracts.MESHY_MODELS, ["meshy-6-global-image-to-3d", "meshy-6-global-text-to-3d"])
+        self.assertIs(contracts.validate("meshy", {"model": contracts.MESHY_TEXT_MODEL}), True)
 
     def test_hitem_payload_exact_fields_and_no_hunyuan_options(self):
         for family in ("hitem", "portrait"):
@@ -218,9 +218,9 @@ class HitemMeshyTests(unittest.TestCase):
         result = subprocess.run([executable, str(ROOT / "tests" / "hitem_meshy_ui.mjs")], capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_five_workflows_blank_keys_stable_views_and_native_preview_save(self):
+    def test_six_workflows_blank_keys_stable_views_and_native_preview_save(self):
         files = [file for file in (ROOT / "examples").glob("*.json") if file.name.startswith(("hitem3d-", "meshy-6-"))]
-        self.assertEqual(len(files), 5)
+        self.assertEqual(len(files), 6)
         for file in files:
             source = file.read_text(encoding="utf-8")
             workflow = json.loads(source)
@@ -228,7 +228,10 @@ class HitemMeshyTests(unittest.TestCase):
             config = by_id[1]
             self.assertEqual(config["widgets_values"][1], "")
             generator = next(node for node in workflow["nodes"] if node["type"] in KEYS)
-            self.assertEqual(generator["widgets_values"][-3:], [False, 0, "fixed"])
+            if generator["type"] == KEYS[2]:
+                self.assertEqual(generator["widgets_values"][8:11], [False, 0, "fixed"])
+            else:
+                self.assertEqual(generator["widgets_values"][-3:], [False, 0, "fixed"])
             self.assertEqual([item["name"] for item in generator["inputs"]],
                 ["image1", "api_config"] if generator["type"] == KEYS[2] else ["image1", "image2", "image3", "image4", "api_config"])
             self.assertIn("Preview3D", {node["type"] for node in workflow["nodes"]})
@@ -238,6 +241,57 @@ class HitemMeshyTests(unittest.TestCase):
                 self.assertEqual(by_id[target]["inputs"][target_slot]["link"], edge)
                 self.assertEqual(by_id[target]["inputs"][target_slot]["type"], kind)
             self.assertNotRegex(source, r"sk-[A-Za-z0-9]{12,}|task_[A-Za-z0-9]{12,}|X-Amz-Signature")
+
+    def test_text_payload_and_mode_specific_fields(self):
+        kwargs = {"model": contracts.MESHY_TEXT_MODEL, "prompt": " A ceramic teapot ", "art_style": "sculpture",
+                  "enable_prompt_expansion": True, "should_texture": "true", "should_remesh": "true",
+                  "enable_pbr": "false", "ta_pose": "false", "target_polycount": 100,
+                  "topology": "triangle", "symmetry_mode": "off", "seed": 42, "resolution": "1536"}
+        self.assertEqual(contracts.payload("meshy", kwargs, []), {
+            "model": contracts.MESHY_TEXT_MODEL, "prompt": "A ceramic teapot", "art_style": "sculpture",
+            "enable_prompt_expansion": True, "should_remesh": True, "enable_pbr": False,
+            "ta_pose": False, "target_polycount": 100, "topology": "triangle", "symmetry_mode": "off"})
+        image = contracts.payload("meshy", dict(kwargs, model=contracts.MESHY_MODELS[0]), [URL])
+        self.assertNotIn("prompt", image)
+        self.assertNotIn("art_style", image)
+        self.assertNotIn("enable_prompt_expansion", image)
+        self.assertTrue(image["should_texture"])
+
+    def test_text_prompt_bounds_linked_queue_and_no_image(self):
+        model = {"model": contracts.MESHY_TEXT_MODEL}
+        self.assertIs(contracts.validate("meshy", model), True)
+        for prompt in ("a", "中" * 600):
+            self.assertIs(contracts.validate("meshy", dict(model, prompt=prompt), strict=True), True)
+        for extra in ({}, {"prompt": ""}, {"prompt": "  "}, {"prompt": "a" * 601}, {"prompt": False},
+                      {"prompt": "test", "art_style": "cartoon"}, {"prompt": "test", "enable_prompt_expansion": "true"},
+                      {"prompt": "test", "image1": object()}):
+            self.assertIsNot(contracts.validate("meshy", dict(model, **extra), strict=True), True)
+        with self.assertRaises(client.SeedanceAPIError):
+            contracts.payload("meshy", dict(model, prompt="test"), [URL])
+
+    def test_meshy_legacy_widget_prefix_and_seed_cache_policy(self):
+        schema = nodes.Meshy6Global.INPUT_TYPES()
+        widgets = [name for group in ("required", "optional") for name, spec in schema[group].items()
+                   if isinstance(spec[0], list) or spec[0] in ("STRING", "INT", "BOOLEAN", "FLOAT")]
+        self.assertEqual(widgets, ["model", "topology", "target_polycount", "symmetry_mode", "should_remesh", "enable_pbr",
+            "ta_pose", "should_texture", "skip_error", "seed", "prompt", "art_style", "enable_prompt_expansion"])
+        self.assertTrue(nodes.Meshy6Global.SEEDANCE_CACHE_ONLY_SEED)
+        with patch.object(nodes.Meshy6Global, "_execute_inner", return_value="cached") as run:
+            self.assertEqual(nodes.Meshy6Global().execute(seed=42, prompt="test"), "cached")
+            run.assert_called_once_with(prompt="test")
+
+    def test_text_execution_never_uploads_and_returns_native_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mesh.glb"
+            path.write_bytes(geometry.minimal_glb_bytes())
+            with patch.object(nodes, "upload_media") as upload, patch.object(nodes, "submit_3d_task", return_value="fixture") as submit, \
+                 patch.object(nodes, "poll_3d_task", return_value={}), patch.object(nodes, "extract_3d_url", return_value=URL), \
+                 patch.object(nodes, "download_file", return_value=str(path)):
+                result = nodes.Meshy6Global().execute(model=contracts.MESHY_TEXT_MODEL, prompt="A teapot", api_config=CONFIG)
+            upload.assert_not_called()
+            self.assertNotIn("images", submit.call_args.args[0])
+            self.assertEqual(result["result"][0].format, "glb")
+            self.assertEqual(result["result"][2], str(path))
 
 
 if __name__ == "__main__":
