@@ -8,7 +8,7 @@ import {
 const PLUGIN_MODULE = "custom_nodes.ComfyUI_Seedance";
 const API_KEY_BUTTON_LABEL = "获取平价版APIKEY";
 const API_KEY_SIGNUP_URL = "https://api.seedance.nz/sign-up?aff=5f4w";
-const EXCLUDED_NODE_NAMES = new Set(["Seedance_Config"]);
+const EXCLUDED_NODE_NAMES = new Set(["Seedance_Config", "Seedance_Save_GIF"]);
 const SEEDANCE25_NODE_NAME = "Seedance_2_5_Video";
 const SEEDANCE25_MEDIA_LIMITS = { image: 30, video: 10, audio: 10 };
 const SEEDANCE25_MEDIA_INPUT = /^(image|video|audio)([1-9]\d*)$/;

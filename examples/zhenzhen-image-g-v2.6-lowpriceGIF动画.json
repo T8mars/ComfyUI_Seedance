@@ -1,8 +1,8 @@
 {
   "id": "990d4da9-13df-5d87-875b-33d3c040413f",
   "revision": 0,
-  "last_node_id": 2,
-  "last_link_id": 1,
+  "last_node_id": 3,
+  "last_link_id": 4,
   "nodes": [
     {
       "id": 1,
@@ -160,7 +160,9 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            2
+          ]
         },
         {
           "name": "image_url",
@@ -180,7 +182,9 @@
         {
           "name": "local_path",
           "type": "STRING",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "urls_json",
@@ -195,7 +199,9 @@
         {
           "name": "durations_json",
           "type": "STRING",
-          "links": null
+          "links": [
+            4
+          ]
         }
       ],
       "properties": {
@@ -228,6 +234,64 @@
         "fixed"
       ],
       "title": "zhenzhen-image-g-v2.6-lowprice GIF 动画：原文件自动保存与预览"
+    },
+    {
+      "id": 3,
+      "type": "Seedance_Save_GIF",
+      "pos": [
+        1050,
+        60
+      ],
+      "size": [
+        430,
+        420
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 2
+        },
+        {
+          "name": "source_path",
+          "type": "STRING",
+          "shape": 7,
+          "link": 3
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "shape": 7,
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "gif_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Save_GIF",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "seedance/saved_zhenzhen-image-g-v2.6-lowprice",
+        "auto",
+        10.0,
+        0
+      ],
+      "title": "保存原始 GIF"
     }
   ],
   "links": [
@@ -238,6 +302,30 @@
       2,
       16,
       "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      4,
+      3,
+      1,
+      "STRING"
+    ],
+    [
+      4,
+      2,
+      7,
+      3,
+      2,
+      "STRING"
     ]
   ],
   "groups": [],

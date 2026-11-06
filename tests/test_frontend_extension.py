@@ -55,7 +55,7 @@ class FrontendExtensionTests(unittest.TestCase):
             'const PLUGIN_MODULE = "custom_nodes.ComfyUI_Seedance"',
             'const API_KEY_BUTTON_LABEL = "获取平价版APIKEY"',
             'const API_KEY_SIGNUP_URL = "https://api.seedance.nz/sign-up?aff=5f4w"',
-            'new Set(["Seedance_Config"])',
+            'new Set(["Seedance_Config", "Seedance_Save_GIF"])',
             "beforeRegisterNodeDef(nodeType, nodeData)",
             "originalOnNodeCreated?.apply(this, arguments)",
             'this.addWidget("button", API_KEY_BUTTON_LABEL',

@@ -12,18 +12,29 @@ import torch
 from .client import SeedanceAPIError, _ResultDownloadLimitError, _download_and_decode_image
 
 
+def _canonical_path(path):
+    resolved = path.resolve()
+    # Windows can return an extended namespace while a sibling creates a directory.
+    value = str(resolved)
+    if os.name == "nt" and value.startswith("\\\\?\\UNC\\"):
+        return Path("\\\\" + value[8:])
+    if os.name == "nt" and value.startswith("\\\\?\\") and len(value) > 5 and value[5] == ":":
+        return Path(value[4:])
+    return resolved
+
+
 def output_target(prefix):
     try:
         import folder_paths
-        root = Path(folder_paths.get_output_directory()).resolve()
+        root = _canonical_path(Path(folder_paths.get_output_directory()))
     except ImportError:
-        root = Path(os.getenv("SEEDANCE_OUTPUT_DIR", "output")).resolve()
+        root = _canonical_path(Path(os.getenv("SEEDANCE_OUTPUT_DIR", "output")))
     if not isinstance(prefix, str) or not prefix.strip():
         raise SeedanceAPIError("filename_prefix must not be empty")
     relative = Path(prefix.replace("\\", "/"))
     if relative.is_absolute() or ".." in relative.parts or ":" in prefix:
         raise SeedanceAPIError("filename_prefix must stay inside the ComfyUI output directory")
-    target = (root / relative).resolve()
+    target = _canonical_path(root / relative)
     try:
         target.relative_to(root)
     except ValueError as exc:

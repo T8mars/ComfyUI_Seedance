@@ -1,8 +1,8 @@
 {
   "id": "354063d9-e038-5454-901f-8d745e958543",
   "revision": 0,
-  "last_node_id": 5,
-  "last_link_id": 6,
+  "last_node_id": 8,
+  "last_link_id": 9,
   "nodes": [
     {
       "id": 1,
@@ -25,8 +25,8 @@
           "type": "SEEDANCE_CONFIG",
           "links": [
             1,
-            3,
-            5
+            4,
+            7
           ]
         }
       ],
@@ -65,13 +65,13 @@
           "name": "future_2",
           "type": "SEEDANCE_IMAGE_FUTURE",
           "shape": 7,
-          "link": 4
+          "link": 5
         },
         {
           "name": "future_3",
           "type": "SEEDANCE_IMAGE_FUTURE",
           "shape": 7,
-          "link": 6
+          "link": 8
         },
         {
           "name": "future_4",
@@ -240,17 +240,23 @@
         {
           "name": "image_1",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "image_2",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            6
+          ]
         },
         {
           "name": "image_3",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            9
+          ]
         },
         {
           "name": "image_4",
@@ -562,168 +568,68 @@
     },
     {
       "id": 4,
-      "type": "SeedanceConcurrent_Zhenzhen_Image_G26_Submit",
+      "type": "Seedance_Save_GIF",
       "pos": [
-        440,
-        960
+        1720,
+        60
       ],
       "size": [
-        510,
-        640
+        430,
+        420
       ],
       "flags": {},
       "order": 3,
       "mode": 0,
       "inputs": [
         {
-          "name": "image1",
+          "name": "images",
           "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image2",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image3",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image4",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image5",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image6",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image7",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image8",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image9",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image10",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image11",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image12",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image13",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image14",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image15",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "image16",
-          "type": "IMAGE",
-          "shape": 7,
-          "link": null
-        },
-        {
-          "name": "api_config",
-          "type": "SEEDANCE_CONFIG",
           "shape": 7,
           "link": 3
+        },
+        {
+          "name": "source_path",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
         }
       ],
       "outputs": [
         {
-          "name": "future",
-          "type": "SEEDANCE_IMAGE_FUTURE",
-          "links": [
-            4
-          ]
+          "name": "gif_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "SeedanceConcurrent_Zhenzhen_Image_G26_Submit",
+        "Node name for S&R": "Seedance_Save_GIF",
         "aux_id": "T8mars/ComfyUI_Seedance"
       },
       "widgets_values": [
-        "zhenzhen-image-g-v2.6-flare",
-        "gif",
-        "A red ball bounces on a white floor. Create a seamless animated looping GIF, fixed camera.",
-        "1:1",
-        1024,
-        1024,
-        "1k",
-        "low",
-        "api_default",
-        1,
-        "png",
-        -1,
-        "512x512",
-        512,
-        512,
-        9,
-        200,
-        "",
-        "",
-        "seedance/g26_concurrent_flare",
-        false,
-        0,
-        "fixed"
+        "seedance/concurrent_saved_lowprice",
+        "frames",
+        10.0,
+        0
       ],
-      "title": "flare GIF 并发提交"
+      "title": "将帧保存为 GIF"
     },
     {
       "id": 5,
       "type": "SeedanceConcurrent_Zhenzhen_Image_G26_Submit",
       "pos": [
         440,
-        1860
+        960
       ],
       "size": [
         510,
@@ -833,7 +739,7 @@
           "name": "api_config",
           "type": "SEEDANCE_CONFIG",
           "shape": 7,
-          "link": 5
+          "link": 4
         }
       ],
       "outputs": [
@@ -841,7 +747,223 @@
           "name": "future",
           "type": "SEEDANCE_IMAGE_FUTURE",
           "links": [
-            6
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedanceConcurrent_Zhenzhen_Image_G26_Submit",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "zhenzhen-image-g-v2.6-flare",
+        "gif",
+        "A red ball bounces on a white floor. Create a seamless animated looping GIF, fixed camera.",
+        "1:1",
+        1024,
+        1024,
+        "1k",
+        "low",
+        "api_default",
+        1,
+        "png",
+        -1,
+        "512x512",
+        512,
+        512,
+        9,
+        200,
+        "",
+        "",
+        "seedance/g26_concurrent_flare",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "flare GIF 并发提交"
+    },
+    {
+      "id": 6,
+      "type": "Seedance_Save_GIF",
+      "pos": [
+        1720,
+        660
+      ],
+      "size": [
+        430,
+        420
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 6
+        },
+        {
+          "name": "source_path",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "gif_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Save_GIF",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "seedance/concurrent_saved_flare",
+        "frames",
+        5.0,
+        0
+      ],
+      "title": "将帧保存为 GIF"
+    },
+    {
+      "id": 7,
+      "type": "SeedanceConcurrent_Zhenzhen_Image_G26_Submit",
+      "pos": [
+        440,
+        1860
+      ],
+      "size": [
+        510,
+        640
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image5",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image6",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image7",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image8",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image9",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image10",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image11",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image12",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image13",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image14",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image15",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image16",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "shape": 7,
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "future",
+          "type": "SEEDANCE_IMAGE_FUTURE",
+          "links": [
+            8
           ]
         }
       ],
@@ -875,6 +997,64 @@
         "fixed"
       ],
       "title": "sunburst GIF 并发提交"
+    },
+    {
+      "id": 8,
+      "type": "Seedance_Save_GIF",
+      "pos": [
+        1720,
+        1260
+      ],
+      "size": [
+        430,
+        420
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 9
+        },
+        {
+          "name": "source_path",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "gif_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "durations_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Save_GIF",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "seedance/concurrent_saved_sunburst",
+        "frames",
+        5.0,
+        0
+      ],
+      "title": "将帧保存为 GIF"
     }
   ],
   "links": [
@@ -896,35 +1076,59 @@
     ],
     [
       3,
-      1,
+      2,
       0,
       4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      1,
+      0,
+      5,
       16,
       "SEEDANCE_CONFIG"
     ],
     [
-      4,
-      4,
+      5,
+      5,
       0,
       2,
       1,
       "SEEDANCE_IMAGE_FUTURE"
-    ],
-    [
-      5,
-      1,
-      0,
-      5,
-      16,
-      "SEEDANCE_CONFIG"
     ],
     [
       6,
-      5,
+      2,
+      1,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      1,
+      0,
+      7,
+      16,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      8,
+      7,
       0,
       2,
       2,
       "SEEDANCE_IMAGE_FUTURE"
+    ],
+    [
+      9,
+      2,
+      2,
+      8,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],

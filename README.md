@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.27.0（2026-11-06）
+
+- 新增独立 `保存 GIF / Save GIF` 节点：可直接复制本地原始 GIF，或把 IMAGE 帧编码为 GIF；支持帧率、循环次数、可选逐帧时长、独立文件名前缀和动画预览，不调用生成 API。
+- 三个 G 2.6 GIF 示例已连接独立保存节点，原样保留源文件字节、帧时长和循环信息；并发示例新增三路帧编码保存，另增一份不需要密钥的本地图像帧示例。原生成节点的自动保存保持不变。
+- 原文件另存和逐帧编码均通过真实 ComfyUI 执行、动画播放、下载和窄屏检查；另修复 Windows 并发创建输出目录时路径命名空间不一致的问题，目录边界检查保持生效。
+- 完整回归 676 项、287 份工作流审计、25 个前端脚本语法检查通过；保存功能完全在本地验证，没有重复发起生成任务。
+
 ## v0.26.1（2026-11-06）
 
 - 按恢复后的文档，在现有 `Meshy_6_Global` 节点补回 `meshy-6-global-text-to-3d`，图生仍为默认型号。文生支持 1-600 字符提示词、realistic/sculpture 风格和可选提示词扩写；图生不发送这些字段，文生不发送图片或 `should_texture`。
@@ -627,6 +634,7 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `HY Image 3.5 Preview 图像生成/编辑` | 文生图、最多 5 图参考及精确尺寸 | 画幅、自定义宽高、1K/2K/4K、负面提示词、种子 |
 | `Muse Image 图像生成/合成` | 文生图、最多 9 图参考合成 | 常用画幅；素材总计不超过 11 MiB |
 | `Zhenzhen Image G 2.6 图像 / GIF` | LowPrice、Flare、Sunburst；静态生成/编辑与 GIF | 按型号显示参考图、画幅、格式及帧参数，自动保存原文件 |
+| `保存 GIF / Save GIF` | 原始 GIF 另存，或 IMAGE 帧编码 | 帧率、循环、逐帧时长、本地路径与动画预览；无需 API |
 | `Z-image 文生图` | `z-image-t2i` | 8 种画幅、原生种子，不接受参考图 |
 | `Krea V3 图像生成/编辑` | T2I / I2I，最多 8 张参考图 | 预设/自定义尺寸、Berry/Jam、推理等级、PNG/JPEG、原生种子 |
 | `Muse Video 文生/参考生视频` | 文生视频、最多 9 图构图参考 | 常用画幅；固定约 10 秒、720p、带音频 |
@@ -1537,6 +1545,18 @@ MiniMax H3 OW Fast 节点参数：
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 | `skip_error` | 开启后失败时返回占位视频，而不是中断整个工作流 |
 
+### 独立保存 GIF
+
+在 `Seedance` 分类搜索 **保存 GIF / Save GIF**（注册名 `Seedance_Save_GIF`）。这是本地输出工具，不需要 API Key，也不发起生成请求；输出 `gif_path` 和实际保存的 `durations_json`。
+
+- **原样另存**：把 G 2.6 的 `local_path` 接到保存节点的 `source_path`，`source_mode` 选 `auto` 或 `original`。可同时连接 `image` 到 `images`；自动模式优先原文件，直接复制字节，不重新编码，也不修改帧时长或循环信息。帧率和循环控件在此模式不生效。
+- **帧编码**：连接 `IMAGE` 批次到 `images`，选择 `frames`，设置 `fps` 和 `loop`（0 为无限循环）。可选接入逐帧毫秒 `durations_json`，优先于帧率；支持普通数组和 G 2.6 的嵌套数组。GIF 时长按格式限制量化到 10ms。
+- `filename_prefix` 为 ComfyUI 输出目录内的相对文件名前缀，默认 `seedance/saved_gif`；每次实际保存生成独立 `.gif`，不覆盖已有文件。节点下方可播放并下载结果。
+
+G 2.6 原节点仍会自动保存；独立保存节点用于另存一份或编码处理后的帧。并发接收节点只输出 IMAGE 帧，因此并发示例的独立保存使用所选帧率重新编码，不声称自动继承原始时长；LowPrice 帧率可按实际结果调整。要完整保留原始 GIF，请使用原文件路径。
+
+本地示例：[两张图片合并为动画帧，再保存 GIF](examples/保存GIF_本地图像帧.json)。此示例完全不需要 API 配置。
+
 ### Image G 2.6、Krea V3 与 Z-image
 
 三个新节点均使用异步图像接口，保留 `skip_error`、Fixed/Randomize 种子控制和现有 30 路图片并发。G 2.6 的种子只控制本地缓存；Krea 与 Z-image 将非负种子传给 API，`-1` 省略上游种子。
@@ -1548,7 +1568,7 @@ MiniMax H3 OW Fast 节点参数：
 | `krea-v3-t2i` / `i2i` | 文生图/1-8 图编辑；每张参考图不超过 30MB。常用比例预设或自定义宽高，每边 256-4096，总像素不超过 4,220,000。使用 `metadata.model_variant=berry/jam`、`reasoning_level=low/medium`，支持 PNG/JPEG、负面提示词和原生种子。 |
 | `z-image-t2i` | 文生图，8 种画幅和原生种子；不传参考图、分辨率、输出格式或批量参数。 |
 
-G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载的原始文件。GIF 不转成 PNG、不丢帧或修改时长；`image` 输出所有帧，`local_path`、`urls_json`、`paths_json`、`durations_json` 保留本地路径及每个结果的帧时长。GIF 示例直接使用生成节点的动画预览与原文件保存，不接会将动画拆成静态帧的 `SaveImage`。并发接收节点同样保留 GIF 预览。GIF 模式若收到静态结果会明确报错。当前节点提供静态图片与 GIF，不开放 SVG。
+G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载的原始文件。GIF 不转成 PNG、不丢帧或修改时长；`image` 输出所有帧，`local_path`、`urls_json`、`paths_json`、`durations_json` 保留本地路径及每个结果的帧时长。三个 GIF 示例另接独立 `保存 GIF` 节点，通过原文件路径无损另存；不要用会将动画拆成静态帧的 `SaveImage` 代替。并发接收节点同样保留 GIF 预览。GIF 模式若收到静态结果会明确报错。当前节点提供静态图片与 GIF，不开放 SVG。
 
 示例工作流：
 

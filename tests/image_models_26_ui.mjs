@@ -60,12 +60,23 @@ for (const name of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Zhenzhen_Image_G26
 }
 
 load("../web/js/gif_preview.js");
-for (const comfyClass of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Image_Await"]) {
-    const node = { id: ++serial, comfyClass, widgets: [], size: [500, 600], graph: { setDirtyCanvas() {} },
+for (const comfyClass of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Image_Await", "Seedance_Save_GIF"]) {
+    const node = { id: ++serial, comfyClass,
+        widgets: comfyClass === "Seedance_Save_GIF" ? ["source_mode", "fps", "loop"].map((name) => ({ name, type: "combo", value: name === "source_mode" ? "auto" : 0 })) : [],
+        inputs: [{ name: "source_path", link: null }], size: [500, 600], graph: { setDirtyCanvas() {} },
         onExecuted(message) { this.nativeMessage = message; },
         addDOMWidget(name, type, container, options) { const widget = { name, type, options }; this.widgets.push(widget); return widget; },
         setSize(size) { this.size = size; }, computeSize() { return [500, 900]; } };
     await extension.nodeCreated(node);
+    flush();
+    if (comfyClass === "Seedance_Save_GIF") {
+        node.inputs[0].link = 1;
+        node.onConnectionsChange(); flush();
+        assert.ok(node.widgets.find((widget) => widget.name === "fps").type.includes("seedance-hidden"));
+        const selector = node.widgets.find((widget) => widget.name === "source_mode");
+        selector.value = "frames"; selector.callback(); flush();
+        assert.equal(node.widgets.find((widget) => widget.name === "fps").type, "combo");
+    }
     const gif = { filename: "test.gif", subfolder: "nested", type: "output" };
     node.onExecuted({ images: [gif], animated: [true] });
     assert.equal(node.previewMediaType, "image");

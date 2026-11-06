@@ -9,6 +9,20 @@ def save_image(workflow, source, prefix):
     workflow.connect(source, 0, target, "images")
 
 
+def save_gif(workflow, source, prefix, slot=0, original=False, pos=(1050, 60), fps=10.0):
+    target = workflow.add("Seedance_Save_GIF", pos, (430, 420), [
+        {"name": "images", "type": "IMAGE", "shape": 7, "link": None},
+        {"name": "source_path", "type": "STRING", "shape": 7, "link": None},
+        {"name": "durations_json", "type": "STRING", "shape": 7, "link": None},
+    ], [("gif_path", "STRING"), ("durations_json", "STRING")],
+        [prefix, "auto" if original else "frames", fps, 0], "保存原始 GIF" if original else "将帧保存为 GIF")
+    workflow.connect(source, slot, target, "images")
+    if original:
+        workflow.connect(source, 4, target, "source_path")
+        workflow.connect(source, 7, target, "durations_json")
+    return target
+
+
 def main():
     for suffix in ("lowprice", "flare", "sunburst"):
         model = "zhenzhen-image-g-v2.6-" + suffix
@@ -24,7 +38,8 @@ def main():
             }, title=model + (" GIF 动画：原文件自动保存与预览" if gif else " 图像编辑" if mode == "edit" else " 文生图"))
             if mode == "edit":
                 workflow.connect(workflow.load("IMAGE", 30, "选择参考图"), 0, node, "image1")
-            # The generation node saves and previews the raw GIF; SaveImage would split frames.
+            if gif:
+                save_gif(workflow, node, "seedance/saved_" + model, original=True)
             workflow.write(model + {"text": "文生图.json", "edit": "图像编辑.json", "gif": "GIF动画.json"}[mode])
     workflow = Workflow()
     node = workflow.generate("Z_Image_T2I", {
@@ -56,7 +71,23 @@ def main():
         node["properties"]["Node name for S&R"] = node["type"]
         node["outputs"] = [{"name": "future", "type": "SEEDANCE_IMAGE_FUTURE", "links": None}]
         workflow.connect(node, 0, collector, f"future_{i}")
+        save_gif(workflow, collector, "seedance/concurrent_saved_" + suffix, slot=i - 1,
+                 pos=(1720, 60 + (i - 1) * 600), fps=10.0 if suffix == "lowprice" else 5.0)
     workflow.write("G26GIF三模型并发.json")
+
+    workflow = Workflow()
+    workflow.nodes.remove(workflow.config)
+    first = workflow.load("IMAGE", 40, "选择第一帧", "example_first.png")
+    second = workflow.load("IMAGE", 420, "选择第二帧", "example_second.png")
+    batch = workflow.add("ImageBatch", (440, 80), (300, 150), [
+        {"name": "image1", "type": "IMAGE", "link": None}, {"name": "image2", "type": "IMAGE", "link": None},
+    ], [("IMAGE", "IMAGE")], [], "合并动画帧")
+    batch["properties"].pop("aux_id", None)
+    batch["properties"]["cnr_id"] = "comfy-core"
+    workflow.connect(first, 0, batch, "image1")
+    workflow.connect(second, 0, batch, "image2")
+    save_gif(workflow, batch, "seedance/local_frames", pos=(850, 80), fps=2.0)
+    workflow.write("保存GIF_本地图像帧.json")
 
 
 if __name__ == "__main__":

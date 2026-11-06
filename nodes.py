@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -9329,6 +9329,37 @@ class KreaV3Image(_ReferenceImageGeneration):
         }
 
 
+class SeedanceSaveGIF:
+    CATEGORY = "Seedance"
+    FUNCTION = "save"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("gif_path", "durations_json")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "filename_prefix": ("STRING", {"default": "seedance/saved_gif"}),
+            "source_mode": (["auto", "original", "frames"], {"default": "auto",
+                "tooltip": "Auto prefers source_path, otherwise IMAGE frames | 自动模式优先复制原始 GIF，否则编码 IMAGE 帧"}),
+            "fps": ("FLOAT", {"default": 10.0, "min": .1, "max": 100.0, "step": .1,
+                "tooltip": "Frame encoding only; durations_json takes priority | 仅帧编码使用；逐帧时长优先"}),
+            "loop": ("INT", {"default": 0, "min": 0, "max": 65535,
+                "tooltip": "Frame encoding only; 0 loops forever | 仅帧编码使用；0 为无限循环"}),
+        }, "optional": {
+            "images": ("IMAGE",),
+            "source_path": ("STRING", {"forceInput": True,
+                "tooltip": "Connect G 2.6 local_path for byte-preserving copying | 连接 G 2.6 的 local_path，原样复制 GIF"}),
+            "durations_json": ("STRING", {"forceInput": True,
+                "tooltip": "Frame durations in milliseconds; flat or G 2.6 nested JSON arrays | 逐帧毫秒时长，支持普通数组和 G 2.6 嵌套数组"}),
+        }}
+
+    def save(self, **kwargs):
+        path, entry, count, durations = gif_export.save_gif(**kwargs)
+        return {"ui": {"images": [entry], "animated": (count > 1,)},
+                "result": (path, json.dumps(durations))}
+
+
 class ZhenzhenImageG26(SeedanceImageNodeBase):
     CATEGORY = "Seedance"
     FUNCTION = "execute"
@@ -16094,6 +16125,7 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Seedance_Save_GIF": SeedanceSaveGIF,
     "Seedance_Config": SeedanceConfig,
     "Kling_V4_Custom_Element": Kling4CustomElement,
     "Kling_V4_Custom_Voice": Kling4CustomVoice,
@@ -16252,6 +16284,7 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Seedance_Save_GIF": "保存 GIF / Save GIF",
     "Kling_V4_Custom_Element": "Kling 4 主体创建",
     "Kling_V4_Custom_Voice": "Kling 4 音色创建",
     "Kling_V4_T2V": "Kling 4 文生视频",

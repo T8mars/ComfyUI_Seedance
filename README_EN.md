@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.27.0 - 2026-11-06
+
+- Added independent `Save GIF`: copy an original local GIF or encode IMAGE frames, with FPS, loop count, optional per-frame timing, filename prefix and animated previews. It makes no generation API calls.
+- Three G 2.6 GIF examples now include byte-preserving save nodes. The concurrent example adds three frame-encoding saves, and a new local two-image example needs no API key. Existing generation-node automatic saving remains unchanged.
+- Original copying and frame encoding passed actual ComfyUI execution, animated playback, downloads and a narrow viewport. Also normalized Windows path namespaces during concurrent output-directory creation without weakening directory-boundary checks.
+- All 676 regression tests, 287 workflow audits and 25 frontend syntax checks passed. Saving was verified locally without submitting new generation tasks.
+
 ## v0.26.1 - 2026-11-06
 
 - Restored `meshy-6-global-text-to-3d` in the existing Meshy node using the updated documentation. Image-to-3D remains the default. Text accepts a 1-600-character prompt, realistic/sculpture style and optional prompt expansion; image mode omits these fields, while text mode omits images and should_texture.
@@ -291,6 +298,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Hunyuan3D_V3_1` | Hunyuan 3D text or ordered multi-view image generation |
 | `Hitem3D_V2` | Hitem3D v2 single-image or 2-4-view generation |
 | `Zhenzhen_Image_G26` | LowPrice/Flare/Sunburst static images, editing and GIF animation with original-file saving |
+| `Seedance_Save_GIF` | Save an original GIF or encode IMAGE frames locally, with timing, loops and animated previews |
 | `Z_Image_T2I` | Z-image text generation, eight ratios and native seeds |
 | `Krea_V3_Image` | Krea text generation or editing with up to eight references, preset/custom dimensions and native seeds |
 | `Hitem3D_Portrait_V2_1` | Hitem3D Portrait v2.1 single-image or 2-4-view generation |
@@ -571,6 +579,18 @@ The independent NB 2.1 node uses `zhenzhen-image-nb-2.1` and the shared `/v1/ima
 
 The existing four-model NB node remains unchanged. NB 2.1 supports standard cache-only seeds, default-off `skip_error`, resilient downloads, and the optional 30-way image concurrent submit wrapper.
 
+## Standalone Save GIF
+
+Search **Save GIF** in `Seedance` (registration `Seedance_Save_GIF`). This local output utility needs no API key and submits no generation requests. It returns `gif_path` and actual saved `durations_json`.
+
+- **Original copy:** connect G 2.6 `local_path` to `source_path`, selecting `auto` or `original`. IMAGE may also be connected; auto prefers the original file. Bytes, timing and loop metadata remain unchanged. FPS and loop encoding controls do not apply.
+- **Frame encoding:** connect an IMAGE batch to `images`, select `frames`, and set FPS and loop count (0 means infinite). Optional millisecond `durations_json` overrides FPS and accepts flat arrays or G 2.6 nested arrays. GIF timing is quantized to 10ms.
+- `filename_prefix` is relative to ComfyUI's output directory, default `seedance/saved_gif`. Each actual save uses a unique `.gif` without overwriting previous files. The node provides animated playback and a download link.
+
+G 2.6 still automatically saves originals; this separate node creates another copy or encodes processed frames. The image collector exposes frames only, so concurrent-example save nodes re-encode using the selected FPS rather than claiming original timing is retained. Adjust LowPrice FPS to the actual result as needed; use an original file path for fully faithful saving.
+
+Local example: [combine two images into frames and save GIF](examples/保存GIF_本地图像帧.json). No API configuration is needed.
+
 ## Image G 2.6, Krea V3 and Z-image
 
 All three independent nodes use asynchronous image endpoints and retain `skip_error`, Fixed/Randomize controls and existing 30-slot image concurrency. G 2.6 seeds control local caching only. Krea and Z-image forward nonnegative native seeds; `-1` omits the upstream seed.
@@ -582,7 +602,7 @@ All three independent nodes use asynchronous image endpoints and retain `skip_er
 | `krea-v3-t2i` / `i2i` | Text generation or 1-8 references, each at most 30MB. Preset/custom dimensions, each side 256-4096, maximum 4,220,000 pixels. Uses `metadata.model_variant=berry/jam` and `reasoning_level=low/medium`; PNG/JPEG, negative prompts and native seeds. |
 | `z-image-t2i` | Text only, eight ratios and native seeds. No references, resolution, output-format or batch-count fields are sent. |
 
-G 2.6 automatically saves original downloaded files under the ComfyUI output subdirectory selected by `filename_prefix`. GIF bytes, frames and timing are preserved, not converted to PNG. `image` contains all frames; `local_path`, `urls_json`, `paths_json` and `durations_json` expose files and timing for each result. GIF examples use the generation node's animated preview and automatic original saving, not `SaveImage`, which would split frames. The concurrent image collector also retains GIF previews. GIF mode rejects a static upstream result. This node exposes static images and GIF, not SVG.
+G 2.6 automatically saves original downloaded files under the ComfyUI output subdirectory selected by `filename_prefix`. GIF bytes, frames and timing are preserved, not converted to PNG. `image` contains all frames; `local_path`, `urls_json`, `paths_json` and `durations_json` expose files and timing for each result. Three GIF examples also connect a standalone Save GIF node to the original local path for lossless copying. Do not replace it with `SaveImage`, which would split frames. The concurrent image collector also retains GIF previews. GIF mode rejects a static upstream result. This node exposes static images and GIF, not SVG.
 
 Examples:
 

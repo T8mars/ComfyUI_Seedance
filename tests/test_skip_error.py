@@ -77,7 +77,7 @@ class GenerationSkipErrorTests(unittest.TestCase):
         self.assertNotIn("skip_error", config_inputs.get("optional", {}))
 
         for key, node_class in nodes.NODE_CLASS_MAPPINGS.items():
-            if key == "Seedance_Config":
+            if key in {"Seedance_Config", "Seedance_Save_GIF"}:
                 continue
             with self.subTest(node=key):
                 inputs = node_class.INPUT_TYPES()

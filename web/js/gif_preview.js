@@ -1,10 +1,11 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
-import { setSeedanceWidgetVisible } from "./dynamic_widget_ui.js";
+import { resizeSeedanceNode, setSeedanceWidgetVisible } from "./dynamic_widget_ui.js";
 
 const INSTALLED = Symbol("seedanceGifPreview");
-const TARGETS = new Set(["Zhenzhen_Image_G26", "SeedanceConcurrent_Image_Await"]);
+const SAVE_CONTROLS = Symbol("seedanceGifSaveControls");
+const TARGETS = new Set(["Zhenzhen_Image_G26", "SeedanceConcurrent_Image_Await", "Seedance_Save_GIF"]);
 const isGif = (entry) => typeof entry?.filename === "string" && /\.gif$/i.test(entry.filename);
 
 function render(node, entries) {
@@ -19,7 +20,7 @@ function render(node, entries) {
     if (!node.seedanceGifWidget) {
         const container = document.createElement("div");
         container.className = "seedance-gif-preview";
-        container.style.cssText = "width:100%;height:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;overflow:auto;background:#202020";
+        container.style.cssText = "width:100%;height:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));grid-auto-rows:minmax(0,1fr);gap:8px;overflow:auto;background:#202020";
         const widget = node.addDOMWidget("seedance_gif_preview", "preview", container, { serialize: false, hideOnZoom: false });
         widget.serialize = false;
         widget.computeSize = (width) => [width, 330];
@@ -34,16 +35,16 @@ function render(node, entries) {
         const url = api.apiURL("/view?" + new URLSearchParams({ filename: entry.filename,
             subfolder: entry.subfolder ?? "", type: entry.type ?? "output" }));
         const item = document.createElement("div");
-        item.style.cssText = "min-width:0;display:flex;flex-direction:column;gap:4px;align-items:center";
+        item.style.cssText = "min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;gap:4px;align-items:center;overflow:hidden";
         const image = document.createElement("img");
         image.src = url;
         image.alt = `GIF ${index + 1}`;
-        image.style.cssText = "width:100%;min-height:0;flex:1;object-fit:contain";
+        image.style.cssText = "width:100%;height:0;min-height:0;flex:1 1 0;object-fit:contain";
         const save = document.createElement("a");
         save.href = url;
         save.download = entry.filename;
         save.textContent = `GIF ${index + 1} · 保存 / Save`;
-        save.style.cssText = "color:#93c5fd;font:12px sans-serif;padding:4px;text-align:center";
+        save.style.cssText = "color:#93c5fd;font:12px sans-serif;padding:4px;text-align:center;flex:0 0 auto";
         item.append(image, save);
         container.append(item);
     }
@@ -82,10 +83,34 @@ function install(node) {
     };
 }
 
+function installSaveControls(node) {
+    if (node[SAVE_CONTROLS]) return;
+    node[SAVE_CONTROLS] = true;
+    const refresh = () => requestAnimationFrame(() => {
+        const mode = node.widgets?.find((widget) => widget.name === "source_mode")?.value;
+        const original = mode === "original" || (mode === "auto" && node.inputs?.some((input) => input.name === "source_path" && input.link != null));
+        for (const name of ["fps", "loop"]) {
+            setSeedanceWidgetVisible(node.widgets?.find((widget) => widget.name === name), !original);
+        }
+        resizeSeedanceNode(node, 360, node.inputs?.length ?? 0);
+    });
+    const mode = node.widgets?.find((widget) => widget.name === "source_mode");
+    if (mode) {
+        const previous = mode.callback;
+        mode.callback = function (...args) { const result = previous?.apply(this, args); refresh(); return result; };
+    }
+    for (const hook of ["onConfigure", "onConnectionsChange"]) {
+        const previous = node[hook];
+        node[hook] = function () { const result = previous?.apply(this, arguments); refresh(); return result; };
+    }
+    refresh();
+}
+
 app.registerExtension({
     name: "ComfyUI_Seedance.GIFPreview",
     async nodeCreated(node) {
         const name = originalSeedanceNodeName(node.comfyClass ?? node.constructor?.comfyClass ?? node.type ?? "");
         if (TARGETS.has(name)) install(node);
+        if (name === "Seedance_Save_GIF") installSaveControls(node);
     },
 });
