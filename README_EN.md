@@ -4,6 +4,11 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.27.1 - 2026-11-07
+
+- Updated the G 2.6 LowPrice ordered-reference limit from 2 to 10 using the latest documentation. Serial and concurrent-submit validation, uploads and dynamic sockets use the new limit; existing workflow sockets and GIF saving remain unchanged.
+- All 680 offline regressions and actual serial/concurrent canvas checks passed, covering 10/11-reference boundaries, upload order, model switching, resizing, reloading and legacy examples. No new generation tasks were submitted for this update.
+
 ## v0.27.0 - 2026-11-06
 
 - Added independent `Save GIF`: copy an original local GIF or encode IMAGE frames, with FPS, loop count, optional per-frame timing, filename prefix and animated previews. It makes no generation API calls.
@@ -597,7 +602,7 @@ All three independent nodes use asynchronous image endpoints and retain `skip_er
 
 | Models | Supported controls and limits |
 | --- | --- |
-| `zhenzhen-image-g-v2.6-lowprice` | Static images or GIF, 0-2 ordered references, fixed 1k and one result. GIF is requested through the prompt; output-format and frame parameters are omitted. Upstream selects actual dimensions and frames. |
+| `zhenzhen-image-g-v2.6-lowprice` | Static images or GIF, 0-10 ordered references, fixed 1k and one result. GIF is requested through the prompt; output-format and frame parameters are omitted. Upstream selects actual dimensions and frames. |
 | `zhenzhen-image-g-v2.6-flare` / `sunburst` | Static: 0-16 references, 1k/2k/4k, PNG/JPEG/WebP, 1-4 results, quality and optional complexity. Mask/markup URLs are mutually exclusive and must align with the first reference. GIF is text-only, 2-16 frames, auto/preset/custom pixel dimensions, at least 20ms per frame in 10ms increments. The node validates the documented complete contact-sheet limits. |
 | `krea-v3-t2i` / `i2i` | Text generation or 1-8 references, each at most 30MB. Preset/custom dimensions, each side 256-4096, maximum 4,220,000 pixels. Uses `metadata.model_variant=berry/jam` and `reasoning_level=low/medium`; PNG/JPEG, negative prompts and native seeds. |
 | `z-image-t2i` | Text only, eight ratios and native seeds. No references, resolution, output-format or batch-count fields are sent. |

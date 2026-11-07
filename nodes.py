@@ -9421,7 +9421,7 @@ class ZhenzhenImageG26(SeedanceImageNodeBase):
         prefix = kwargs.get("filename_prefix", "seedance/g26")
         image_artifacts.output_target(prefix)
         lowprice = kwargs.get("model", image_models_26.G26_MODELS[0]) == image_models_26.G26_MODELS[0]
-        encoded = preview_models.encode_references(kwargs, 2 if lowprice else 16)
+        encoded = preview_models.encode_references(kwargs, image_models_26.G26_LOWPRICE_MAX_REFERENCES if lowprice else 16)
         config = get_config(kwargs.get("api_config"))
         pbar = _make_progress_bar(100)
         progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None

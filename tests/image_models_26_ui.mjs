@@ -44,6 +44,19 @@ for (const name of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Zhenzhen_Image_G26
         change("size", "custom"); assert.ok(!hidden("width"));
     } else {
         assert.ok(hidden("resolution") && hidden("frame_count"));
+        for (let i = 0; i < 9; i++) node.inputs[i].link = i + 1;
+        node.onConnectionsChange(); flush();
+        assert.equal(node.inputs[9].hidden, false);
+        assert.equal(node.inputs[10].hidden, true);
+        node.inputs[9].link = 10;
+        change("mode", "gif");
+        assert.equal(node.inputs[9].hidden, false);
+        assert.equal(node.inputs[10].hidden, true);
+        node.inputs[10].link = 11;
+        node.onConnectionsChange(); flush();
+        assert.equal(node.inputs[10].hidden, false, "Preserve an existing out-of-range link for validation");
+        for (const input of node.inputs) input.link = null;
+        node.onConnectionsChange(); flush();
         change("mode", "gif"); assert.ok(hidden("frame_count"));
         change("model", "zhenzhen-image-g-v2.6-flare");
         assert.ok(!hidden("frame_count") && hidden("size") && node.inputs[0].hidden);

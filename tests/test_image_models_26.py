@@ -51,6 +51,19 @@ class Image26Tests(unittest.TestCase):
         self.assertEqual(payload["n"], 1)
         self.assertIn("animated looping GIF", payload["prompt"])
 
+    def test_lowprice_ten_ordered_references_in_image_and_gif_modes(self):
+        images = [f"https://example.com/ref{i}.png" for i in range(1, 11)]
+        refs = {f"image{i}": object() for i in reversed(range(1, 11))}
+        for mode in ("image", "gif"):
+            with self.subTest(mode=mode):
+                kwargs = dict(refs, prompt="Combine the references", mode=mode)
+                self.assertIs(contracts.validate_g26(kwargs, strict=True), True)
+                self.assertEqual(contracts.g26_payload(kwargs, images)["images"], images)
+                self.assertEqual(contracts.g26_payload({"prompt": "Edit", "mode": mode}, images)["images"], images)
+                self.assertIsNot(contracts.validate_g26(dict(kwargs, image11=object())), True)
+                with self.assertRaises(client.SeedanceAPIError):
+                    contracts.g26_payload({"prompt": "Edit", "mode": mode}, images + [images[0]])
+
     def test_official_gif_exact_fields_and_stale_fields_omitted(self):
         for model in contracts.G26_MODELS[1:]:
             payload = contracts.g26_payload({"model": model, "prompt": "ball", "mode": "gif", "frame_count": 4,
@@ -59,11 +72,62 @@ class Image26Tests(unittest.TestCase):
             self.assertEqual(set(payload), {"model", "prompt", "n", "quality", "output_format", "size", "frame_count", "frame_duration_ms"})
             self.assertEqual((payload["output_format"], payload["size"], payload["n"]), ("gif", "512x512", 1))
 
-    def test_official_gif_text_only_and_lowprice_two_references(self):
+    def test_official_gif_text_only_and_lowprice_reference_boundaries(self):
         for model in contracts.G26_MODELS[1:]:
             self.assertIsNot(contracts.validate_g26({"model": model, "mode": "gif", "image1": object()}), True)
         self.assertIs(contracts.validate_g26({"mode": "gif", "image1": object(), "image2": object()}), True)
-        self.assertIsNot(contracts.validate_g26({"image3": object()}), True)
+        self.assertIs(contracts.validate_g26({"image10": object()}), True)
+        self.assertIsNot(contracts.validate_g26({"image11": object()}), True)
+
+    def test_lowprice_excess_references_fail_before_serial_or_concurrent_submission(self):
+        wrapper = parallel.CONCURRENT_NODE_CLASS_MAPPINGS["SeedanceConcurrent_Zhenzhen_Image_G26_Submit"]
+        with patch.object(nodes, "upload_media") as upload, patch.object(nodes, "submit_image_task") as submit, \
+             patch.object(parallel, "_submit_original") as worker:
+            for mode in ("image", "gif"):
+                kwargs = {"prompt": "Edit", "mode": mode, "image11": torch.zeros(1, 16, 16, 3)}
+                for execute in (nodes.ZhenzhenImageG26().execute, wrapper().submit):
+                    with self.subTest(mode=mode, execute=execute), self.assertRaises(client.SeedanceAPIError):
+                        execute(**kwargs)
+            upload.assert_not_called()
+            submit.assert_not_called()
+            worker.assert_not_called()
+
+    def test_lowprice_ten_local_references_upload_in_order_serial_and_concurrent(self):
+        wrapper = parallel.CONCURRENT_NODE_CLASS_MAPPINGS["SeedanceConcurrent_Zhenzhen_Image_G26_Submit"]
+        for concurrent in (False, True):
+            with self.subTest(concurrent=concurrent):
+                refs = {f"image{i}": torch.full((1, 16, 16, 3), i / 10) for i in reversed(range(1, 11))}
+                urls = [f"https://example.com/ref{i}.png" for i in range(1, 11)]
+                try:
+                    with patch.object(nodes, "get_config", return_value={}), \
+                         patch.object(nodes, "upload_media", side_effect=urls) as upload, \
+                         patch.object(nodes, "submit_image_task", return_value="fixture") as submit, \
+                         patch.object(nodes, "poll_image_task", return_value={}), \
+                         patch.object(nodes, "extract_image_urls", return_value=["https://example.com/result.png"]), \
+                         patch.object(image_artifacts, "download_original", return_value=(torch.zeros(1, 16, 16, 3),
+                             "result.png", {"filename": "result.png", "type": "output", "subfolder": ""}, [0], "png")):
+                        kwargs = dict(refs, prompt="Combine the references", seed=42)
+                        result = wrapper().submit(**kwargs)[0].future.result(timeout=10) if concurrent else nodes.ZhenzhenImageG26().execute(**kwargs)
+                    self.assertEqual(len(result["result"]), 8)
+                    self.assertEqual(submit.call_args.args[0]["images"], urls)
+                    self.assertNotIn("seed", submit.call_args.args[0])
+                    self.assertEqual(upload.call_count, 10)
+                    for index, call in enumerate(upload.call_args_list, 1):
+                        self.assertEqual(call.args[1], f"reference_{index}.png")
+                        with Image.open(io.BytesIO(call.args[0])) as image:
+                            self.assertLessEqual(abs(image.getpixel((0, 0))[0] - index * 255 / 10), 1)
+                finally:
+                    if concurrent:
+                        parallel.shutdown_concurrent_pools(wait=True)
+
+    def test_lowprice_last_reference_is_validated_before_any_upload(self):
+        refs = {f"image{i}": torch.zeros(1, 16, 16, 3) for i in range(1, 11)}
+        refs["image10"] = torch.zeros(2, 16, 16, 3)
+        with patch.object(nodes, "upload_media") as upload, patch.object(nodes, "submit_image_task") as submit:
+            with self.assertRaises(client.SeedanceAPIError):
+                nodes.ZhenzhenImageG26().execute(prompt="Edit", **refs)
+            upload.assert_not_called()
+            submit.assert_not_called()
 
     def test_gif_contact_sheet_boundaries_and_transposition(self):
         common = {"model": contracts.G26_MODELS[1], "mode": "gif", "frame_size": "custom"}

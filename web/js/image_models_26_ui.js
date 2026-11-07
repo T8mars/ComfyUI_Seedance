@@ -26,7 +26,7 @@ function refresh(node, name) {
         show(["output_compression"], !lowprice && !gif && ["jpeg", "webp"].includes(value("output_format")));
         show(["frame_size", "frame_count", "frame_duration_ms"], !lowprice && gif);
         show(["frame_width", "frame_height"], !lowprice && gif && value("frame_size") === "custom");
-        maximum = lowprice ? 2 : gif ? 0 : 16;
+        maximum = lowprice ? 10 : gif ? 0 : 16;
     } else {
         show(["width", "height"], value("size") === "custom");
         maximum = String(value("model")).endsWith("-i2i") ? 8 : 0;
