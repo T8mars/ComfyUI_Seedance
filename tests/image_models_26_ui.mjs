@@ -43,7 +43,11 @@ for (const name of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Zhenzhen_Image_G26
         assert.ok(!node.inputs[0].hidden);
         change("size", "custom"); assert.ok(!hidden("width"));
     } else {
-        assert.ok(hidden("resolution") && hidden("frame_count"));
+        assert.ok(!hidden("resolution") && hidden("frame_count"));
+        for (let i = 0; i < 15; i++) node.inputs[i].link = i + 1;
+        node.onConnectionsChange(); flush();
+        assert.equal(node.inputs[15].hidden, false);
+        for (const input of node.inputs) input.link = null;
         for (let i = 0; i < 9; i++) node.inputs[i].link = i + 1;
         node.onConnectionsChange(); flush();
         assert.equal(node.inputs[9].hidden, false);
@@ -54,7 +58,7 @@ for (const name of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Zhenzhen_Image_G26
         assert.equal(node.inputs[10].hidden, true);
         node.inputs[10].link = 11;
         node.onConnectionsChange(); flush();
-        assert.equal(node.inputs[10].hidden, false, "Preserve an existing out-of-range link for validation");
+        assert.equal(node.inputs[10].hidden, false, "Preserve an existing reference link in text-only GIF mode for validation");
         for (const input of node.inputs) input.link = null;
         node.onConnectionsChange(); flush();
         change("mode", "gif"); assert.ok(hidden("frame_count"));
@@ -67,7 +71,7 @@ for (const name of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Zhenzhen_Image_G26
         change("mode", "gif"); assert.ok(!node.inputs[1].hidden);
         change("model", "zhenzhen-image-g-v2.6-lowprice");
         assert.equal(widget("size").value, "1:1");
-        assert.ok(hidden("quality") && hidden("frame_count"));
+        assert.ok(!hidden("quality") && hidden("frame_count"));
     }
     node.onConfigure(); flush();
 }
@@ -107,4 +111,4 @@ for (const comfyClass of ["Zhenzhen_Image_G26", "SeedanceConcurrent_Image_Await"
     assert.equal(node.seedanceGifContainer.style.display, "none");
     assert.equal(node.nativeMessage.images[0].filename, "static.png");
 }
-console.log("G 2.6/Krea dynamic controls, converted links, GIF playback widgets, cache restoration and static previews passed.");
+console.log("G 2.6/Krea dynamic controls, sixteen references, converted links, GIF playback widgets and static previews passed.");

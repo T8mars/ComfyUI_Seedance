@@ -18,15 +18,17 @@ function refresh(node, name) {
         if (size?.options) size.options.values = lowprice ? sizes : [...sizes, "custom"];
         if (lowprice && size?.value === "custom" && !node.inputs?.some((input) => input.name === "size" && input.link != null)) size.value = "1:1";
         const custom = value("size") === "custom";
-        show(["size"], !gif || lowprice);
+        show(["size"], !gif);
         show(["width", "height"], !lowprice && !gif && custom);
-        show(["resolution"], !lowprice && !gif && !custom);
-        show(["quality"], !lowprice);
-        show(["complexity", "n", "output_format", "mask_url", "markup_url"], !lowprice && !gif);
+        show(["resolution"], lowprice || (!gif && !custom));
+        show(["quality"], true);
+        show(["version"], lowprice);
+        show(["output_format"], !gif);
+        show(["complexity", "n", "mask_url", "markup_url"], !lowprice && !gif);
         show(["output_compression"], !lowprice && !gif && ["jpeg", "webp"].includes(value("output_format")));
         show(["frame_size", "frame_count", "frame_duration_ms"], !lowprice && gif);
         show(["frame_width", "frame_height"], !lowprice && gif && value("frame_size") === "custom");
-        maximum = lowprice ? 10 : gif ? 0 : 16;
+        maximum = gif ? 0 : 16;
     } else {
         show(["width", "height"], value("size") === "custom");
         maximum = String(value("model")).endsWith("-i2i") ? 8 : 0;

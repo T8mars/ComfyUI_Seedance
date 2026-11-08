@@ -231,7 +231,8 @@
         "seedance/zhenzhen-image-g-v2.6-flare_gif",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "zhenzhen-image-g-v2.6-flare GIF 动画：原文件自动保存与预览"
     },

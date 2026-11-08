@@ -4,6 +4,13 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.0 - 2026-11-08
+
+- Updated G 2.6 LowPrice for 1k/2k/4k, up to 16 ordered references, quality controls and optional Flare/Sunburst versions. GIF now uses an explicit format and auto size with text-only input; original animation saving remains compatible.
+- Appended `zhenzhen-video-kling-v4-flash` to the existing Kling 4 Omni selector, keeping the original default, workflow layout and element/voice nodes. Flash uses its own protocol and limits.
+- Added independent Zhenzhen Video G Omni 1.2 Flash Lowprice with concurrent submission and ten credential-free examples for both video models and LowPrice high-resolution images.
+- Nine actual node paths passed submission, polling, download and decoding: LowPrice 2k/4k/GIF and text/single-image/local-video generation for each Flash video model. All 692 offline regressions, 297 workflow audits and actual canvas compatibility checks passed.
+
 ## v0.27.1 - 2026-11-07
 
 - Updated the G 2.6 LowPrice ordered-reference limit from 2 to 10 using the latest documentation. Serial and concurrent-submit validation, uploads and dynamic sockets use the new limit; existing workflow sockets and GIF saving remain unchanged.
@@ -358,6 +365,21 @@ Portable ComfyUI installations should use their bundled Python interpreter. Rest
 
 ## Kling 4
 
+**New Flash option:** select `zhenzhen-video-kling-v4-flash` in the existing `Kling 4 Omni` node. The original model remains the default. Flash submits/polls through `/v1/videos`, with top-level resolution/aspect_ratio, 3-20 seconds, 720p only and 16:9/9:16/1:1/21:9. Supply up to ten images OR five videos, not both. Element/voice IDs and watermark are unsupported; the original Omni's 30-second combined reference-video cap does not apply.
+
+Independent `Zhenzhen Video G Omni 1.2 Flash Lowprice` uses the same endpoints, with 3-15 seconds, 360p/720p/1080p/4k, 16:9/9:16 and up to ten images OR one video. Both require a prompt, upload local references automatically and accept public video_urls. Reference-video requests retain seconds, unlike the older Omni 1.1 protocol. The live parser requires a string seconds value despite numeric documentation examples; the nodes serialize it accordingly.
+
+Both preserve VIDEO/URL/task/response outputs, skip_error, fixed/random cache seeds and ten-slot video concurrency. No undocumented seed, audio or multi-shot fields are sent.
+
+Actual tests requested the minimum three seconds. Kling Flash returned 1280x720 for text, 960x960 for one image and 1280x720 for local video; all Omni 1.2 paths returned 640x360. Every downloaded MP4 fully decoded. Upstream may choose reference-dependent dimensions/frame counts; requested values are not presented as measured output. Maximum reference counts were checked offline, not through full-capacity generation requests.
+
+| Model | Text | Images | Local video | URL video |
+| --- | --- | --- | --- | --- |
+| Kling 4 Flash | [Open](examples/zhenzhen-video-kling-v4-flash文生视频.json) | [Open](examples/zhenzhen-video-kling-v4-flash多图参考.json) | [Open](examples/zhenzhen-video-kling-v4-flash本地视频参考.json) | [Open](examples/zhenzhen-video-kling-v4-flash网址视频参考.json) |
+| Omni 1.2 Flash | [Open](examples/zhenzhen-video-g-omni-1.2-flash-lowprice文生视频.json) | [Open](examples/zhenzhen-video-g-omni-1.2-flash-lowprice多图参考.json) | [Open](examples/zhenzhen-video-g-omni-1.2-flash-lowprice本地视频参考.json) | [Open](examples/zhenzhen-video-g-omni-1.2-flash-lowprice网址视频参考.json) |
+
+The following describes the original five models, not Flash:
+
 Five independent nodes use fixed model IDs and the `/v1/video/generations` submission/query route. Video nodes retain the standard VIDEO, URL, task ID and response outputs. Supported duration is 3-30 integer seconds; resolution is 720p/1080p. T2V ratios are 21:9/16:9/1:1/9:16; Omni also supports adaptive. I2V sends no ratio. Mixed prompt length must satisfy English/26000 + non-English/11000 <=1. No native seed, sound or multi-shot toggle is submitted.
 
 I2V requires `image1` and optionally accepts `image2` as the last frame. Omni accepts up to ten images and five videos, each video up to 300 MB, with at most 30 seconds of reference video. Local VIDEO inputs precede public `video_urls`. IDs and URLs accept one item per line or JSON string arrays. `image_element_ids` precede `video_element_ids` in `metadata.elementIds`. At most seven elements (three video elements), three voices, fifteen images/videos/elements combined and five videos/video elements combined are allowed.
@@ -602,7 +624,7 @@ All three independent nodes use asynchronous image endpoints and retain `skip_er
 
 | Models | Supported controls and limits |
 | --- | --- |
-| `zhenzhen-image-g-v2.6-lowprice` | Static images or GIF, 0-10 ordered references, fixed 1k and one result. GIF is requested through the prompt; output-format and frame parameters are omitted. Upstream selects actual dimensions and frames. |
+| `zhenzhen-image-g-v2.6-lowprice` | Static: 0-16 ordered references, 1k/2k/4k, PNG/JPEG/WebP, all quality tiers, one result; optional version flare/sunburst (api_default omits it). GIF is text-only, sends output_format=gif and size=auto, omits frame controls, and uses upstream-selected dimensions/timing. |
 | `zhenzhen-image-g-v2.6-flare` / `sunburst` | Static: 0-16 references, 1k/2k/4k, PNG/JPEG/WebP, 1-4 results, quality and optional complexity. Mask/markup URLs are mutually exclusive and must align with the first reference. GIF is text-only, 2-16 frames, auto/preset/custom pixel dimensions, at least 20ms per frame in 10ms increments. The node validates the documented complete contact-sheet limits. |
 | `krea-v3-t2i` / `i2i` | Text generation or 1-8 references, each at most 30MB. Preset/custom dimensions, each side 256-4096, maximum 4,220,000 pixels. Uses `metadata.model_variant=berry/jam` and `reasoning_level=low/medium`; PNG/JPEG, negative prompts and native seeds. |
 | `z-image-t2i` | Text only, eight ratios and native seeds. No references, resolution, output-format or batch-count fields are sent. |
@@ -620,6 +642,8 @@ Examples:
 | Z-image | [Open](examples/z-image-t2i文生图.json) | Unsupported | Unsupported |
 
 Concurrent example: [three G 2.6 GIF models with original saving and previews](examples/G26GIF三模型并发.json).
+
+LowPrice examples: [2k / Flare](examples/zhenzhen-image-g-v2.6-lowprice2K文生图.json), [4k / Sunburst](examples/zhenzhen-image-g-v2.6-lowprice4K文生图.json). Actual updated requests returned 2048x2048 and 2880x2880 PNGs; the auto-size GIF returned nine frames at 439x388. Resolution tiers do not guarantee exact edge lengths.
 
 Actual verification: LowPrice returned a nine-frame 412x411 GIF at 140ms per frame. Flare/Sunburst returned two-frame 512x512 GIFs at 200ms per frame. All original GIFs downloaded and passed frame checks. Three two-reference static edits, both 256x256 Krea paths and 1024x1024 Z-image also downloaded and decoded. These are actual tested configurations, not a claim that every optional parameter combination was called.
 

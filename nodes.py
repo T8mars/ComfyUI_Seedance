@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -3574,6 +3574,62 @@ class ZhenzhenVideoV31(ZhenzhenVideoGenerationBase):
 # Kling video
 # ---------------------------------------------------------------------------
 
+def _collect_flash_video_media(model, kwargs, config, progress_cb, log_prefix):
+    flash_video.validate(model, kwargs, strict=True)
+    encoded_images = preview_models.encode_references(kwargs, 10)
+    local, urls = flash_video.video_references(model, kwargs)
+    encoded_videos = []
+    for index, video in local:
+        data, extension = video_to_bytes(video)
+        kling_v4.validate_local_video(data, extension)
+        encoded_videos.append((index, data, extension))
+    media = {"images": [], "videos": []}
+    total = len(encoded_images) + len(encoded_videos)
+    done = 0
+    for index, data in encoded_images:
+        media["images"].append(upload_media(data, f"flash_image_{index}.png", "image/png", config, logger_prefix=log_prefix))
+        done += 1
+        progress_cb(done / max(1, total))
+    for index, data, extension in encoded_videos:
+        filename = f"flash_video_{index}.{extension}"
+        media["videos"].append(upload_media(data, filename, mimetypes.guess_type(filename)[0] or "application/octet-stream",
+                                          config, logger_prefix=log_prefix))
+        done += 1
+        progress_cb(done / max(1, total))
+    media["videos"].extend(urls)
+    progress_cb(1.0)
+    return media
+
+
+class ZhenzhenVideoGOmni12FlashLowprice(SeedanceVideoNodeBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, 11)}
+        optional.update(video1=("VIDEO",), video_urls=("STRING", {"default": "", "multiline": True,
+            "tooltip": "One public HTTP(S) reference video URL; use instead of video1 | 一条公网视频直链，与本地 video1 二选一"}),
+            api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "seconds": ("INT", {"default": 3, "min": 3, "max": 15}),
+            "resolution": (flash_video.PROFILES[flash_video.OMNI_MODEL]["resolutions"], {"default": "720p"}),
+            "aspect_ratio": (flash_video.PROFILES[flash_video.OMNI_MODEL]["ratios"], {"default": "16:9"}),
+        }, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            flash_video.validate(flash_video.OMNI_MODEL, kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def collect_media(self, kwargs, config, progress_cb):
+        return _collect_flash_video_media(flash_video.OMNI_MODEL, kwargs, config, progress_cb, self._log_prefix)
+
+    def build_payload(self, kwargs, media):
+        return flash_video.payload(flash_video.OMNI_MODEL, kwargs, media)
+
+
 class Kling4VideoBase(SeedanceVideoNodeBase):
     KIND = "t2v"
 
@@ -3674,6 +3730,46 @@ class Kling4ImageToVideo(Kling4VideoBase):
 
 class Kling4Omni(Kling4VideoBase):
     KIND = "omni"
+    SEEDANCE_EXPLICIT_CACHE_ONLY_SEED = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        schema = super().INPUT_TYPES()
+        # Preserve the complete legacy widget prefix, including the seed control.
+        schema["optional"].update(seed=("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            model=(["kling-v4-omni", flash_video.KLING_MODEL], {"default": "kling-v4-omni"}))
+        return schema
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        model = kwargs.get("model", "kling-v4-omni")
+        if model == "kling-v4-omni":
+            return super().VALIDATE_INPUTS(strict=strict, **kwargs)
+        if model != flash_video.KLING_MODEL:
+            return "Unsupported Kling 4 Omni model"
+        try:
+            flash_video.validate(model, kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def collect_media(self, kwargs, config, progress_cb):
+        if kwargs.get("model", "kling-v4-omni") == flash_video.KLING_MODEL:
+            return _collect_flash_video_media(flash_video.KLING_MODEL, kwargs, config, progress_cb, self._log_prefix)
+        return super().collect_media(kwargs, config, progress_cb)
+
+    def build_payload(self, kwargs, media):
+        if kwargs.get("model", "kling-v4-omni") == flash_video.KLING_MODEL:
+            return flash_video.payload(flash_video.KLING_MODEL, kwargs, media)
+        return super().build_payload(kwargs, media)
+
+    def _execute_inner(self, **kwargs):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        if kwargs.get("model", "kling-v4-omni") == flash_video.KLING_MODEL:
+            return SeedanceVideoNodeBase._execute_inner(self, **kwargs)
+        return super()._execute_inner(**kwargs)
 
 
 class Kling4CustomElement(SeedanceVideoNodeBase):
@@ -9367,11 +9463,14 @@ class ZhenzhenImageG26(SeedanceImageNodeBase):
     RETURN_TYPES = ("IMAGE",) + ("STRING",) * 7
     RETURN_NAMES = ("image", "image_url", "task_id", "response", "local_path", "urls_json", "paths_json", "durations_json")
     _log_prefix = "Image G 2.6"
+    SEEDANCE_EXPLICIT_CACHE_ONLY_SEED = True
 
     @classmethod
     def INPUT_TYPES(cls):
         optional = {f"image{i}": ("IMAGE",) for i in range(1, 17)}
-        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}),
+            seed=("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            version=(["api_default", "flare", "sunburst"], {"default": "api_default"}))
         return {"required": {
             "model": (image_models_26.G26_MODELS, {"default": image_models_26.G26_MODELS[0]}),
             "mode": (["image", "gif"], {"default": "image", "tooltip": "GIF preserves all frames and automatically saves the original animation | GIF 保留全部帧并自动保存原始动图"}),
@@ -16132,6 +16231,7 @@ NODE_CLASS_MAPPINGS = {
     "Kling_V4_T2V": Kling4TextToVideo,
     "Kling_V4_I2V": Kling4ImageToVideo,
     "Kling_V4_Omni": Kling4Omni,
+    "Zhenzhen_Video_G_Omni_1_2_Flash_Lowprice": ZhenzhenVideoGOmni12FlashLowprice,
     "Zhenzhen_Motion_Video": ZhenzhenMotionVideo,
     "Seedance_TextToVideo": SeedanceTextToVideo,
     "Seedance_ImageToVideo": SeedanceImageToVideo,
@@ -16290,6 +16390,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Kling_V4_T2V": "Kling 4 文生视频",
     "Kling_V4_I2V": "Kling 4 首尾帧图生视频",
     "Kling_V4_Omni": "Kling 4 Omni 全能参考视频",
+    "Zhenzhen_Video_G_Omni_1_2_Flash_Lowprice": "Zhenzhen Video G Omni 1.2 Flash Lowprice",
     "Zhenzhen_Motion_Video": "Zhenzhen Motion Video 动效视频 (Standard / Pro)",
     "Seedance_Config": "Seedance API Config",
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",

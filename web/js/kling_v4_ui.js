@@ -6,7 +6,8 @@ import {
     setSeedanceWidgetVisible,
 } from "./dynamic_widget_ui.js";
 
-const NAMES = new Set(["Kling_V4_Custom_Element", "Kling_V4_Custom_Voice", "Kling_V4_T2V", "Kling_V4_I2V", "Kling_V4_Omni"]);
+const OMNI12 = "Zhenzhen_Video_G_Omni_1_2_Flash_Lowprice";
+const NAMES = new Set(["Kling_V4_Custom_Element", "Kling_V4_Custom_Voice", "Kling_V4_T2V", "Kling_V4_I2V", "Kling_V4_Omni", OMNI12]);
 const INSTALLED = Symbol("seedanceKling4Installed");
 
 function progressive(node, prefix, max, minimum = 1) {
@@ -45,9 +46,25 @@ function refresh(node) {
             if (input.name === "audio") setSeedanceInputVisible(node, input, audio);
         }
     }
-    if (name === "Kling_V4_Omni") {
-        progressive(node, "image", 10);
-        progressive(node, "video", 5);
+    if (name === "Kling_V4_Omni" || name === OMNI12) {
+        const flash = name === OMNI12 || widget("model")?.value === "zhenzhen-video-kling-v4-flash";
+        const imageLinked = node.inputs?.some((input) => /^image\d+$/.test(input.name) && input.link != null);
+        const videoLinked = node.inputs?.some((input) => /^video\d+$/.test(input.name) && input.link != null)
+            || String(widget("video_urls")?.value ?? "").trim().length > 0;
+        progressive(node, "image", flash && videoLinked ? 0 : 10);
+        progressive(node, "video", flash && imageLinked ? 0 : name === OMNI12 ? 1 : 5);
+        if (name === "Kling_V4_Omni") {
+            for (const field of ["watermark", "image_element_ids", "video_element_ids", "voice_ids"]) setSeedanceWidgetVisible(widget(field), !flash);
+            const resolution = widget("resolution");
+            if (resolution?.options) resolution.options.values = flash ? ["720p"] : ["720p", "1080p"];
+            if (flash && resolution?.value !== "720p" && !node.inputs?.some((input) => input.name === "resolution" && input.link != null)) resolution.value = "720p";
+            const ratio = widget("ratio");
+            if (ratio?.options) ratio.options.values = flash ? ["21:9", "16:9", "1:1", "9:16"] : ["21:9", "16:9", "1:1", "9:16", "adaptive"];
+            if (flash && ratio?.value === "adaptive" && !node.inputs?.some((input) => input.name === "ratio" && input.link != null)) ratio.value = "16:9";
+            const seconds = widget("seconds");
+            if (seconds?.options) seconds.options.max = flash ? 20 : 30;
+            if (flash && seconds?.value > 20 && !node.inputs?.some((input) => input.name === "seconds" && input.link != null)) seconds.value = 20;
+        }
     }
     resizeSeedanceNode(node, 460, (node.inputs ?? []).filter((input) => !input.hidden || input.link != null).length);
 }
@@ -64,7 +81,7 @@ function install(node, name) {
     if (node[INSTALLED]) return;
     node[INSTALLED] = true;
     node.seedanceKling4Name = name;
-    for (const name of ["reference_type", "source_mode"]) {
+    for (const name of ["reference_type", "source_mode", "model", "video_urls"]) {
         const widget = node.widgets?.find((item) => item.name === name);
         if (!widget) continue;
         const callback = widget.callback;

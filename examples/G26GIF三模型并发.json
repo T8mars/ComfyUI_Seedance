@@ -562,7 +562,8 @@
         "seedance/g26_concurrent_lowprice",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "lowprice GIF 并发提交"
     },
@@ -778,7 +779,8 @@
         "seedance/g26_concurrent_flare",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "flare GIF 并发提交"
     },
@@ -994,7 +996,8 @@
         "seedance/g26_concurrent_sunburst",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "sunburst GIF 并发提交"
     },

@@ -225,7 +225,8 @@
         "seedance/zhenzhen-image-g-v2.6-flare_edit",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "zhenzhen-image-g-v2.6-flare 图像编辑"
     },

@@ -225,7 +225,8 @@
         "seedance/zhenzhen-image-g-v2.6-lowprice_text",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "zhenzhen-image-g-v2.6-lowprice 文生图"
     }

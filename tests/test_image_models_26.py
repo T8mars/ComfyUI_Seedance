@@ -45,24 +45,41 @@ class Image26Tests(unittest.TestCase):
     def test_lowprice_gif_omits_unsupported_controls(self):
         kwargs = {"prompt": "A bouncing ball", "mode": "gif", "resolution": "4k", "n": 4,
                   "output_format": "gif", "frame_count": 16, "seed": 42}
-        payload = contracts.g26_payload(kwargs, ["https://example.com/ref.png"] * 2)
-        self.assertEqual(set(payload), {"model", "prompt", "size", "resolution", "n", "images"})
-        self.assertEqual(payload["resolution"], "1k")
+        payload = contracts.g26_payload(kwargs, [])
+        self.assertEqual(set(payload), {"model", "prompt", "size", "resolution", "n", "quality", "output_format"})
+        self.assertEqual(payload["resolution"], "4k")
+        self.assertEqual(payload["size"], "auto")
+        self.assertEqual(payload["output_format"], "gif")
         self.assertEqual(payload["n"], 1)
         self.assertIn("animated looping GIF", payload["prompt"])
 
-    def test_lowprice_ten_ordered_references_in_image_and_gif_modes(self):
-        images = [f"https://example.com/ref{i}.png" for i in range(1, 11)]
-        refs = {f"image{i}": object() for i in reversed(range(1, 11))}
-        for mode in ("image", "gif"):
-            with self.subTest(mode=mode):
-                kwargs = dict(refs, prompt="Combine the references", mode=mode)
+    def test_lowprice_sixteen_ordered_references_and_resolution_tiers(self):
+        images = [f"https://example.com/ref{i}.png" for i in range(1, 17)]
+        refs = {f"image{i}": object() for i in reversed(range(1, 17))}
+        for resolution in ("1k", "2k", "4k"):
+            with self.subTest(resolution=resolution):
+                kwargs = dict(refs, prompt="Combine the references", resolution=resolution)
                 self.assertIs(contracts.validate_g26(kwargs, strict=True), True)
                 self.assertEqual(contracts.g26_payload(kwargs, images)["images"], images)
-                self.assertEqual(contracts.g26_payload({"prompt": "Edit", "mode": mode}, images)["images"], images)
-                self.assertIsNot(contracts.validate_g26(dict(kwargs, image11=object())), True)
+                self.assertEqual(contracts.g26_payload(kwargs, images)["resolution"], resolution)
+                self.assertEqual(contracts.g26_payload({"prompt": "Edit"}, images)["images"], images)
+                self.assertIsNot(contracts.validate_g26(dict(kwargs, image17=object())), True)
                 with self.assertRaises(client.SeedanceAPIError):
-                    contracts.g26_payload({"prompt": "Edit", "mode": mode}, images + [images[0]])
+                    contracts.g26_payload({"prompt": "Edit"}, images + [images[0]])
+
+    def test_lowprice_version_quality_format_and_unsupported_fields(self):
+        for version in ("api_default", "flare", "sunburst"):
+            for output_format in ("png", "jpeg", "webp"):
+                payload = contracts.g26_payload({"prompt": "Edit", "version": version, "quality": "high",
+                    "output_format": output_format, "n": 4, "seed": 42, "complexity": "high", "mask_url": "stale"}, [])
+                self.assertEqual(payload["quality"], "high")
+                self.assertEqual(payload["output_format"], output_format)
+                self.assertEqual(payload["n"], 1)
+                self.assertEqual(payload.get("version"), None if version == "api_default" else version)
+                for omitted in ("seed", "complexity", "mask_url", "frame_count"):
+                    self.assertNotIn(omitted, payload)
+        for kwargs in ({"version": "bad"}, {"quality": "bad"}, {"resolution": "8k"}, {"output_format": "svg"}):
+            self.assertIsNot(contracts.validate_g26(kwargs), True)
 
     def test_official_gif_exact_fields_and_stale_fields_omitted(self):
         for model in contracts.G26_MODELS[1:]:
@@ -75,16 +92,17 @@ class Image26Tests(unittest.TestCase):
     def test_official_gif_text_only_and_lowprice_reference_boundaries(self):
         for model in contracts.G26_MODELS[1:]:
             self.assertIsNot(contracts.validate_g26({"model": model, "mode": "gif", "image1": object()}), True)
-        self.assertIs(contracts.validate_g26({"mode": "gif", "image1": object(), "image2": object()}), True)
+        self.assertIsNot(contracts.validate_g26({"mode": "gif", "image1": object()}), True)
         self.assertIs(contracts.validate_g26({"image10": object()}), True)
-        self.assertIsNot(contracts.validate_g26({"image11": object()}), True)
+        self.assertIs(contracts.validate_g26({"image16": object()}), True)
+        self.assertIsNot(contracts.validate_g26({"image17": object()}), True)
 
     def test_lowprice_excess_references_fail_before_serial_or_concurrent_submission(self):
         wrapper = parallel.CONCURRENT_NODE_CLASS_MAPPINGS["SeedanceConcurrent_Zhenzhen_Image_G26_Submit"]
         with patch.object(nodes, "upload_media") as upload, patch.object(nodes, "submit_image_task") as submit, \
              patch.object(parallel, "_submit_original") as worker:
             for mode in ("image", "gif"):
-                kwargs = {"prompt": "Edit", "mode": mode, "image11": torch.zeros(1, 16, 16, 3)}
+                kwargs = {"prompt": "Edit", "mode": mode, "image17": torch.zeros(1, 16, 16, 3)}
                 for execute in (nodes.ZhenzhenImageG26().execute, wrapper().submit):
                     with self.subTest(mode=mode, execute=execute), self.assertRaises(client.SeedanceAPIError):
                         execute(**kwargs)
@@ -92,12 +110,12 @@ class Image26Tests(unittest.TestCase):
             submit.assert_not_called()
             worker.assert_not_called()
 
-    def test_lowprice_ten_local_references_upload_in_order_serial_and_concurrent(self):
+    def test_lowprice_sixteen_local_references_upload_in_order_serial_and_concurrent(self):
         wrapper = parallel.CONCURRENT_NODE_CLASS_MAPPINGS["SeedanceConcurrent_Zhenzhen_Image_G26_Submit"]
         for concurrent in (False, True):
             with self.subTest(concurrent=concurrent):
-                refs = {f"image{i}": torch.full((1, 16, 16, 3), i / 10) for i in reversed(range(1, 11))}
-                urls = [f"https://example.com/ref{i}.png" for i in range(1, 11)]
+                refs = {f"image{i}": torch.full((1, 16, 16, 3), i / 16) for i in reversed(range(1, 17))}
+                urls = [f"https://example.com/ref{i}.png" for i in range(1, 17)]
                 try:
                     with patch.object(nodes, "get_config", return_value={}), \
                          patch.object(nodes, "upload_media", side_effect=urls) as upload, \
@@ -111,18 +129,18 @@ class Image26Tests(unittest.TestCase):
                     self.assertEqual(len(result["result"]), 8)
                     self.assertEqual(submit.call_args.args[0]["images"], urls)
                     self.assertNotIn("seed", submit.call_args.args[0])
-                    self.assertEqual(upload.call_count, 10)
+                    self.assertEqual(upload.call_count, 16)
                     for index, call in enumerate(upload.call_args_list, 1):
                         self.assertEqual(call.args[1], f"reference_{index}.png")
                         with Image.open(io.BytesIO(call.args[0])) as image:
-                            self.assertLessEqual(abs(image.getpixel((0, 0))[0] - index * 255 / 10), 1)
+                            self.assertLessEqual(abs(image.getpixel((0, 0))[0] - index * 255 / 16), 1)
                 finally:
                     if concurrent:
                         parallel.shutdown_concurrent_pools(wait=True)
 
     def test_lowprice_last_reference_is_validated_before_any_upload(self):
-        refs = {f"image{i}": torch.zeros(1, 16, 16, 3) for i in range(1, 11)}
-        refs["image10"] = torch.zeros(2, 16, 16, 3)
+        refs = {f"image{i}": torch.zeros(1, 16, 16, 3) for i in range(1, 17)}
+        refs["image16"] = torch.zeros(2, 16, 16, 3)
         with patch.object(nodes, "upload_media") as upload, patch.object(nodes, "submit_image_task") as submit:
             with self.assertRaises(client.SeedanceAPIError):
                 nodes.ZhenzhenImageG26().execute(prompt="Edit", **refs)

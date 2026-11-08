@@ -492,7 +492,8 @@
         "",
         false,
         0,
-        "fixed"
+        "fixed",
+        "kling-v4-omni"
       ],
       "title": "主体ID + 音色ID 自动连线到 Omni"
     },

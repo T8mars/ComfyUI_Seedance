@@ -225,7 +225,8 @@
         "seedance/zhenzhen-image-g-v2.6-sunburst_edit",
         false,
         0,
-        "fixed"
+        "fixed",
+        "api_default"
       ],
       "title": "zhenzhen-image-g-v2.6-sunburst 图像编辑"
     },

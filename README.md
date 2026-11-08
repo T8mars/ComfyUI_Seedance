@@ -24,6 +24,13 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.0（2026-11-08）
+
+- G 2.6 LowPrice 按新版文档支持 1k/2k/4k、最多 16 张有序参考图、质量档位和可选 Flare/Sunburst 版本。GIF 改用显式格式与自动画幅，仅接受文本；原始动画保存与独立保存节点保持兼容。
+- 现有 `Kling 4 Omni` 追加 `zhenzhen-video-kling-v4-flash` 选项，默认仍是原 Omni；按模型分别处理接口、时长、画幅和素材限制，不改主体/音色节点。
+- 新增独立 `Zhenzhen Video G Omni 1.2 Flash Lowprice` 及并发提交版本，并新增 10 份无凭据示例，覆盖两个视频模型的文本、多图、本地视频、URL 视频及 LowPrice 2k/4k 图片。
+- 9 条真实节点路径完成提交、轮询、下载和解码：LowPrice 2k/4k/GIF，以及两个 Flash 视频模型各自的文生、单图参考、本地视频参考。692 项离线回归、297 份工作流审计和真实画布兼容检查通过。
+
 ## v0.27.1（2026-11-07）
 
 - 按最新文档，将 G 2.6 LowPrice 的有序参考图上限从 2 张更新为 10 张；同步普通节点、并发提交节点的校验、上传和动态插槽显示，原工作流端口及 GIF 保存功能保持不变。
@@ -619,7 +626,7 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `Kling 视频生成` | Kling 文生视频、图生视频/首尾帧和 O3 参考生视频 | `model`、`prompt`、时长、比例、最多 4 张参考图 |
 | `Kling 4 文生视频` | `kling-v4-t2v` | 提示词、3-30秒、720p/1080p、画幅、水印 |
 | `Kling 4 首尾帧图生视频` | `kling-v4-i2v` | 首帧、可选尾帧、提示词、时长、分辨率；不发送画幅 |
-| `Kling 4 Omni 全能参考视频` | `kling-v4-omni` | 最多10图、5视频、7主体、3音色ID，受交叉上限约束 |
+| `Kling 4 Omni 全能参考视频` | `kling-v4-omni`、`zhenzhen-video-kling-v4-flash` | 原 Omni 支持主体/音色；Flash 为独立协议，图片与视频参考二选一 |
 | `Kling 4 主体创建` | `kling-v4-custom-element` | 正面图加1-3张不同视角图，或单条主体视频；输出 element_id |
 | `Kling 4 音色创建` | `kling-v4-custom-voice` | 音频或上游视频ID；输出 voice_id 与试听音频 |
 | `Kling O3 视频编辑` | Kling O3 视频编辑 | `video_url` 或 `input_video`、`prompt`、时长 |
@@ -1568,7 +1575,7 @@ G 2.6 原节点仍会自动保存；独立保存节点用于另存一份或编�
 
 | 型号 | 支持与限制 |
 | --- | --- |
-| `zhenzhen-image-g-v2.6-lowprice` | 静态图/GIF，0-10 张有序参考图，固定 1k、一次一个结果。GIF 由提示词要求循环动画，不发送输出格式和帧参数，尺寸与帧数由上游决定。 |
+| `zhenzhen-image-g-v2.6-lowprice` | 静态图支持 0-16 张有序参考图、1k/2k/4k、PNG/JPEG/WebP、全部质量档位，一次一个结果；可选 `version=flare/sunburst`，`api_default` 省略。GIF 仅文生，发送 `output_format=gif`、`size=auto`，不发送帧参数；实际尺寸与帧数由上游决定。 |
 | `zhenzhen-image-g-v2.6-flare` / `sunburst` | 静态图支持 0-16 图、1k/2k/4k、PNG/JPEG/WebP、1-4 个结果、质量与可选复杂度。蒙版 URL 与标注 URL 二选一，必须与第一张参考图对齐。GIF 仅文生，2-16 帧；单帧尺寸为 auto、预设像素或 custom，时长至少 20ms 且以 10ms 递增。节点校验文档规定的整张拼图边长、面积和比例限制。 |
 | `krea-v3-t2i` / `i2i` | 文生图/1-8 图编辑；每张参考图不超过 30MB。常用比例预设或自定义宽高，每边 256-4096，总像素不超过 4,220,000。使用 `metadata.model_variant=berry/jam`、`reasoning_level=low/medium`，支持 PNG/JPEG、负面提示词和原生种子。 |
 | `z-image-t2i` | 文生图，8 种画幅和原生种子；不传参考图、分辨率、输出格式或批量参数。 |
@@ -1586,6 +1593,8 @@ G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载�
 | Z-image | [打开](examples/z-image-t2i文生图.json) | 不支持 | 不支持 |
 
 并发示例：[G 2.6 三模型 GIF 并发生成、保存与预览](examples/G26GIF三模型并发.json)。
+
+LowPrice 高清示例：[2k / Flare](examples/zhenzhen-image-g-v2.6-lowprice2K文生图.json)、[4k / Sunburst](examples/zhenzhen-image-g-v2.6-lowprice4K文生图.json)。新版实际请求分别返回 2048×2048、2880×2880 PNG；新版自动画幅 GIF 返回 9 帧、439×388。档位不保证固定边长。
 
 实际验证：LowPrice GIF 返回 9 帧、412×411、每帧 140ms；Flare 与 Sunburst 返回 2 帧、512×512、每帧 200ms，原始 GIF 均已下载并校验。三个静态双图编辑结果、两种 Krea 256×256 结果和 Z-image 1024×1024 结果也均已下载解码。以上是实际测试配置，不代表每个可选参数组合都已真实调用。
 
@@ -1716,6 +1725,21 @@ VOSR2 节点参数：
 | 两个节点 | `seed` | 仅用于 ComfyUI 缓存控制，不发送给 VOSR2 API |
 
 ### Kling 4.0
+
+**新增 Flash 选项**：在现有 `Kling 4 Omni 全能参考视频` 的 `model` 里选择 `zhenzhen-video-kling-v4-flash`。原模型仍为默认，旧工作流无需重新搭建。Flash 走 `POST /v1/videos` 与对应查询，使用顶层 `resolution`、`aspect_ratio`；时长 3-20 秒，仅 720p，画幅 16:9、9:16、1:1、21:9。最多 10 张参考图或 5 条参考视频，不能混传；不支持原 Omni 的主体/音色 ID 或水印字段，也不套用原 Omni 的 30 秒参考视频总时长限制。
+
+独立节点 `Zhenzhen Video G Omni 1.2 Flash Lowprice` 走相同视频端点，支持 3-15 秒、360p/720p/1080p/4k、16:9/9:16；最多 10 图或 1 视频，同样二选一。两者都要求非空提示词，使用本地素材自动上传或 `video_urls` 公网直链；传视频时仍发送所选时长，不沿用旧 Omni 1.1 省略时长的逻辑。
+
+两个新模型的 `/v1/videos` 实际解析器要求 `seconds` 为字符串，节点已适配此文档示例差异。两者保留四个输出、`skip_error`、Fixed/Randomize 缓存种子和十路视频并发接收；不向 API 发送无文档支持的种子、声音或多镜头开关。
+
+真实验证均请求最短 3 秒：Kling Flash 文生返回 1280×720、单图参考返回 960×960、本地视频参考返回 1280×720；Omni 1.2 三条路径均返回 640×360。全部 MP4 下载后完整解码。上游可能按参考素材选择比例和实际帧数，不把请求时长或比例冒充实测结果；最大素材数量通过离线边界验证，没有提交满额素材测试。
+
+| 模型 | 文生视频 | 多图参考 | 本地视频 | URL 视频 |
+| --- | --- | --- | --- | --- |
+| Kling 4 Flash | [打开](examples/zhenzhen-video-kling-v4-flash文生视频.json) | [打开](examples/zhenzhen-video-kling-v4-flash多图参考.json) | [打开](examples/zhenzhen-video-kling-v4-flash本地视频参考.json) | [打开](examples/zhenzhen-video-kling-v4-flash网址视频参考.json) |
+| Omni 1.2 Flash | [打开](examples/zhenzhen-video-g-omni-1.2-flash-lowprice文生视频.json) | [打开](examples/zhenzhen-video-g-omni-1.2-flash-lowprice多图参考.json) | [打开](examples/zhenzhen-video-g-omni-1.2-flash-lowprice本地视频参考.json) | [打开](examples/zhenzhen-video-g-omni-1.2-flash-lowprice网址视频参考.json) |
+
+以下说明适用于原来的五个 Kling 4 模型，不适用于 Flash：
 
 5 个节点使用各自固定的模型 ID，统一通过 `/v1/video/generations` 创建任务并查询同一路径。三个视频节点输出标准 `VIDEO / video_url / task_id / response`，可连接原生 Save Video。
 
