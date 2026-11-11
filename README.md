@@ -24,6 +24,25 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.2（2026-11-11）
+
+- 新增三个独立节点：`MiniMax H3 ComfyUI Max 视频生成`、`MiniMax H3 Image 文生图/图像编辑`、`Qwen Image 2.1 Turbo 文生图/图像编辑`，以及各自的通用并发提交节点。
+- ComfyUI Max 使用 `/v1/video/generations` 提交及查询，不套用 MiniMax V2 或 `/v1/videos` 协议；支持 3-15 秒、七档分辨率、9 图和 3 音频参考。全部本地素材编码与大小检查完成后才开始上传。
+- MiniMax Image 支持 16 图、1k/2k/4k 与 JPEG/PNG/WebP；Qwen Turbo 支持 4 图、1k/2k，连接参考图后才提供 720p；提示词上限按 8192 个 UTF-8 字节检查。两个图片模型的原生种子接受 0，-1 省略；视频种子仅控制 ComfyUI 缓存。
+- 保存 8 份空密钥示例，包含文生图、图像编辑及视频文本/图片/音频/混合参考，均连接原生保存节点。保留旧节点和工作流布局、Fixed 缓存、`skip_error` 与并发失败隔离。
+- 三个模型的 6 条真实路径均已成功：两个图片模型各自的文生图与双图编辑，以及 3 秒、480p 的文本视频和图片加音频参考视频。两条视频实际均为 864×480、73 帧；Qwen 720p 编辑实际输出为 736×736。首次文本视频提交 HTTP 502、未返回任务 ID，保留结果不明确记录，用户明确授权后手动重发一次并成功；节点不会自动重放此类提交。
+- 760 项离线回归、16 项整合包 Python 专项测试、11 组前端回归、28 个前端脚本语法检查和 345 份工作流连线/空密钥审计通过。8 份示例通过真实画布缩放、重载、后端排队及原生保存；文本节点连线、Fixed 缓存和并发失败隔离已验证。最大素材数量与高分辨率边界通过离线测试，未逐档创建真实任务。
+
+### MiniMax H3 / Qwen Turbo 参数
+
+| 节点 | 提交与轮询 | 参数与参考素材 |
+| --- | --- | --- |
+| `Minimax_H3_ComfyUI_Max` | `/v1/video/generations` | `seconds` 为 3-15 的整数字符串，默认 5；`metadata.resolution` 为 480p/608p/768p/896p/1088p/1280p/1440p；`metadata.ratio` 为 16:9/9:16；最多 9 张参考图，每张编码 PNG 不超过 10 MiB、合计不超过 50 MiB；最多 3 段音频，编码 WAV 合计不超过 10 MiB，写入 `metadata.audio_urls`。 |
+| `Minimax_H3_Image` | `/v1/image/generations` | 无图为文生图，最多 16 张有序参考图；`metadata.resolution` 为 1k/2k/4k，默认 2k；`metadata.output_format` 为 jpeg/png/webp，默认 jpeg；支持十种预设比例。 |
+| `Qwen_Image_2_1_Turbo` | `/v1/image/generations` | 无图为文生图，最多 4 张有序参考图；文生图为 1k/2k，图像编辑另支持 720p；不发送未声明的 `output_format`；支持八种预设比例。 |
+
+查询路径为对应提交路径加 `/{task_id}`；等待 `data.status=SUCCESS` 后，使用共享可靠下载器读取 `data.result_url`。图片原生 `metadata.seed` 范围为 0-2147483647，默认 -1 不发送。参考端口逐路展开，但不删除端口或更改连线索引。示例文件以 `minimax-h3-comfyui-max`、`minimax-h3-image`、`qwen-image-2.1-turbo` 开头。
+
 ## v0.28.1（2026-11-11）
 
 - 原 Seedance 2.5 节点追加默认关闭的 `draft` 开关；独立 `Seedance 2.5 样片转高清成片` 节点包含国内/海外两个 draft-to-video 型号，通过样片 `task_id` 连线，不上传普通低清视频，也不重新发送提示词或素材。

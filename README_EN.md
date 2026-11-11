@@ -4,6 +4,25 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.2 - 2026-11-11
+
+- Added three independent nodes: MiniMax H3 ComfyUI Max video, MiniMax H3 Image generation/editing, and Qwen Image 2.1 Turbo generation/editing, with individual concurrent-submit wrappers.
+- ComfyUI Max uses `/v1/video/generations`, not MiniMax V2 or `/v1/videos`. It supports 3-15 seconds, seven resolution tiers, nine images and three audio references. Every local reference is encoded and checked before any upload.
+- MiniMax Image supports sixteen ordered references, 1k/2k/4k and JPEG/PNG/WebP. Qwen Turbo supports four references, 1k/2k and edit-only 720p; its prompt limit is 8192 UTF-8 bytes. Image seeds are native (0 is valid, -1 omits); the video seed is cache-only.
+- Saved eight credential-free workflows with native saving for image generation/editing and video text/image/audio/mixed references. Existing nodes, layouts, Fixed caching, error skipping and concurrent failure isolation remain compatible.
+- All six actual paths succeeded: text and two-reference editing for both image models, plus three-second 480p text video and image-plus-audio video. Both videos decoded to 864x480, 73 frames; Qwen 720p editing returned 736x736. The initial text-video submit returned HTTP 502 without an ID; its uncertain record was preserved, and one user-authorized manual retry succeeded. Nodes do not automatically replay such submissions.
+- All 760 offline tests, sixteen bundled-Python focused tests, eleven frontend regressions, 28 frontend syntax checks and 345 workflow link/blank-key audits passed. Eight examples passed actual canvas resizing/reloading, backend queue validation and native saving; connected text inputs, Fixed caching and concurrent failure isolation were verified. Maximum reference counts and higher-resolution boundaries were tested offline, not individually submitted.
+
+### MiniMax H3 / Qwen Turbo Contracts
+
+| Node | Submit and Poll Base Path | Controls and References |
+| --- | --- | --- |
+| `Minimax_H3_ComfyUI_Max` | `/v1/video/generations` | Integer-string seconds 3-15, default 5; resolution 480p/608p/768p/896p/1088p/1280p/1440p; ratios 16:9/9:16. Up to nine images, encoded PNG at most 10 MiB each and 50 MiB combined; three audio references encoded as WAV, at most 10 MiB combined, sent in `metadata.audio_urls`. |
+| `Minimax_H3_Image` | `/v1/image/generations` | No references for text generation; up to sixteen ordered references for editing. Resolution 1k/2k/4k (default 2k); JPEG/PNG/WebP (default JPEG), ten preset ratios. |
+| `Qwen_Image_2_1_Turbo` | `/v1/image/generations` | No references for text generation; up to four ordered references for editing. Text uses 1k/2k; editing also supports 720p. Eight preset ratios; no undocumented output format field. |
+
+Poll the corresponding path plus `/{task_id}` until `data.status=SUCCESS`, then use the shared reliable downloader for `data.result_url`. Native image seeds are 0-2147483647; -1 omits the field. Progressive reference visibility preserves socket indices and connections. Example filenames start with `minimax-h3-comfyui-max`, `minimax-h3-image` or `qwen-image-2.1-turbo`.
+
 ## v0.28.1 - 2026-11-11
 
 - Appended an off-by-default draft switch to the existing Seedance 2.5 node. A separate domestic/global Draft To Video node consumes the completed draft task_id, not an uploaded low-resolution video.

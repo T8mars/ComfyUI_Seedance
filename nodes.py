@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -9917,6 +9917,85 @@ class Flux3Image(SeedanceImageNodeBase):
                 "result": (image, result_url, task_id, response_str)}
 
 
+class _H3TurboContract:
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        spec = h3_turbo.PROFILES[cls.KIND]
+        required = {"prompt": ("STRING", {"default": "", "multiline": True}),
+                    "resolution": (spec["resolutions"], {"default": spec["default"]}),
+                    "ratio": (spec["ratios"], {"default": spec["ratios"][0]})}
+        if cls.KIND == "video":
+            required["seconds"] = ([str(i) for i in range(3, 16)], {"default": "5"})
+        else:
+            if cls.KIND == "minimax_image":
+                required["output_format"] = (["jpeg", "png", "webp"], {"default": "jpeg"})
+            required["seed"] = ("INT", {"default": -1, "min": -1, "max": 2147483647,
+                                        "tooltip": "-1 omits API seed; 0 is valid."})
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, spec["images"] + 1)}
+        if cls.KIND == "video":
+            optional.update({f"audio{i}": ("AUDIO", {"tooltip": "MP3/WAV references; local AUDIO is encoded to WAV. Total at most 10 MiB."}) for i in range(1, 4)})
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            return h3_turbo.validate(cls.KIND, kwargs, strict)
+        except SeedanceAPIError as error:
+            return str(error)
+
+    @property
+    def _log_prefix(self):
+        return h3_turbo.PROFILES[self.KIND]["model"]
+
+    def _execute_inner(self, **kwargs):
+        # Encode and validate every local reference before uploading any of them.
+        media = h3_turbo.encode_media(self.KIND, kwargs)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        def progress(value):
+            if pbar:
+                pbar.update_absolute(int(value), 100)
+        images, audios = [], []
+        for index, (name, data, mime) in enumerate(media):
+            url = upload_media(data, name + (".png" if mime == "image/png" else ".wav"), mime,
+                               config, logger_prefix=self._log_prefix)
+            (images if mime == "image/png" else audios).append(url)
+            progress(15 * (index + 1) / len(media))
+        body = h3_turbo.payload(self.KIND, kwargs, images, audios)
+        video = self.KIND == "video"
+        submit = submit_legacy_video_task if video else submit_image_task
+        poll = poll_legacy_video_task if video else poll_image_task
+        task = submit(body, config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll(task, config, on_progress=lambda value: progress(20 + value * .75), logger_prefix=self._log_prefix)
+        url = extract_legacy_video_url(final) if video else extract_image_urls(final)[0]
+        output = (download_video if video else download_image)(url, logger_prefix=self._log_prefix)
+        progress(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [url, response]}, "result": (output, url, task, response)}
+
+
+class MinimaxH3ComfyUIMax(_H3TurboContract, SeedanceVideoNodeBase):
+    KIND = "video"
+
+
+class MinimaxH3Image(_H3TurboContract, SeedanceImageNodeBase):
+    KIND = "minimax_image"
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+
+class QwenImage21Turbo(_H3TurboContract, SeedanceImageNodeBase):
+    KIND = "qwen"
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+
+
 class QwenImageGlobal21(SeedanceImageNodeBase):
     """One-image Qwen 2.1 generation or editing with up to ten references."""
 
@@ -16476,6 +16555,9 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Minimax_H3_ComfyUI_Max": MinimaxH3ComfyUIMax,
+    "Minimax_H3_Image": MinimaxH3Image,
+    "Qwen_Image_2_1_Turbo": QwenImage21Turbo,
     "Seedance_2_5_Draft_To_Video": Seedance25DraftToVideo,
     "Seedream_5_5_Image": Seedream55Image,
     "Seedream_5_5_Layer_Decomposition": Seedream55LayerDecomposition,
@@ -16645,6 +16727,9 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Minimax_H3_ComfyUI_Max": "MiniMax H3 ComfyUI Max 视频生成",
+    "Minimax_H3_Image": "MiniMax H3 Image 文生图/图像编辑",
+    "Qwen_Image_2_1_Turbo": "Qwen Image 2.1 Turbo 文生图/图像编辑",
     "Seedance_2_5_Draft_To_Video": "Seedance 2.5 样片转高清成片",
     "Seedream_5_5_Image": "Seedream / Dola 5.5 图像生成与编辑",
     "Seedream_5_5_Layer_Decomposition": "Seedream / Dola 5.5 图像分层",
