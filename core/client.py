@@ -3879,8 +3879,9 @@ def download_video_with_path(
     timeout: int = _VIDEO_DOWNLOAD_TIMEOUT,
     max_retries: int = 5,
     logger_prefix: str = "Seedance_Video",
+    file_extension: str = "mp4",
 ) -> Tuple[Any, str]:
-    """Download an MP4 and return ``(VIDEO object, local path)``.
+    """Download an MP4/MOV and return ``(VIDEO object, local path)``.
 
     Returns comfy_api VideoFromFile when running inside ComfyUI, otherwise the
     local file path (useful for testing outside ComfyUI).
@@ -3894,7 +3895,9 @@ def download_video_with_path(
         output_dir = os.environ.get("SEEDANCE_OUTPUT_DIR") or os.getcwd()
 
     os.makedirs(output_dir, exist_ok=True)
-    video_path = os.path.join(output_dir, f"seedance_{uuid.uuid4().hex[:12]}.mp4")
+    if file_extension not in {"mp4", "mov"}:
+        raise ValueError("Video file extension must be mp4 or mov")
+    video_path = os.path.join(output_dir, f"seedance_{uuid.uuid4().hex[:12]}.{file_extension}")
 
     _log(logger_prefix, "Download video -> remote result")
     _download_to_path_with_recovery(

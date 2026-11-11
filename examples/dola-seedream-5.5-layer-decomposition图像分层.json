@@ -1,0 +1,303 @@
+{
+  "id": "c428dae8-3dd8-59d2-8066-7544ce7189ce",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ],
+      "title": "API 配置：填写自己的密钥"
+    },
+    {
+      "id": 2,
+      "type": "Seedream_5_5_Layer_Decomposition",
+      "pos": [
+        440,
+        60
+      ],
+      "size": [
+        510,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 2
+        },
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "shape": 7,
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "masks",
+          "type": "MASK",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "image_urls",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "image_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "local_paths",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedream_5_5_Layer_Decomposition",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "dola-seedream-5.5-layer-decomposition",
+        "",
+        "auto",
+        30,
+        false,
+        "png",
+        false,
+        "",
+        "seedance/seedream55_layers",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "dola-seedream-5.5-layer-decomposition"
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "选择待分层图片"
+    },
+    {
+      "id": 4,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        1040,
+        80
+      ],
+      "size": [
+        270,
+        100
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [],
+      "title": "保留各图层透明通道"
+    },
+    {
+      "id": 5,
+      "type": "SaveImage",
+      "pos": [
+        1390,
+        80
+      ],
+      "size": [
+        310,
+        250
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "seedance/dola-seedream-5.5-layer-decomposition"
+      ],
+      "title": "保存所有图层"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      1,
+      "SEEDANCE_CONFIG"
+    ],
+    [
+      2,
+      3,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      2,
+      1,
+      4,
+      1,
+      "MASK"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

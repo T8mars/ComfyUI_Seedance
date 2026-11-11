@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -2236,6 +2236,7 @@ class Seedance25Video(SeedanceVideoNodeBase):
                 ),
             })
         optional.update(_optional_widgets())
+        optional["draft"] = ("BOOLEAN", {"default": False, "tooltip": "Create a 480p draft; connect task_id within 7 days | 生成480p样片；7天内将task_id连接草稿转成片节点"})
 
         return {
             "required": {
@@ -2425,6 +2426,9 @@ class Seedance25Video(SeedanceVideoNodeBase):
     def build_payload(self, kwargs, media):
         model = kwargs["model"]
         prompt = str(kwargs.get("prompt") or "").strip()
+        draft = kwargs.get("draft", False)
+        if not isinstance(draft, bool):
+            raise SeedanceAPIError("draft must be boolean")
         validation = self.VALIDATE_INPUTS(
             model=model,
             prompt=prompt,
@@ -2437,10 +2441,12 @@ class Seedance25Video(SeedanceVideoNodeBase):
             raise SeedanceAPIError(validation)
 
         metadata: Dict[str, Any] = {
-            "resolution": kwargs["resolution"],
+            "resolution": "480p" if draft else kwargs["resolution"],
             "ratio": str(kwargs.get("ratio") or "adaptive"),
             "generate_audio": bool(kwargs.get("generate_audio", True)),
         }
+        if draft:
+            metadata["draft"] = True
         seed = kwargs.get("seed", -1)
         if seed is not None and int(seed) >= 0:
             metadata["seed"] = int(seed)
@@ -2477,6 +2483,61 @@ class Seedance25Video(SeedanceVideoNodeBase):
         payload["prompt"] = prompt
         metadata["content"] = content
         return payload
+
+
+# ---------------------------------------------------------------------------
+# Seedance 2.5 draft to native 1080p
+# ---------------------------------------------------------------------------
+
+class Seedance25DraftToVideo(SeedanceVideoNodeBase):
+    MODELS = ["seedance-2.5-standard-draft-to-video", "seedance-2.5-global-standard-draft-to-video"]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (cls.MODELS, {"default": cls.MODELS[0]}),
+            "draft_task_id": ("STRING", {"default": "", "tooltip": "Completed draft task_id from same region/account, within 7 days; not a video URL | 同区域、同账号7天内已完成样片的task_id，不是视频链接"}),
+            "output_format": (["mp4", "mov"], {"default": "mp4"}),
+            "return_last_frame": ("BOOLEAN", {"default": False}),
+        }, "optional": {"api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model=None, draft_task_id=None, output_format=None, return_last_frame=None, strict=False, **kwargs):
+        if model not in (None, *cls.MODELS):
+            return "Unsupported Seedance 2.5 draft-to-video model"
+        if output_format not in (None, "mp4", "mov"):
+            return "output_format must be mp4 or mov"
+        if return_last_frame is not None and not isinstance(return_last_frame, bool):
+            return "return_last_frame must be boolean"
+        if draft_task_id is not None and not isinstance(draft_task_id, str):
+            return "draft_task_id must be text"
+        if strict and not (draft_task_id or "").strip():
+            return "Connect a completed draft task_id | 必须连接已完成样片的task_id"
+        if isinstance(draft_task_id, str) and ("://" in draft_task_id or any(char.isspace() for char in draft_task_id.strip())):
+            return "draft_task_id must be a task identifier, not a URL"
+        return True
+
+    def build_payload(self, kwargs, media=None):
+        valid = self.VALIDATE_INPUTS(strict=True, **kwargs)
+        if valid is not True:
+            raise SeedanceAPIError(valid)
+        return {"model": kwargs.get("model", self.MODELS[0]), "metadata": {
+            "draft_task_id": kwargs["draft_task_id"].strip(), "output_format": kwargs.get("output_format", "mp4"),
+            "return_last_frame": kwargs.get("return_last_frame", False),
+        }}
+
+    def _execute_inner(self, **kwargs):
+        payload = self.build_payload(kwargs)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        task = submit_task(payload, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_task(task, config, logger_prefix=self._log_prefix,
+                          on_progress=lambda value: self._update_progress(pbar, 20 + value * .75))
+        url = extract_video_url(final)
+        video, _path = download_video_with_path(url, logger_prefix=self._log_prefix, file_extension=payload["metadata"]["output_format"])
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, url, task, final)
 
 
 # ---------------------------------------------------------------------------
@@ -8159,6 +8220,104 @@ class SeedreamV5ProImage(SeedanceImageNodeBase):
 
 
 # ---------------------------------------------------------------------------
+# Seedream 5.5 generation/editing and layer decomposition
+# ---------------------------------------------------------------------------
+
+class _Seedream55Base(SeedanceImageNodeBase):
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    LAYER = False
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING", "MASK", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response", "mask", "local_path")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        models = seedream55.LAYER_MODELS if cls.LAYER else seedream55.IMAGE_MODELS
+        required = {"model": (models, {"default": models[0]})}
+        if cls.LAYER:
+            required["image"] = ("IMAGE", {"tooltip": "Exactly one source image, not a batch | 单张源图，不能输入图片批次"})
+        required.update(prompt=("STRING", {"default": "", "multiline": True}),
+                        resolution=(seedream55.LAYER_RESOLUTIONS if cls.LAYER else seedream55.RESOLUTIONS,
+                                    {"default": "auto" if cls.LAYER else "1k"}))
+        if not cls.LAYER:
+            required.update(width=("INT", {"default": 1024, "min": 240, "max": 11520, "step": 1}),
+                            height=("INT", {"default": 1024, "min": 240, "max": 11520, "step": 1}),
+                            background=(["auto", "transparent", "opaque"], {"default": "auto"}))
+        else:
+            required.update(max_images=("INT", {"default": 30, "min": 2, "max": 100, "tooltip": "Includes base image | 包含底图"}),
+                            text_recognition=("BOOLEAN", {"default": False}))
+        required.update(output_format=(["png", "jpeg"], {"default": "png"}), watermark=("BOOLEAN", {"default": False}),
+                        safety_identifier=("STRING", {"default": "", "tooltip": "Optional, up to 64 characters | 可选，最多64字符"}),
+                        filename_prefix=("STRING", {"default": "seedance/seedream55_layers" if cls.LAYER else "seedance/seedream55"}))
+        optional = {} if cls.LAYER else {f"image{i}": ("IMAGE",) for i in range(1, 11)}
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            return seedream55.validate(kwargs, layer=cls.LAYER, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+
+    @property
+    def _log_prefix(self):
+        return "Seedream_5_5_Layers" if self.LAYER else "Seedream_5_5_Image"
+
+    def _make_error_result(self, error_msg):
+        image = make_error_image(error_msg)
+        mask = image.new_zeros(image.shape[:3])
+        response = json.dumps({"error": error_msg}, ensure_ascii=False)
+        result = ([image], [mask], "[]", 0, "", response, "[]", "[]") if self.LAYER else (image, "", "", response, mask, "")
+        return {"ui": {"text": [response]}, "result": result}
+
+    def _execute_inner(self, **kwargs):
+        seedream55.validate(kwargs, layer=self.LAYER, strict=True)
+        prefix = kwargs.get("filename_prefix", "seedance/seedream55")
+        image_artifacts.output_target(prefix)
+        sources = {"image1": kwargs["image"]} if self.LAYER else kwargs
+        encoded = seedream55.encode_references(sources)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None
+        urls = []
+        for index, data in encoded:
+            urls.append(upload_media(data, f"seedream55_{index}.png", "image/png", config, logger_prefix=self._log_prefix))
+        progress(15)
+        task = submit_image_task(seedream55.payload(kwargs, urls, self.LAYER), config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll_image_task(task, config, logger_prefix=self._log_prefix, on_progress=lambda value: progress(20 + value * .7))
+        urls = extract_image_urls(final) if self.LAYER else [extract_image_url(final)]
+        images, masks, paths, entries = [], [], [], []
+        for index, url in enumerate(urls):
+            image, mask, path, entry = seedream55.download_original(url, f"{prefix}_{index:03d}")
+            images.append(image)
+            masks.append(mask)
+            paths.append(path)
+            entries.append(entry)
+            progress(90 + (index + 1) / len(urls) * 10)
+        response = json.dumps(final, ensure_ascii=False)
+        if self.LAYER:
+            result = (images, masks, json.dumps(urls), len(urls), task, response,
+                      json.dumps(paths), json.dumps(seedream55.layer_metadata(final, urls), ensure_ascii=False))
+        else:
+            result = (images[0], urls[0], task, response, masks[0], paths[0])
+        return {"ui": {"images": entries}, "result": result}
+
+
+class Seedream55Image(_Seedream55Base):
+    pass
+
+
+class Seedream55LayerDecomposition(_Seedream55Base):
+    LAYER = True
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("images", "masks", "image_urls", "image_count", "task_id", "response", "local_paths", "layers_json")
+    OUTPUT_IS_LIST = (True, True, False, False, False, False, False, False)
+
+
+# ---------------------------------------------------------------------------
 # Seedream layer decomposition
 # ---------------------------------------------------------------------------
 
@@ -10804,6 +10963,99 @@ class Meshy6Global(_Image3DGeneration):
             "enable_prompt_expansion": ("BOOLEAN", {"default": False}),
         })
         return inputs
+
+
+class Tripo3DBase:
+    CATEGORY = "Seedance/3D/Tripo"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    FAMILY = "generate"
+    RETURN_TYPES = ("FILE_3D",) + ("STRING",) * 7
+    RETURN_NAMES = ("model_3d", "model_url", "local_path", "task_id", "tripo_task_id", "files_json", "part_names_json", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {"model": (tripo.MODELS[cls.FAMILY], {"default": tripo.MODELS[cls.FAMILY][0]})}
+        required.update({field: tripo.FIELDS[field] for field in tripo.FAMILY_FIELDS[cls.FAMILY]})
+        optional = {f"image{i}": ("IMAGE", {"tooltip": f"{view} view | 多视图/贴图顺序：正、左、后、右；每路一张图"})
+                    for i, view in enumerate(tripo.VIEWS, 1)}
+        if cls.FAMILY == "texture":
+            optional["style_image"] = ("IMAGE", {"tooltip": "Optional style image for text retexturing | 文本贴图模式的可选风格图"})
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            tripo.validate(cls.FAMILY, kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    def execute(self, **kwargs):
+        skip = bool(kwargs.pop("skip_error", False))
+        try:
+            return self._execute_inner(**kwargs)
+        except Exception as exc:
+            if not skip:
+                raise
+            response = json.dumps({"error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False)
+            placeholder = "" if self.FAMILY == "splat" else placeholder_file3d(str(exc))
+            return {"ui": {"text": [response]}, "result": (placeholder, "", "", "", "", "[]", "[]", response)}
+
+    def _execute_inner(self, **kwargs):
+        tripo.validate(self.FAMILY, kwargs, strict=True)
+        roles = tripo.image_roles(self.FAMILY, kwargs)
+        encoded = []
+        for local in roles:
+            if kwargs.get(local) is None:
+                continue
+            # Validate and encode every local image before the first upload.
+            data = preview_models.encode_references({"image1": kwargs[local]}, 1, per_file=tripo.IMAGE_LIMIT)[0][1]
+            encoded.append((local, data))
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        progress = lambda value: pbar.update_absolute(int(value), 100) if pbar else None
+        progress(0)
+        uploaded = {}
+        for index, (local, data) in enumerate(encoded, 1):
+            uploaded[local] = upload_media(data, f"tripo_{local}.png", "image/png", config, logger_prefix="Tripo")
+            progress(index / len(encoded) * 15)
+        payload = tripo.payload(self.FAMILY, kwargs, uploaded)
+        task = submit_3d_task(payload, config, logger_prefix="Tripo")
+        progress(20)
+        final = poll_3d_task(task, config, logger_prefix="Tripo", on_progress=lambda value: progress(20 + value * .7))
+        main, files, tripo_id, parts = tripo_artifacts.download_results(final, download_file)
+        progress(100)
+        first = main["local_path"] if self.FAMILY == "splat" else file3d_from_path(main["local_path"], main["actual_format"])
+        return {"ui": {"text": [main["local_path"]]}, "result": (first, main["url"], main["local_path"], task, tripo_id,
+            json.dumps(files, ensure_ascii=False), json.dumps(parts, ensure_ascii=False), json.dumps(final, ensure_ascii=False))}
+
+
+class TripoGenerate(Tripo3DBase):
+    FAMILY = "generate"
+
+
+class TripoTexture(Tripo3DBase):
+    FAMILY = "texture"
+
+
+class TripoRetopology(Tripo3DBase):
+    FAMILY = "retopology"
+
+
+class TripoMesh(Tripo3DBase):
+    FAMILY = "mesh"
+
+
+class TripoConvert(Tripo3DBase):
+    FAMILY = "convert"
+
+
+class TripoSplat(Tripo3DBase):
+    FAMILY = "splat"
+    RETURN_TYPES = ("STRING",) * 8
+    RETURN_NAMES = ("splat_path",) + Tripo3DBase.RETURN_NAMES[1:]
 
 
 class Hunyuan3DV31:
@@ -16224,6 +16476,15 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Seedance_2_5_Draft_To_Video": Seedance25DraftToVideo,
+    "Seedream_5_5_Image": Seedream55Image,
+    "Seedream_5_5_Layer_Decomposition": Seedream55LayerDecomposition,
+    "Tripo_Generate": TripoGenerate,
+    "Tripo_Texture": TripoTexture,
+    "Tripo_Retopology": TripoRetopology,
+    "Tripo_Mesh": TripoMesh,
+    "Tripo_Convert": TripoConvert,
+    "Tripo_Splat": TripoSplat,
     "Seedance_Save_GIF": SeedanceSaveGIF,
     "Seedance_Config": SeedanceConfig,
     "Kling_V4_Custom_Element": Kling4CustomElement,
@@ -16384,6 +16645,15 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Seedance_2_5_Draft_To_Video": "Seedance 2.5 样片转高清成片",
+    "Seedream_5_5_Image": "Seedream / Dola 5.5 图像生成与编辑",
+    "Seedream_5_5_Layer_Decomposition": "Seedream / Dola 5.5 图像分层",
+    "Tripo_Generate": "Tripo 文本 / 单图 / 多视图生成 (15合1)",
+    "Tripo_Texture": "Tripo 重新贴图 (v3.0 / v2.5)",
+    "Tripo_Retopology": "Tripo 重拓扑 (v2 / v1)",
+    "Tripo_Mesh": "Tripo 网格分割 / 智能分割 / 补全",
+    "Tripo_Convert": "Tripo 格式转换",
+    "Tripo_Splat": "Tripo 图片转 Splat",
     "Seedance_Save_GIF": "保存 GIF / Save GIF",
     "Kling_V4_Custom_Element": "Kling 4 主体创建",
     "Kling_V4_Custom_Voice": "Kling 4 音色创建",

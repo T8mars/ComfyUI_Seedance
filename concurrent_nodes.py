@@ -31,6 +31,7 @@ IMAGE_ENV_NAME = "SEEDANCE_IMAGE_CONCURRENCY"
 VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 
 PURE_IMAGE_NODE_KEYS = (
+    "Seedream_5_5_Image",
     "Zhenzhen_Image_G26",
     "Z_Image_T2I",
     "Krea_V3_Image",
@@ -58,6 +59,7 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Seedance_2_5_Draft_To_Video",
     "Muse_Video",
     "Kling_V4_T2V",
     "Kling_V4_I2V",

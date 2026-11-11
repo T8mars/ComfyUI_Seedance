@@ -4,6 +4,19 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.1 - 2026-11-11
+
+- Appended an off-by-default draft switch to the existing Seedance 2.5 node. A separate domestic/global Draft To Video node consumes the completed draft task_id, not an uploaded low-resolution video.
+- Added independent four-model Seedream / Dola 5.5 generation/editing with transparent PNG, custom canvas dimensions and 1-10 references.
+- Added independent two-model Seedream / Dola 5.5 decomposition with complete ordered IMAGE/MASK lists, original files, varying layer dimensions and optional metadata; max_images=2-100 includes the base image.
+- Saved eleven credential-free examples. All six 5.5 IDs and both regional draft-enhancement IDs now have actual successful paths, including transparent PNG and multi-image native saving. The earlier source-specific failures and subsequent successful domestic verification are distinguished below.
+- All 744 offline regressions, 52 bundled-Python focused tests, ten frontend regressions, 27 frontend syntax checks and 337 workflow audits passed. New examples and six legacy Seedance 2.5 examples passed actual canvas/backend queue validation. Fixed caching and concurrent skipped-error isolation also passed native execution.
+
+- Added six independent Tripo groups for generation, retexturing, retopology, mesh tools, conversion and Splat, covering 25 models with model-dependent controls and reference sockets.
+- Added 29 credential-free examples covering every model plus image/four-view retexturing, model-based smart segmentation and a connected generation/segmentation/completion chain.
+- Three representative actual paths passed submission, polling, download and GLB mesh checks: P1 text generation, segmentation v1 and selected-part quick_cap completion. Other model IDs were not individually submitted.
+- All 29 Tripo examples passed actual canvas/backend queue validation; the three real GLBs passed native preview/save, orbit and narrow-viewport checks. Existing node registrations, sockets and workflow parameter ordering remain compatible.
+
 ## v0.28.0 - 2026-11-08
 
 - Updated G 2.6 LowPrice for 1k/2k/4k, up to 16 ordered references, quality controls and optional Flare/Sunburst versions. GIF now uses an explicit format and auto size with text-only input; original animation saving remains compatible.
@@ -646,6 +659,63 @@ Concurrent example: [three G 2.6 GIF models with original saving and previews](e
 LowPrice examples: [2k / Flare](examples/zhenzhen-image-g-v2.6-lowprice2K文生图.json), [4k / Sunburst](examples/zhenzhen-image-g-v2.6-lowprice4K文生图.json). Actual updated requests returned 2048x2048 and 2880x2880 PNGs; the auto-size GIF returned nine frames at 439x388. Resolution tiers do not guarantee exact edge lengths.
 
 Actual verification: LowPrice returned a nine-frame 412x411 GIF at 140ms per frame. Flare/Sunburst returned two-frame 512x512 GIFs at 200ms per frame. All original GIFs downloaded and passed frame checks. Three two-reference static edits, both 256x256 Krea paths and 1024x1024 Z-image also downloaded and decoded. These are actual tested configurations, not a claim that every optional parameter combination was called.
+
+## Seedance 2.5 Draft To Video
+
+Enable draft in the original Seedance_2_5_Video node, then connect its third output, task_id, to the new Seedance_2_5_Draft_To_Video input draft_task_id. The separate node selects domestic or global draft-to-video, producing the API's native1080p output. It does not upload a video or expose unrelated prompt, duration or resolution controls. See the [API documentation](https://api.seedance.nz/docs/llms.txt).
+
+The source must be your own completed draft, in the same region, within seven days. An ordinary 480p task, URL or local file is not a draft ID. All six original generation modes support the appended draft switch, which forces 480p. Default false and legacy workflows retain their original requests, widget prefixes and sockets.
+
+Enhancement inherits the draft's prompt, media, duration and ratio. It sends only model plus metadata.draft_task_id/output_format/return_last_frame, never prompt/seconds/images/content/cache seed. MP4/MOV download extensions, Fixed/Randomize caching, default-off skip_error and concurrent submission are supported. Existing video downloads still default to MP4.
+
+Examples: [domestic existing draft](examples/seedance-2.5-standard-draft-to-video样片转高清.json), [global existing draft](examples/seedance-2.5-global-standard-draft-to-video样片转高清.json), [domestic connected chain](examples/seedance-2.5-standard-draft-to-video样片成片连线.json), [global connected chain](examples/seedance-2.5-global-standard-draft-to-video样片成片连线.json). Standalone examples need your real draft ID; no runtime IDs are stored in them. Use the source alone for review before requesting enhancement; connected examples perform both steps in one execution.
+
+Actual verification on 2026-11-11: global enhancement produced a 1,833,024-byte QuickTime MOV at 1920x1080, 97 frames. A fresh four-second domestic draft using default audio generation and no explicit native seed produced a 1,421,320-byte MP4 at 854x480, 97 frames. The unchanged node, using default output_format=mp4 and return_last_frame=false, successfully enhanced it to a 1,696,104-byte MP4 at 1920x1080, 97 frames, fully decoded. Native ComfyUI SaveVideo output also decoded all 97 frames at 1920x1080 with one audio track. No endpoint, ID type or extra request parameter was changed to obtain this result; the domestic model is available.
+
+The earlier muted domestic draft with seed=17 still failed with 1010 / Service unavailable, including a direct minimal model+metadata.draft_task_id request. Its wire ID, owner, region, completed status and draft flag were checked. Audio, seed and task identity differ between sources, so this does not prove that muted drafts are unsupported or establish a service outage. The failed case is retained without inventing client-side audio restrictions or bypassing region checks. Uncertain creation requests are never automatically replayed.
+
+## Seedream / Dola 5.5
+
+New Seedream_5_5_Image and Seedream_5_5_Layer_Decomposition nodes are independent of existing Pro/Flash nodes. They use POST/GET /v1/image/generations with their exact domestic/global model IDs.
+
+| Models | Examples |
+| --- | --- |
+| seedream-v5.5-t2i / seedream-v5.5-i2i | [Text](examples/seedream-v5.5-t2i文生图.json), [edit](examples/seedream-v5.5-i2i图像编辑.json), [transparent PNG](examples/Seedream55透明PNG.json) |
+| dola-seedream-5.5-t2i / dola-seedream-5.5-i2i | [Text](examples/dola-seedream-5.5-t2i文生图.json), [edit](examples/dola-seedream-5.5-i2i图像编辑.json) |
+| seedream-v5.5-layer-decomposition / dola-seedream-5.5-layer-decomposition | [Domestic layers](examples/seedream-v5.5-layer-decomposition图像分层.json), [global layers](examples/dola-seedream-5.5-layer-decomposition图像分层.json) |
+
+Generation/editing prompts accept 5-5000 characters. T2I excludes images; I2I accepts 1-10 single-image sockets, each encoded PNG at most 30 MiB. Alpha survives both reference encoding and result saving. Resolution is 1k/1.5k/2k or custom: 240-11520 per dimension, 921600-8294400 total pixels, aspect 1:16-16:1. Custom omits resolution; presets omit stale hidden dimensions.
+
+Background auto/transparent/opaque applies only to generation/editing; transparent requires PNG. Watermark and optional safety_identifier up to 64 characters are exposed. The independent seed controls ComfyUI caching only and is not submitted.
+
+Decomposition requires one image, an optional 0-2000-character prompt, auto/1k/1.5k/2k, max_images=2-100 including the base, and text_recognition. The requested maximum is not a fixed output count. Outputs retain complete ordered IMAGE/MASK lists, URLs, actual count, task/response, local paths and layers_json. Files retain their own dimensions; example JoinImageWithAlpha/SaveImage nodes save every layer. Missing metadata does not create fabricated text or bounding boxes.
+
+Generation has a concurrent-submit wrapper preserving RGBA through the image collector. Multi-list decomposition is not forced into a single-image collector. Both nodes retain standard skip_error output types.
+
+All six IDs passed actual testing: domestic/global transparent PNGs were 1248x832 and 1184x880; editing returned decodable JPEG. Both decomposition tasks returned a base and transparent layer with differing dimensions, all downloaded with aligned masks/files/metadata. The 2-100 limits and 100-item completeness were tested offline, not by requesting 100 live images.
+
+## Tripo 3D
+
+Six groups under `Seedance/3D/Tripo` use POST/GET `/v1/3d/generations`, following the [LLMS documentation](https://api.seedance.nz/docs/llms.txt).
+
+| Node | Models and inputs | Examples |
+| --- | --- | --- |
+| `Tripo_Generate` | H v3.1/v3.0/v2.5 and P2/P1, each with text/single-image/multiview generation: 15 models | [Text](examples/tripo-p-p1-text-to-3d示例.json), [image](examples/tripo-h-v3.1-image-to-3d示例.json), [multiview](examples/tripo-h-v3.1-multiview-to-3d示例.json) |
+| `Tripo_Texture` | v3.0/v2.5 retexturing from a public model URL plus text, one image or four views | [Text](examples/tripo-texture-v3.0示例.json), [image](examples/Tripo贴图单图.json), [four views](examples/Tripo贴图四视图.json) |
+| `Tripo_Retopology` | v2/v1; v1 requires a positive face limit, v2 permits omission | [v2](examples/tripo-retopology-v2示例.json), [v1](examples/tripo-retopology-v1示例.json) |
+| `Tripo_Mesh` | segment-v1/v2, smartsegment and complete | [Segmentation](examples/tripo-mesh-segment-v1示例.json), [image smart segmentation](examples/tripo-mesh-smartsegment示例.json), [model smart segmentation](examples/Tripo智能分割模型输入.json), [completion](examples/tripo-mesh-complete示例.json) |
+| `Tripo_Convert` | GLTF/FBX/USDZ/OBJ/STL/3MF conversion | [Convert](examples/tripo-convert示例.json) |
+| `Tripo_Splat` | One image to `.splat`; returns the saved local file path | [Splat](examples/tripo-image-to-splat示例.json) |
+
+- Multiview requires 2-4 contiguous references in **front, left, back, right** order, unlike Hitem's front/back/left/right. Each socket accepts one image, not a batch, at most 20 MiB after encoding. Reusing a multiview task requires multiview_task_id and no image connections.
+- Tool model_url accepts a public model file URL, including a previous node's model_url output, not a task ID. Source formats are GLB/GLTF/FBX/OBJ/STL up to 150 MB; model-based smart segmentation requires GLB. Replace example.com placeholders before using standalone tool examples. Completion examples include a connected segmentation node. Result URLs may expire after roughly 24 hours: saved files remain local, but subsequent tools still require a valid public URL.
+- task_id identifies the platform task; tripo_task_id identifies the upstream Tripo task. Completion must receive segmentation's tripo_task_id, never its platform ID. See the [connected chain](examples/Tripo生成分割补全连线.json).
+- part_names_json is extracted from GLB nodes[].name and may feed tool part_names. JSON string arrays and comma-separated names are accepted: case-sensitive, unique, no embedded commas, at most 1024 joined characters. Blank selects all parts; any unknown name fails the whole task.
+- api_default omits optional fields. face_limit=0, texture_size=0 and native seed=-1 also omit their fields. model_seed/texture_seed/image_seed are native API seeds; the separate seed is ComfyUI cache-only with Fixed/Randomize controls.
+- Files are selected by name/type, not URL suffix. Actual result_url can use a different public mirror; typed modelUrl is authoritative. Models and optional previews are downloaded with original formats and a file manifest. ZIP remains an archive. Native GLB output supports recent ComfyUI preview/save nodes; other conversion formats and Splat require a compatible tool rather than GLB saving.
+- compress=geometry is shown only for supported models and defaults off. Its GLB requires a Meshopt-capable viewer; compressed generation and universal viewer support were not tested. skip_error remains off by default and follows existing error-skipping behavior when enabled.
+
+[All example workflows](examples). Only three actual tasks were created: generated GLB 1,762,028 bytes/1 mesh, segmented GLB 2,790,512 bytes/8 meshes, and selected-part completion 2,258,572 bytes/8 meshes. Remaining IDs received offline contract/workflow validation, not individual live generation tests.
 
 ## Hitem3D and Meshy 6
 

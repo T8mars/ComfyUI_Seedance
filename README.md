@@ -24,6 +24,19 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.1（2026-11-11）
+
+- 原 Seedance 2.5 节点追加默认关闭的 `draft` 开关；独立 `Seedance 2.5 样片转高清成片` 节点包含国内/海外两个 draft-to-video 型号，通过样片 `task_id` 连线，不上传普通低清视频，也不重新发送提示词或素材。
+- 新增独立 `Seedream / Dola 5.5 图像生成与编辑`，包含四个国内/海外文生图与图生图型号，支持透明 PNG、自定义像素和 1-10 张参考图。
+- 新增独立 `Seedream / Dola 5.5 图像分层`，包含两个型号，完整输出有序图片/蒙版列表，保留每层实际尺寸、原始文件和可选图层元数据；最大图片数包含底图，可设置 2-100。
+- 保存 11 份空密钥示例。六个 5.5 型号及国内/海外草稿转成片均有真实成功记录；透明背景和两张分层结果均通过 ComfyUI 原生保存检查。特定旧样片的失败记录与后续成功复核分别列于下方，不将接口受理等同于生成成功。
+- 744 项离线回归、52 项整合包 Python 专项测试、10 组前端回归、27 个前端脚本语法检查及 337 份工作流审计通过。新增示例及六份旧 Seedance 2.5 示例通过真实画布和后端排队校验；Fixed 缓存与并发失败隔离也经过原生执行验证。
+
+- 新增 Tripo 六组独立节点，按生成、重新贴图、重拓扑、网格处理、格式转换和 Splat 分组，覆盖 25 个模型；参数和素材端口按型号、模式显示。
+- 新增 29 份空密钥示例，包含全部型号，以及单图/四视图贴图、GLB 智能分割、生成到分割再补全的自动连线。
+- 三条代表性真实路径已完成提交、轮询、下载和 GLB 网格检查：P1 文生 3D、分割 v1、指定部件 quick_cap 补全；未逐一创建其余型号任务。
+- 29 份 Tripo 示例通过实际画布与后端排队校验；三个实测 GLB 的原生预览、保存、旋转及窄屏检查通过。既有节点注册、端口和工作流参数顺序保持兼容。
+
 ## v0.28.0（2026-11-08）
 
 - G 2.6 LowPrice 按新版文档支持 1k/2k/4k、最多 16 张有序参考图、质量档位和可选 Flare/Sunburst 版本。GIF 改用显式格式与自动画幅，仅接受文本；原始动画保存与独立保存节点保持兼容。
@@ -1597,6 +1610,64 @@ G 2.6 在 `filename_prefix` 指定的 ComfyUI 输出子目录自动保存下载�
 LowPrice 高清示例：[2k / Flare](examples/zhenzhen-image-g-v2.6-lowprice2K文生图.json)、[4k / Sunburst](examples/zhenzhen-image-g-v2.6-lowprice4K文生图.json)。新版实际请求分别返回 2048×2048、2880×2880 PNG；新版自动画幅 GIF 返回 9 帧、439×388。档位不保证固定边长。
 
 实际验证：LowPrice GIF 返回 9 帧、412×411、每帧 140ms；Flare 与 Sunburst 返回 2 帧、512×512、每帧 200ms，原始 GIF 均已下载并校验。三个静态双图编辑结果、两种 Krea 256×256 结果和 Z-image 1024×1024 结果也均已下载解码。以上是实际测试配置，不代表每个可选参数组合都已真实调用。
+
+### Seedance 2.5 样片转成片
+
+这不是普通视频超分：先在原 `Seedance_2_5_Video` 节点开启 `draft`，生成 480p 样片，再把第三个输出 `task_id` 接入新节点 `Seedance_2_5_Draft_To_Video` 的 `draft_task_id`。独立新节点包含 `seedance-2.5-standard-draft-to-video` 和 `seedance-2.5-global-standard-draft-to-video`，目标为接口规定的 `native1080p`，不提供无效的任意分辨率、时长和提示词控件。契约依据 [最新 API 文档](https://api.seedance.nz/docs/llms.txt)。
+
+- 必须是自己账号下、同区域、7 天内已完成的样片。普通 480p 任务、视频 URL、本地视频路径不等于样片 ID。
+- 原节点六个型号都可以开启样片模式，输出强制为 480p；开关关闭或旧工作流未保存该新控件时，保留原分辨率和请求行为。所有原插槽和控件序列前缀不变。
+- 成片继承样片的提示词、素材、比例和时长。新节点只发送模型及 `metadata.draft_task_id/output_format/return_last_frame`；不发送 prompt、seconds、images、content 或缓存 seed。
+- 支持 MP4/MOV 请求与对应本地扩展名、标准 Fixed/Randomize 缓存控件、默认关闭的 `skip_error`，以及独立并发提交版本。原有视频下载的默认 MP4 行为不变。
+- 想先审片时，先只运行样片节点；确认后用该 ID 运行成片节点。连线示例则会在同一次执行中依次生成两步。
+
+示例：[国内已有样片转高清](examples/seedance-2.5-standard-draft-to-video样片转高清.json)、[海外已有样片转高清](examples/seedance-2.5-global-standard-draft-to-video样片转高清.json)、[国内连续两步](examples/seedance-2.5-standard-draft-to-video样片成片连线.json)、[海外连续两步](examples/seedance-2.5-global-standard-draft-to-video样片成片连线.json)。独立示例需要填写真实样片 ID，文件中不保存真实任务信息。
+
+实测与复核（2026-11-11）：海外 4 秒样片为 854×480、97 帧，转成片成功下载 MOV，1,833,024 字节，1920×1080、97 帧。国内重新创建一条使用默认生成音频、未发送固定原生种子的 4 秒样片，得到 854×480、97 帧、1,421,320 字节 MP4；通过原节点默认 `output_format=mp4`、`return_last_frame=false` 升级成功，得到 1920×1080、97 帧、1,696,104 字节 MP4，并完成全帧解码。ComfyUI 原生 SaveVideo 另存后的文件也完整解码为 1920×1080、97 帧，含一条音轨。节点没有为这次成功修改接口地址、任务 ID 类型或增加额外请求参数，国内型号并非不可用。
+
+此前另一条关闭音频且 seed=17 的国内样片，多次升级及直接发送仅含 model、metadata.draft_task_id 的最小请求均返回 `1010 / Service unavailable`。已核实请求中的样片 ID、账号、区域、已完成状态和 draft 标记均正确。但新旧样片还存在音频、原生种子及任务本身等差异，不能据此断言静音不支持，亦不能仅凭 1010 确认服务故障。该失败个案保留，未在客户端擅自禁止静音或绕过区域校验；不自动重放不确定的创建请求。
+
+### Seedream / Dola 5.5
+
+两个新节点与旧版 Pro/Flash 生成、分层节点独立，旧工作流无需迁移。调用 `POST /v1/image/generations` 与 `GET /v1/image/generations/{task_id}`，国内和海外模型按各自原始名称提交。
+
+| 节点 | 型号 | 示例 |
+| --- | --- | --- |
+| `Seedream_5_5_Image` | `seedream-v5.5-t2i` / `seedream-v5.5-i2i` | [文生图](examples/seedream-v5.5-t2i文生图.json)、[编辑](examples/seedream-v5.5-i2i图像编辑.json)、[透明 PNG](examples/Seedream55透明PNG.json) |
+| 同上 | `dola-seedream-5.5-t2i` / `dola-seedream-5.5-i2i` | [文生图](examples/dola-seedream-5.5-t2i文生图.json)、[编辑](examples/dola-seedream-5.5-i2i图像编辑.json) |
+| `Seedream_5_5_Layer_Decomposition` | `seedream-v5.5-layer-decomposition` / `dola-seedream-5.5-layer-decomposition` | [国内分层](examples/seedream-v5.5-layer-decomposition图像分层.json)、[海外分层](examples/dola-seedream-5.5-layer-decomposition图像分层.json) |
+
+- 普通生成/编辑提示词 5-5000 字符；T2I 不接图片，I2I 接 1-10 张，每个插槽一张、编码后最多 30 MiB。输入和输出 PNG 的透明通道均保留，不会悄悄转成 RGB。
+- 分辨率支持 1k/1.5k/2k；custom 仅发送宽高，范围 240-11520，总像素 921,600-8,294,400，比例 1:16-16:1。预设分辨率不会附带隐藏的宽高值。
+- `background=auto/transparent/opaque` 仅用于生成/编辑；transparent 必须选 PNG。另有 watermark 和最多 64 字符的可选 safety_identifier。ComfyUI seed 仅控制缓存，不发送给接口。
+- 分层只接一张源图，可选 0-2000 字符提示词，分辨率 auto/1k/1.5k/2k，支持 max_images=2-100 和 text_recognition。max_images 包含底图，是请求上限，不是固定返回数量。
+- 分层输出 IMAGE/MASK 列表、全部 URL、实际数量、任务 ID、响应、本地路径列表和 layers_json。每层独立保存且不强行拼成同尺寸批次；示例通过 JoinImageWithAlpha 与 SaveImage 保存全部带透明通道的图层。可选元数据缺失时不虚构文字或定位框。
+- 普通图像节点有并发提交版本，RGBA 能通过图片接收节点继续保存；分层节点有多个列表输出，不塞进只接收单个 IMAGE 的通用接收器。开启 skip_error 时保留完整类型与输出数量约定。
+
+六个型号已真实验证：国内/海外文生 PNG 分别为 1248×832、1184×880，均含透明像素；编辑返回可解码 JPEG。两次分层各返回两张图，底图和透明图层的尺寸不同，完整图片、蒙版、文件及元数据均保留。2-100 边界及 100 项列表完整性另做离线测试，不等同于真实请求 100 张。
+
+### Tripo 3D
+
+六组节点位于 `Seedance/3D/Tripo`，使用 `POST /v1/3d/generations` 和 `GET /v1/3d/generations/{task_id}`，依据 [LLMS 文档](https://api.seedance.nz/docs/llms.txt)。
+
+| 节点 | 模型与输入 | 示例 |
+| --- | --- | --- |
+| `Tripo_Generate` | H v3.1/v3.0/v2.5、P2/P1，各含文字、单图、多视图，共 15 个型号 | [文生](examples/tripo-p-p1-text-to-3d示例.json)、[单图](examples/tripo-h-v3.1-image-to-3d示例.json)、[多视图](examples/tripo-h-v3.1-multiview-to-3d示例.json) |
+| `Tripo_Texture` | v3.0/v2.5 重新贴图，输入模型直链及文字、单图或四视图 | [文字](examples/tripo-texture-v3.0示例.json)、[单图](examples/Tripo贴图单图.json)、[四视图](examples/Tripo贴图四视图.json) |
+| `Tripo_Retopology` | v2/v1 重拓扑；v1 必须填写大于 0 的面数，v2 可省略 | [v2](examples/tripo-retopology-v2示例.json)、[v1](examples/tripo-retopology-v1示例.json) |
+| `Tripo_Mesh` | segment-v1/v2、smartsegment、complete | [分割](examples/tripo-mesh-segment-v1示例.json)、[图片智能分割](examples/tripo-mesh-smartsegment示例.json)、[模型智能分割](examples/Tripo智能分割模型输入.json)、[补全](examples/tripo-mesh-complete示例.json) |
+| `Tripo_Convert` | GLTF/FBX/USDZ/OBJ/STL/3MF 转换 | [转换](examples/tripo-convert示例.json) |
+| `Tripo_Splat` | 单图转 `.splat`，返回已保存的本地文件路径 | [Splat](examples/tripo-image-to-splat示例.json) |
+
+- 多视图必须连续连接 2-4 张，顺序为 **正、左、后、右**，与 Hitem 的正、后、左、右不同。每路只能输入一张图，编码后不超过 20 MiB。多视图任务复用模式使用 `multiview_task_id`，不可同时连接图片。
+- 工具节点的 `model_url` 使用公网模型文件直链，可连接前一节点的同名输出，不是任务 ID。源模型支持 GLB/GLTF/FBX/OBJ/STL，最多 150 MB；智能分割的模型模式仅接受 GLB。示例中的 `example.com` 是占位地址，使用前换成自己的直链；补全示例已连接分割节点，避免手动复制 ID。结果 URL 约 24 小时后可能失效，已保存的本地文件不会因此消失，但后续工具仍需有效公网直链。
+- `task_id` 是平台任务 ID；`tripo_task_id` 是上游 Tripo ID。补全的 `tripo_segment_task_id` 必须连接分割的 `tripo_task_id`。参见[生成、分割、补全连续工作流](examples/Tripo生成分割补全连线.json)。
+- `part_names_json` 从下载后 GLB 的 `nodes[].name` 提取，可接入工具的 `part_names`；也可填写 JSON 字符串数组或逗号分隔名称。名称区分大小写、不可重复或包含逗号，连接后最多 1024 字符；留空处理全部部件。选择不存在的名称会导致整个任务失败。
+- `api_default` 表示不发送可选参数；`face_limit=0`、`texture_size=0` 和原生种子 `-1` 同样表示省略。`model_seed`/`texture_seed`/`image_seed` 是接口原生种子；独立的 `seed` 仅控制 ComfyUI 缓存，支持 Fixed/Randomize 等，不混入 API 请求。
+- 输出按 `files[].name/type` 识别，不猜 URL 后缀；实测 `result_url` 可能使用不同的镜像地址，以 `modelUrl` 角色为准。主模型和附图均下载，原始格式及文件列表保留，ZIP 不会改名冒充 GLB。GLB 原生输出可连接新版 ComfyUI 的预览/保存节点；转换的其他格式和 Splat 应交给支持对应格式的工具，不能当 GLB 保存。
+- `compress=geometry` 仅在文档支持的型号显示，默认关闭。输出仍是 GLB，但需要支持 Meshopt 的查看器；本次未创建压缩任务，也不宣称所有查看器可预览。`skip_error` 默认关闭，开启后采用现有错误跳过约定。
+
+[全部 Tripo 示例及其他工作流](examples)。本轮只创建三个代表性真实任务：生成结果 1,762,028 字节/1 个网格；分割结果 2,790,512 字节/8 个网格；指定单部件补全结果 2,258,572 字节/8 个网格。其余型号按文档进行离线参数与工作流验证，不等同于全部型号实测。
 
 ### Hitem3D 与 Meshy 6
 

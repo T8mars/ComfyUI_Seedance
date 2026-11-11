@@ -1,0 +1,184 @@
+{
+  "id": "9b653752-f746-5873-813d-d77fdb3540d9",
+  "revision": 0,
+  "last_node_id": 2,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Seedance_Config",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seedance_Config",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "https://api.seedance.nz",
+        ""
+      ],
+      "title": "API 配置：填写自己的密钥"
+    },
+    {
+      "id": 2,
+      "type": "Tripo_Convert",
+      "pos": [
+        440,
+        60
+      ],
+      "size": [
+        510,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "api_config",
+          "type": "SEEDANCE_CONFIG",
+          "shape": 7,
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model_3d",
+          "type": "FILE_3D",
+          "links": null
+        },
+        {
+          "name": "model_url",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "local_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "tripo_task_id",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "files_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "part_names_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Tripo_Convert",
+        "aux_id": "T8mars/ComfyUI_Seedance"
+      },
+      "widgets_values": [
+        "tripo-convert",
+        "https://example.com/model.glb",
+        "GLTF",
+        "api_default",
+        0,
+        0,
+        "api_default",
+        "api_default",
+        "api_default",
+        0.01,
+        1.0,
+        "api_default",
+        "api_default",
+        "api_default",
+        "api_default",
+        "api_default",
+        "api_default",
+        "api_default",
+        "",
+        "api_default",
+        false,
+        0,
+        "fixed"
+      ],
+      "title": "tripo-convert"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      4,
+      "SEEDANCE_CONFIG"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.20",
+    "ds": {
+      "scale": 1,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}
