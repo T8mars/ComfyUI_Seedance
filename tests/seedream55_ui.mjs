@@ -26,9 +26,23 @@ for (const key of ["Seedream_5_5_Image", "SeedanceConcurrent_Seedream_5_5_Image_
     node.onNodeCreated(); flush();
     if (key.includes("Seedream")) {
         set("model", "seedream-v5.5-t2i"); assert.ok(node.inputs[0].hidden);
-        set("model", "dola-seedream-5.5-i2i"); assert.ok(!node.inputs[0].hidden && node.inputs[1].hidden);
-        node.inputs[0].link = 1; node.onConnectionsChange(); flush(); assert.ok(!node.inputs[1].hidden);
-        set("model", "seedream-v5.5-t2i"); assert.ok(!node.inputs[0].hidden && node.inputs[1].hidden);
+        for (const model of ["seedream-v5.5-i2i", "dola-seedream-5.5-i2i"]) {
+            set("model", model);
+            assert.ok(node.inputs.slice(0, 10).every((input) => !input.hidden), "Editing exposes all ten references without a connection callback");
+        }
+        for (let index = 0; index < 10; index++) {
+            node.inputs[index].link = index + 1; node.onConnectionsChange(); flush();
+            assert.ok(node.inputs.slice(0, 10).every((input) => !input.hidden));
+        }
+        node.onConfigure(); node.onAfterGraphConfigured(); flush();
+        assert.ok(node.inputs.slice(0, 10).every((input) => !input.hidden));
+        set("model", "seedream-v5.5-t2i");
+        assert.ok(node.inputs.slice(0, 10).every((input) => !input.hidden), "Existing connections remain visible in text mode for validation");
+        for (let index = 1; index < 10; index++) node.inputs[index].link = null;
+        node.onConnectionsChange(); flush();
+        assert.ok(!node.inputs[0].hidden && node.inputs.slice(1, 10).every((input) => input.hidden));
+        set("model", "dola-seedream-5.5-i2i");
+        assert.ok(node.inputs.slice(0, 10).every((input) => !input.hidden));
         set("resolution", "custom"); assert.equal(w("width").type, "text");
         set("resolution", "1k"); assert.ok(w("width").type.includes("seedance-hidden"));
         set("output_format", "jpeg"); set("background", "transparent"); assert.equal(w("output_format").value, "png");

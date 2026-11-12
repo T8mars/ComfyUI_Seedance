@@ -4,6 +4,11 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.3 - 2026-11-13
+
+- Seedream / Dola 5.5 editing now exposes all ten reference sockets immediately in both serial and concurrent-submit nodes, without progressive expansion. Text mode still hides unused image sockets while preserving connected ones for validation.
+- API reference limits, registrations, socket order and existing connections are unchanged. Ten connected references, model switching, resizing, reloading and serialized prompt inputs passed actual ComfyUI canvas checks. Existing workflows do not need recreation; hard-refresh the browser after updating the frontend.
+
 ## v0.28.2 - 2026-11-11
 
 - Added three independent nodes: MiniMax H3 ComfyUI Max video, MiniMax H3 Image generation/editing, and Qwen Image 2.1 Turbo generation/editing, with individual concurrent-submit wrappers.
