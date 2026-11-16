@@ -4,6 +4,24 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.4 - 2026-11-16
+
+- Fixed shared reference-slot restoration: temporary off-canvas positions and placeholder widgets in older workflows no longer keep the third slot invisible after the second image is connected. Progressive expansion is preserved, including restored progressive behavior for Seedream / Dola 5.5. Model limits, socket order, connections and API payloads are unchanged.
+- Tripo keeps progressive expansion with front/left/back/right labels. All five multiview examples connect four images. Existing socket order and 2-4 contiguous references or upstream multiview-ID workflows remain compatible.
+- Added independent `Seedance_LLM_API` for text/vision chat. It only calls `https://api.seedance.nz`, reuses this package's API Config and requires neither another node package nor an extra SDK.
+- Refresh intersects the channel's `/v1/models` catalog with nineteen documented chat IDs. Media models carrying an `openai` tag are excluded. The test key returned eighteen available chat models on 2026-11-16; account availability may differ from the local documented list.
+- Supports system prompts, connected text, four local image sockets, conversation history, synchronous/streaming reception, optional temperature, output limits and timeouts. `glm-5.3` is text-only; other models' vision support is determined by their API. Undocumented video inputs were not copied.
+- Added four credential-free native text-preview workflows. Exactly two short real requests verified text, vision, streaming and history; other chat models were not individually invoked, and no Tripo tasks were created again.
+- All 786 offline tests, 57 bundled-Python focused tests, thirteen frontend regressions and 29 frontend syntax checks passed. Actual canvas checks covered 22 reference-node families and 122 serial/concurrent model profiles, including progressive expansion to capacity, legacy hidden-state recovery, resizing and save/reload. Physical mouse connections verified the first three images for NB and Tripo. Five four-view and four LLM examples also passed queue/preview/caching/error checks; no generation task was created for this reference-slot fix.
+
+### Seedance LLM API
+
+Connect this package's `Seedance API Config`, then use `Refresh LLM Models` to refresh chat models for the current key. Refresh never switches channels or silently replaces the selected model. Set `prompt` or connect a text node; vision-capable models accept one image per local socket, subject to their API limits.
+
+Outputs are final `text`, returned `reasoning`, reusable `history_json` and result `response`. Connect history to the next node's `history`; a non-empty system prompt replaces prior system messages, while an empty one preserves them. Temperature is omitted unless explicitly enabled. `max_tokens` includes reasoning; streamed answers are emitted after reception completes, without replaying interrupted requests.
+
+The standard seed is cache-only: Fixed inputs reuse the result. With `skip_error=true`, the node returns empty text, retains input history and reports the error in `response`. Examples are `examples/SeedanceLLM*.json`. Restart ComfyUI and refresh the browser for the new node.
+
 ## v0.28.3 - 2026-11-13
 
 - Seedream / Dola 5.5 editing now exposes all ten reference sockets immediately in both serial and concurrent-submit nodes, without progressive expansion. Text mode still hides unused image sockets while preserving connected ones for validation.

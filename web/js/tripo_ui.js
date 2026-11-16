@@ -74,7 +74,11 @@ function refresh(node, family) {
         }
     }
     for (const input of node.inputs ?? []) {
-        if (/^image[1-4]$/.test(input.name)) setSeedanceInputVisible(node, input, Number(input.name.slice(5)) <= Math.min(images, minimum));
+        if (/^image[1-4]$/.test(input.name)) {
+            const index = Number(input.name.slice(5));
+            input.label = family === "generate" && images === 4 ? `${input.name} (${["front", "left", "back", "right"][index-1]})` : input.name;
+            setSeedanceInputVisible(node, input, index <= Math.min(images, minimum));
+        }
         if (input.name === "style_image") setSeedanceInputVisible(node, input, style);
     }
     resizeSeedanceNode(node, 500, (node.inputs ?? []).filter((input) => !input.hidden || input.link != null).length);

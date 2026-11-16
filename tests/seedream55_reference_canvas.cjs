@@ -45,7 +45,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
                 for (let index = 1; index <= 10; index++) {
                     source.connect(0, target, target.inputs.findIndex((input) => input.name === `image${index}`));
                     await settle();
-                    if (visible().length !== 10) throw new Error(`Only ${visible().length} visible after connecting image${index}`);
+                    if (visible().length !== Math.min(10, index + 1)) throw new Error(`Incorrect progressive visibility after connecting image${index}`);
                 }
                 const links = target.inputs.filter((input) => /^image\d+$/.test(input.name)).map((input) => input.link);
                 const canvasPositions = [];
@@ -70,7 +70,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
                     promptImages: Object.keys(prompt.inputs).filter((name) => /^image\d+$/.test(name)).length,
                     canvasPositions };
             }, key);
-            assert.deepEqual(report.counts, [10, 10, 10]);
+            assert.deepEqual(report.counts, [1, 1, 10]);
             assert.equal(report.visibleAfterReload, 10);
             assert.equal(report.promptImages, 10);
             assert.deepEqual(report.restoredNames, report.initialNames);
@@ -79,7 +79,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
             for (const positions of report.canvasPositions) {
                 assert.equal(new Set(positions.map((point) => point[1])).size, 10, "All ten sockets must have distinct positions");
             }
-            console.log(`PASS ${key}: ten visible empty/connected references, model switch, resize, distinct socket positions, reload and serialized prompt`);
+            console.log(`PASS ${key}: progressive expansion to ten references, model switch, resize, distinct socket positions, reload and serialized prompt`);
             if (process.env.SEEDREAM55_REFERENCE_SCREENSHOTS) {
                 fs.mkdirSync(process.env.SEEDREAM55_REFERENCE_SCREENSHOTS, { recursive: true });
                 await page.waitForTimeout(200);

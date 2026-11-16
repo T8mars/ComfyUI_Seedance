@@ -52,3 +52,28 @@ for (const modern of [false, true]) {
     assert.ok(serialized.inputs.every((input) => !input.widget && !input.pos));
 }
 console.log("Legacy and in-place ComfyUI setters preserve all 19 sockets after hiding, switching, and exceptions.");
+
+for (const shared of [false, true]) {
+for (const position of [[-100000, -100000], new Float32Array([-100000, -100000])]) {
+    const media = { name: "image3", link: null, hidden: true, pos: position, widget: { name: "__seedance_hidden_input__" } };
+    const converted = { name: "prompt", link: 9, pos: [12, 34], widget: { name: "prompt" } };
+    const node = { inputs: [media, converted] };
+    node._concreteInputs = shared ? node.inputs : [{ ...media }, { ...converted }];
+    setSeedanceInputVisible(node, media, false);
+    setSeedanceInputVisible(node, media, true);
+    setSeedanceInputVisible(node, converted, false);
+    assert.equal(media.pos, undefined);
+    assert.equal(media.widget, undefined);
+    assert.equal(node._concreteInputs[0].widget, undefined);
+    assert.equal(node._concreteInputs[0].alwaysVisible, true);
+    assert.deepEqual(converted.pos, [12, 34]);
+    assert.deepEqual(converted.widget, { name: "prompt" });
+    assert.equal(converted.link, 9);
+    const serialized = { inputs: node.inputs.map((input) => ({ ...input })) };
+    node.onSerialize(serialized);
+    assert.equal(serialized.inputs[0].pos, undefined);
+    assert.equal(serialized.inputs[0].widget, undefined);
+    assert.deepEqual(serialized.inputs[1].widget, { name: "prompt" });
+}
+}
+console.log("Old hidden presentation is discarded; real converted widgets, links and custom positions are preserved.");

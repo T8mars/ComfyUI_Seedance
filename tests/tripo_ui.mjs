@@ -40,7 +40,8 @@ for (const [name, [model, ...fields]] of Object.entries(definitions)) {
     if (name === "Tripo_Generate") {
         assert.ok(visible("prompt") && node.inputs[0].hidden);
         set("model", "tripo-h-v3.1-multiview-to-3d");
-        assert.ok(!visible("prompt") && !node.inputs[0].hidden && !node.inputs[1].hidden && node.inputs[2].hidden);
+        assert.ok(!visible("prompt") && !node.inputs[1].hidden && node.inputs[2].hidden);
+        assert.deepEqual(node.inputs.slice(0, 4).map((input) => input.label), ["image1 (front)", "image2 (left)", "image3 (back)", "image4 (right)"]);
         node.inputs[1].link = 1; node.onConnectionsChange(); flush();
         assert.ok(!node.inputs[2].hidden);
         set("input_mode", "multiviewTaskId");

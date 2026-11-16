@@ -41,8 +41,10 @@ def main():
                 node["pos"] = [1050, 60]
                 workflow.connect_widget(segmentation, 4, node, "tripo_segment_task_id")
             if family == "generate" and "text-to-3d" not in model:
-                for index in range(1, 3 if "multiview" in model else 2):
+                for index in range(1, 5 if "multiview" in model else 2):
                     image(workflow, node, index)
+                if "multiview" in model:
+                    workflow.config["pos"] = [40, 1680]
             if family == "splat" or model.endswith("smartsegment"):
                 image(workflow, node, 1)
             if family not in ("convert", "splat"):

@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, llm
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -11044,6 +11044,55 @@ class Meshy6Global(_Image3DGeneration):
         return inputs
 
 
+class SeedanceLLMAPI:
+    CATEGORY = "Seedance/LLM"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("STRING",) * 4
+    RETURN_NAMES = ("text", "reasoning", "history_json", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (llm.MODELS, {"default": llm.MODELS[0]}),
+            "system_prompt": ("STRING", {"default": "You are a helpful assistant.", "multiline": True}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "max_tokens": ("INT", {"default": 1024, "min": 1, "max": 32768, "tooltip": "Output budget including reasoning; the selected model's output limit still applies."}),
+            "stream": ("BOOLEAN", {"default": False}),
+            "temperature_mode": (["api_default", "custom"], {"default": "api_default"}),
+            "temperature": ("FLOAT", {"default": .6, "min": 0, "max": 2, "step": .05}),
+            "timeout": ("INT", {"default": 180, "min": 10, "max": 600}),
+        }, "optional": {
+            **{f"image{i}": ("IMAGE", {"tooltip": "Optional vision input; model support applies. One image per socket."}) for i in range(1, 5)},
+            "history": ("STRING", {"default": "", "tooltip": "Optional previous history_json output."}),
+            "api_config": ("SEEDANCE_CONFIG",),
+            "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            return llm.validate(kwargs, strict)
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def execute(self, **kwargs):
+        config = None
+        try:
+            llm.validate(kwargs, strict=True)
+            config = get_config(kwargs.get("api_config"))
+            pbar = _make_progress_bar(100)
+            result = llm.complete(config, kwargs, lambda value: pbar.update_absolute(value, 100) if pbar else None)
+            if pbar:
+                pbar.update_absolute(100, 100)
+            return {"ui": {"text": [result[0]]}, "result": result}
+        except Exception as error:
+            message = llm.safe_error(error, config)
+            if not kwargs.get("skip_error", False):
+                raise SeedanceAPIError(message) from None
+            return {"ui": {"text": [message]}, "result": ("", "", kwargs.get("history", "") or "[]", json.dumps({"error": message}, ensure_ascii=False))}
+
+
 class Tripo3DBase:
     CATEGORY = "Seedance/3D/Tripo"
     FUNCTION = "execute"
@@ -16555,6 +16604,7 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Seedance_LLM_API": SeedanceLLMAPI,
     "Minimax_H3_ComfyUI_Max": MinimaxH3ComfyUIMax,
     "Minimax_H3_Image": MinimaxH3Image,
     "Qwen_Image_2_1_Turbo": QwenImage21Turbo,
@@ -16727,6 +16777,7 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Seedance_LLM_API": "Seedance LLM API 文本/图像对话",
     "Minimax_H3_ComfyUI_Max": "MiniMax H3 ComfyUI Max 视频生成",
     "Minimax_H3_Image": "MiniMax H3 Image 文生图/图像编辑",
     "Qwen_Image_2_1_Turbo": "Qwen Image 2.1 Turbo 文生图/图像编辑",

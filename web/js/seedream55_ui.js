@@ -10,8 +10,12 @@ function refresh(node, key) {
     const value = (name) => widget(name)?.value;
     if (key === "Seedream_5_5_Image") {
         const edit = String(value("model")).endsWith("-i2i");
+        let last = 0;
         for (const input of node.inputs ?? []) {
-            if (/^image\d+$/.test(input.name)) setSeedanceInputVisible(node, input, edit);
+            if (/^image\d+$/.test(input.name) && input.link != null) last = Math.max(last, Number(input.name.slice(5)));
+        }
+        for (const input of node.inputs ?? []) {
+            if (/^image\d+$/.test(input.name)) setSeedanceInputVisible(node, input, edit && Number(input.name.slice(5)) <= Math.min(10, last + 1));
         }
         const custom = value("resolution") === "custom";
         for (const name of ["width", "height"]) setSeedanceWidgetVisible(widget(name), custom);

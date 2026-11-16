@@ -253,10 +253,16 @@ export function setSeedanceInputVisible(node, input, visible) {
     if (!node || !input) {
         return false;
     }
-    installSeedanceInputPositioning(node);
-    installSeedanceInputLayout(node);
-    installSeedanceConcreteInputVisibility(node);
-    installSeedanceInputSerialization(node);
+    // Older workflows may contain our temporary hidden-slot presentation.
+    // Never capture it as the original position/widget when restoring a port.
+    if (!input[ORIGINAL_INPUT_POSITION]
+        && (Array.isArray(input.pos) || ArrayBuffer.isView(input.pos))
+        && input.pos[0] === HIDDEN_INPUT_OFFSET && input.pos[1] === HIDDEN_INPUT_OFFSET) {
+        delete input.pos;
+    }
+    if (!input[ORIGINAL_INPUT_WIDGET] && input.widget?.name === HIDDEN_INPUT_WIDGET_NAME) {
+        delete input.widget;
+    }
     const shouldShow = Boolean(visible || input.link != null);
     const nextHidden = !shouldShow;
     const changed = Boolean(input.hidden) !== nextHidden;
@@ -278,6 +284,12 @@ export function setSeedanceInputVisible(node, input, visible) {
             delete input.pos;
         }
     }
+    // Concrete slots can be the raw input objects themselves. Capture originals
+    // before installing synchronization, which may temporarily hide those slots.
+    installSeedanceInputPositioning(node);
+    installSeedanceInputLayout(node);
+    installSeedanceConcreteInputVisibility(node);
+    installSeedanceInputSerialization(node);
     syncSeedanceConcreteInputVisibility(node);
     return changed;
 }
