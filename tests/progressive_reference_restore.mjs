@@ -77,7 +77,8 @@ for (const [file, key, capacity, fallbackModels] of contract.cases) {
                 };
                 for (const [family, maximum] of Object.entries(limits)) {
                     if (flash && family === "video") continue;
-                    const initial = family === "image" && (key.startsWith("Hitem3D") || key === "Tripo_Generate" || key === "Kling_V4_Custom_Element") ? 2
+                    const initial = key === "Tripo_Generate" ? 4
+                        : family === "image" && (key.startsWith("Hitem3D") || key === "Kling_V4_Custom_Element") ? 2
                         : family === "image" && (key === "Wan_3_0_Video" || key === "Seedance_2_5_Video") && model.endsWith("-i2v") ? 2 : 1;
                     check(family, Math.min(maximum, initial));
                     for (let index = 1; index <= maximum; index++) {

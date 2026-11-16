@@ -29,7 +29,7 @@ function refresh(node, family) {
         const reuse = multi && value("input_mode") === "multiviewTaskId";
         show(["multiview_task_id"], reuse);
         images = text || reuse ? 0 : multi ? 4 : 1;
-        minimum = multi ? 2 : 1;
+        minimum = multi ? 4 : 1;
         const face = widget("face_limit");
         if (face?.options) {
             const quad = value("quad") === "true";
@@ -67,11 +67,6 @@ function refresh(node, family) {
         show(["fbx_preset"], value("format") === "FBX");
     } else if (family === "splat") {
         images = 1;
-    }
-    if (family === "generate" && images === 4) {
-        for (const input of node.inputs ?? []) {
-            if (/^image[1-4]$/.test(input.name) && input.link != null) minimum = Math.max(minimum, Number(input.name.slice(5)) + 1);
-        }
     }
     for (const input of node.inputs ?? []) {
         if (/^image[1-4]$/.test(input.name)) {

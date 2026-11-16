@@ -4,6 +4,11 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.5 - 2026-11-16
+
+- Tripo multiview generation now shows all four fixed front/left/back/right sockets immediately when `input_mode=views` is selected, rather than initially showing two. Existing 2-4 references, upstream task-ID reuse, socket order and connections remain compatible. Other nodes retain their existing progressive expansion.
+- All five multiview models passed actual four-port mouse connections, legacy two-reference reloads, resizing, mode switching and four-reference prompt serialization, without generation API calls. All 786 offline tests, 32 bundled-Python focused tests and thirteen frontend regressions passed.
+
 ## v0.28.4 - 2026-11-16
 
 - Fixed shared reference-slot restoration: temporary off-canvas positions and placeholder widgets in older workflows no longer keep the third slot invisible after the second image is connected. Progressive expansion is preserved, including restored progressive behavior for Seedream / Dola 5.5. Model limits, socket order, connections and API payloads are unchanged.

@@ -39,13 +39,19 @@ for (const [name, [model, ...fields]] of Object.entries(definitions)) {
     node.onNodeCreated(); flush();
     if (name === "Tripo_Generate") {
         assert.ok(visible("prompt") && node.inputs[0].hidden);
-        set("model", "tripo-h-v3.1-multiview-to-3d");
-        assert.ok(!visible("prompt") && !node.inputs[1].hidden && node.inputs[2].hidden);
+        for (const family of ["h-v3.1", "h-v3.0", "h-v2.5", "p-p2", "p-p1"]) {
+            set("model", `tripo-${family}-multiview-to-3d`);
+            assert.ok(!visible("prompt") && node.inputs.slice(0, 4).every((input) => !input.hidden), "All four fixed views are visible before connecting any image");
+        }
         assert.deepEqual(node.inputs.slice(0, 4).map((input) => input.label), ["image1 (front)", "image2 (left)", "image3 (back)", "image4 (right)"]);
         node.inputs[1].link = 1; node.onConnectionsChange(); flush();
         assert.ok(!node.inputs[2].hidden);
         set("input_mode", "multiviewTaskId");
         assert.ok(visible("multiview_task_id") && node.inputs[0].hidden && !node.inputs[1].hidden);
+        set("input_mode", "views");
+        assert.ok(node.inputs.slice(0, 4).every((input) => !input.hidden));
+        node.inputs[1].link = null; node.onConnectionsChange(); flush();
+        assert.ok(node.inputs.slice(0, 4).every((input) => !input.hidden), "Disconnecting views must not collapse the fixed view ports");
         set("model", "tripo-h-v2.5-image-to-3d");
         assert.ok(!visible("geometry_quality") && !visible("compress") && !visible("quad"));
         set("model", "tripo-p-p2-text-to-3d");
