@@ -27,6 +27,7 @@ class Seedance25ContractTests(unittest.TestCase):
             "seedance-2.5-global-standard-t2v",
             "seedance-2.5-global-standard-i2v",
             "seedance-2.5-global-standard-multi",
+            *nodes.seedance25_flash.MODELS,
         ])
         inputs = nodes.Seedance25Video.INPUT_TYPES()
         self.assertEqual(inputs["required"]["model"][0], nodes.SEEDANCE25_MODELS)
@@ -105,7 +106,7 @@ class Seedance25ContractTests(unittest.TestCase):
 
     def test_native1080p_is_forwarded_exactly_for_every_model(self):
         node = nodes.Seedance25Video()
-        for model in nodes.SEEDANCE25_MODELS:
+        for model in nodes.SEEDANCE25_MODELS[:6]:
             with self.subTest(model=model):
                 media = {}
                 prompt = "native resolution contract test"

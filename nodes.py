@@ -7,7 +7,7 @@ and Whisper transcription APIs
 (api.seedance.nz).
 
 Seedance video nodes expose the 18 Seedance 2.0 variants by task type and a
-dedicated six-model Seedance 2.5 Standard node.
+dedicated twelve-model Seedance 2.5 Standard/Flash node.
 FLUX 3 Video, HappyHorse, Wan, Kling, Hailuo, MiniMax, Vidu, FlashVSR, VOSR2, and Zhenzhen Upscaler use dedicated video
 nodes, Seedream and Dola Seedream share one image node with a model-family
 selector, Qwen and Zhenzhen Image G/NB use dedicated image nodes, Zhenzhen Video models
@@ -77,7 +77,7 @@ from .core.client import (
     upload_media,
 )
 from .core.geometry import file3d_from_path, placeholder_file3d
-from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, llm
+from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, h3_comfy, seedance25_flash, doubao_tts, llm
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -136,14 +136,20 @@ MULTI_MODELS = _models_for("multi")
 SEEDANCE25_T2V_MODELS = [
     "seedance-2.5-standard-t2v",
     "seedance-2.5-global-standard-t2v",
+    "seedance-2.5-flash-t2v",
+    "seedance-2.5-global-flash-t2v",
 ]
 SEEDANCE25_I2V_MODELS = [
     "seedance-2.5-standard-i2v",
     "seedance-2.5-global-standard-i2v",
+    "seedance-2.5-flash-i2v",
+    "seedance-2.5-global-flash-i2v",
 ]
 SEEDANCE25_MULTI_MODELS = [
     "seedance-2.5-standard-multi",
     "seedance-2.5-global-standard-multi",
+    "seedance-2.5-flash-multi",
+    "seedance-2.5-global-flash-multi",
 ]
 SEEDANCE25_MODELS = [
     SEEDANCE25_T2V_MODELS[0],
@@ -152,6 +158,7 @@ SEEDANCE25_MODELS = [
     SEEDANCE25_T2V_MODELS[1],
     SEEDANCE25_I2V_MODELS[1],
     SEEDANCE25_MULTI_MODELS[1],
+    *seedance25_flash.MODELS,
 ]
 SEEDANCE25_SECONDS = ["-1"] + [str(value) for value in range(4, 31)]
 SEEDANCE25_RESOLUTIONS = ["480p", "720p", "1080p", "2k", "4k", "native1080p"]
@@ -2203,7 +2210,7 @@ class SeedanceImageToVideo(SeedanceVideoNodeBase):
 # ---------------------------------------------------------------------------
 
 class Seedance25Video(SeedanceVideoNodeBase):
-    """Seedance 2.5 Standard t2v/i2v/multi across domestic and global routes."""
+    """Seedance 2.5 Standard/Flash t2v/i2v/multi across both regions."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -2212,39 +2219,41 @@ class Seedance25Video(SeedanceVideoNodeBase):
             optional[f"image{index}"] = ("IMAGE", {
                 "tooltip": (
                     f"Image {index}. I2V uses image1 as the first frame and image2 "
-                    "as the optional last frame; Multi accepts up to 30 images. | "
+                    "as the optional last frame; Standard Multi accepts 30 images, Flash Multi 10. | "
                     f"图片 {index}；I2V 使用 image1 首帧和可选 image2 尾帧，"
-                    "Multi 最多支持 30 张图片。"
+                    "Standard Multi 最多 30 图，Flash Multi 最多 10 图。"
                 ),
             })
         for index in range(1, MAX_SEEDANCE25_MULTI_VIDEOS + 1):
             optional[f"video{index}"] = ("VIDEO", {
                 "tooltip": (
-                    f"Multi reference video {index}, up to 10 videos. Each clip must "
+                    f"Multi reference video {index}; Standard up to 10, Flash up to 5. Each clip must "
                     "be 2-30 seconds and combined reference media must not exceed 30 "
-                    f"seconds. | Multi 参考视频 {index}，最多 10 个；单段需为 2-30 秒，"
+                    f"seconds. | Multi 参考视频 {index}，Standard 最多 10 个，Flash 最多 5 个；单段需为 2-30 秒，"
                     "参考音视频总时长不能超过 30 秒。"
                 ),
             })
         for index in range(1, MAX_SEEDANCE25_MULTI_AUDIOS + 1):
             optional[f"audio{index}"] = ("AUDIO", {
                 "tooltip": (
-                    f"Multi reference audio {index}, up to 10 audios. Each clip must "
+                    f"Multi reference audio {index}; Standard up to 10, Flash up to 5. Each clip must "
                     "be 2-30 seconds and combined reference media must not exceed 30 "
-                    f"seconds. | Multi 参考音频 {index}，最多 10 段；单段需为 2-30 秒，"
+                    f"seconds. | Multi 参考音频 {index}，Standard 最多 10 段，Flash 最多 5 段；单段需为 2-30 秒，"
                     "参考音视频总时长不能超过 30 秒。"
                 ),
             })
         optional.update(_optional_widgets())
         optional["draft"] = ("BOOLEAN", {"default": False, "tooltip": "Create a 480p draft; connect task_id within 7 days | 生成480p样片；7天内将task_id连接草稿转成片节点"})
+        optional["omni_reference_task_type"] = (["auto", "reference", "edit", "extend"], {"default": "auto",
+            "tooltip": "Multi only. Edit requires a video, adaptive ratio and automatic duration; auto omits this field."})
 
         return {
             "required": {
                 "model": (SEEDANCE25_MODELS, {
                     "default": SEEDANCE25_T2V_MODELS[0],
                     "tooltip": (
-                        "Seedance 2.5 Standard domestic/global model and task type. | "
-                        "Seedance 2.5 Standard 国内/海外线路及文生、图生或多模态模式。"
+                        "Seedance 2.5 Standard/Flash domestic/global model and task type. | "
+                        "Seedance 2.5 Standard/Flash 国内/海外线路及生成模式。"
                     ),
                 }),
                 "prompt": ("STRING", {
@@ -2266,9 +2275,8 @@ class Seedance25Video(SeedanceVideoNodeBase):
                 "resolution": (SEEDANCE25_RESOLUTIONS, {
                     "default": "480p",
                     "tooltip": (
-                        "Seedance 2.5 Standard output resolution, including the "
-                        "documented native1080p preset. | Seedance 2.5 Standard "
-                        "输出分辨率，包含文档支持的 native1080p。"
+                        "Standard supports all listed tiers including native1080p; Flash supports only 480p/720p. | "
+                        "Standard 支持所列档位及 native1080p；Flash 仅支持 480p/720p。"
                     ),
                 }),
                 "ratio": (RATIOS, {
@@ -2298,6 +2306,14 @@ class Seedance25Video(SeedanceVideoNodeBase):
             return f"unsupported Seedance 2.5 resolution: {resolution}"
         if ratio is not None and ratio not in RATIOS:
             return f"unsupported ratio: {ratio}"
+        if kwargs.get("omni_reference_task_type", "auto") not in ("auto", "reference", "edit", "extend"):
+            return "Unsupported omni_reference_task_type"
+        if model in seedance25_flash.MODELS:
+            try:
+                seedance25_flash.validate({**kwargs, "model": model,
+                    "resolution": resolution or "480p", "ratio": ratio or "adaptive"}, strict=strict and not kwargs.get("_uploaded_media", False))
+            except SeedanceAPIError as error:
+                return str(error)
         prompt_text = str(prompt or "")
         if len(prompt_text) > PROMPT_MAX_LENGTH:
             return f"prompt exceeds {PROMPT_MAX_LENGTH} characters ({len(prompt_text)})"
@@ -2336,6 +2352,17 @@ class Seedance25Video(SeedanceVideoNodeBase):
         model = kwargs.get("model")
         if model not in SEEDANCE25_MODELS:
             raise SeedanceAPIError(f"unsupported Seedance 2.5 model: {model}")
+        if model in seedance25_flash.MODELS:
+            encoded = seedance25_flash.encode_media(kwargs)
+            images, content = [], []
+            for done, (family, index, data, extension, mime) in enumerate(encoded, 1):
+                url = upload_media(data, f"seedance25_flash_{family}{index}.{extension}", mime, config, logger_prefix=self._log_prefix)
+                if family == "image":
+                    images.append(url)
+                content.append({"type": family + "_url", family + "_url": {"url": url}})
+                progress_cb(done / len(encoded))
+            progress_cb(1.0)
+            return {"images": images} if model.endswith("-i2v") else {"content": content}
         if model in SEEDANCE25_T2V_MODELS:
             progress_cb(1.0)
             return {}
@@ -2435,6 +2462,9 @@ class Seedance25Video(SeedanceVideoNodeBase):
             seconds=kwargs.get("seconds"),
             resolution=kwargs.get("resolution"),
             ratio=kwargs.get("ratio"),
+            draft=draft,
+            omni_reference_task_type=kwargs.get("omni_reference_task_type", "auto"),
+            _uploaded_media=True,
             strict=True,
         )
         if validation is not True:
@@ -2469,6 +2499,8 @@ class Seedance25Video(SeedanceVideoNodeBase):
                     "image1 is required for Seedance 2.5 I2V | "
                     "Seedance 2.5 图生视频必须连接 image1 首帧"
                 )
+            if model in seedance25_flash.MODELS and len(images) > 2:
+                raise SeedanceAPIError("Flash I2V accepts at most two frames")
             payload["images"] = images[:2]
             if prompt:
                 payload["prompt"] = prompt
@@ -2482,6 +2514,19 @@ class Seedance25Video(SeedanceVideoNodeBase):
             )
         payload["prompt"] = prompt
         metadata["content"] = content
+        if model in seedance25_flash.MODELS:
+            for family, limit in seedance25_flash.LIMITS.items():
+                if sum(item.get("type") == family + "_url" for item in content) > limit:
+                    raise SeedanceAPIError(f"Flash Multi accepts at most {limit} {family} inputs")
+        task_type = kwargs.get("omni_reference_task_type", "auto")
+        if task_type != "auto":
+            if task_type in ("edit", "extend") and not any(item.get("type") == "video_url" for item in content):
+                raise SeedanceAPIError("Video edit/extend requires a reference video")
+            if task_type in ("edit", "extend") and metadata["ratio"] != "adaptive":
+                raise SeedanceAPIError("Video edit/extend requires ratio=adaptive")
+            if task_type == "edit" and seconds != "-1":
+                raise SeedanceAPIError("Video edit requires automatic duration (-1)")
+            metadata["omni_reference_task_type"] = task_type
         return payload
 
 
@@ -9996,6 +10041,82 @@ class QwenImage21Turbo(_H3TurboContract, SeedanceImageNodeBase):
     RETURN_NAMES = ("image", "image_url", "task_id", "response")
 
 
+class _H3ComfyVideo(SeedanceVideoNodeBase):
+    @classmethod
+    def INPUT_TYPES(cls):
+        spec = h3_comfy.PROFILES[cls.KIND]
+        required = {
+            "prompt": ("STRING", {"default": "", "multiline": True,
+                "tooltip": "Use <Picture n> for images. WF/SelfLift also support <Audio n>; Wuxi/CharSwap use audio descriptions."}),
+            "seconds": ([str(i) for i in range(spec["min_seconds"], 16)], {"default": "5"}),
+            "resolution": (spec["resolutions"], {"default": spec["default"]}),
+            "ratio": (h3_comfy.ratios(cls.KIND, "768p" if cls.KIND == "charswap" else spec["default"]),
+                      {"default": "auto" if cls.KIND == "charswap" else "16:9"}),
+        }
+        if cls.KIND == "charswap":
+            required.update(duration_mode=(["seconds", "frames"], {"default": "seconds"}),
+                            frames=(h3_comfy.FRAMES, {"default": 124}))
+        if spec["seed"]:
+            required["seed"] = ("INT", {"default": -1, "min": -1, "max": 2147483647})
+        optional = {f"image{i}": ("IMAGE",) for i in range(1, spec["images"] + 1)}
+        optional.update({f"audio{i}": ("AUDIO",) for i in range(1, spec["audios"] + 1)})
+        optional.update({f"video{i}": ("VIDEO",) for i in range(1, spec["videos"] + 1)})
+        if spec["videos"]:
+            optional["video_urls"] = ("STRING", {"default": "", "multiline": True,
+                "tooltip": "Public MP4 URLs, one per line. Local videos are submitted first; combined count uses the model limit."})
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            return h3_comfy.validate(cls.KIND, kwargs, strict)
+        except (SeedanceAPIError, ValueError) as error:
+            return str(error)
+
+    @property
+    def _log_prefix(self):
+        return h3_comfy.PROFILES[self.KIND]["model"]
+
+    def build_payload(self, kwargs, media):
+        return h3_comfy.payload(self.KIND, kwargs, media["images"], media["audios"], media["videos"])
+
+    def _execute_inner(self, **kwargs):
+        encoded = h3_comfy.encode_media(self.KIND, kwargs)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        media = {"images": [], "audios": [], "videos": []}
+        for index, (name, data, mime) in enumerate(encoded):
+            extension, family = {"image/png": ("png", "images"), "audio/wav": ("wav", "audios"), "video/mp4": ("mp4", "videos")}[mime]
+            media[family].append(upload_media(data, name + "." + extension, mime, config, logger_prefix=self._log_prefix))
+            self._update_progress(pbar, 15 * (index + 1) / len(encoded))
+        media["videos"].extend(h3_comfy.video_urls(kwargs.get("video_urls", "")))
+        task = submit_legacy_video_task(self.build_payload(kwargs, media), config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(task, config, logger_prefix=self._log_prefix,
+                                      on_progress=lambda value: self._update_progress(pbar, 20 + value * .75))
+        url = extract_legacy_video_url(final)
+        video = download_video(url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, url, task, final)
+
+
+class MinimaxH3ComfyUICharSwap(_H3ComfyVideo):
+    KIND = "charswap"
+
+
+class MinimaxH3ComfyUIWuxi(_H3ComfyVideo):
+    KIND = "wuxi"
+
+
+class MinimaxH3ComfyUIWF(_H3ComfyVideo):
+    KIND = "wf"
+
+
+class MinimaxH3ComfyUISelfLift(_H3ComfyVideo):
+    KIND = "selflift"
+
+
 class QwenImageGlobal21(SeedanceImageNodeBase):
     """One-image Qwen 2.1 generation or editing with up to ten references."""
 
@@ -12739,6 +12860,66 @@ class DoubaoVoiceCloneICL:
         response = json.dumps(final, ensure_ascii=False, indent=2)
         return {"ui": {"text": [audio_url, audio_path, speaker, response]},
                 "result": (audio, audio_url, audio_path, speaker, task_id, response)}
+
+
+class DoubaoSeedTTS20:
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "speaker", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "speaker": ("STRING", {"default": doubao_tts.VIVI, "tooltip": "Use Voice Library or enter an available custom voice ID."}),
+            "context_texts": ("STRING", {"default": "", "multiline": True}),
+            "explicit_language": (doubao_tts.LANGUAGES, {"default": "api_default"}),
+            "speech_rate": ("FLOAT", {"default": 0, "min": -50, "max": 100, "step": 1}),
+            "loudness_rate": ("FLOAT", {"default": 0, "min": -50, "max": 100, "step": 1}),
+            "pitch": ("FLOAT", {"default": 0, "min": -12, "max": 12, "step": 1}),
+            "output_format": (doubao_tts.FORMATS, {"default": "mp3"}),
+            "sample_rate": (doubao_tts.SAMPLE_RATES, {"default": "24000"}),
+            "advanced_mode": ("BOOLEAN", {"default": False}),
+            "voice_model": (doubao_tts.VOICE_MODELS, {"default": "api_default"}),
+            "explicit_dialect": (["api_default", "dongbei", "shaanxi", "sichuan"], {"default": "api_default"}),
+            "bit_rate": ("INT", {"default": 0, "min": 0, "max": 160000, "step": 1000}),
+            "silence_duration": ("INT", {"default": 0, "min": 0, "max": 30000}),
+            "max_length_to_filter_parenthesis": (["api_default", "0", "100"], {"default": "api_default"}),
+            "latex_parser": (["api_default", "v2"], {"default": "api_default"}),
+            "ssml": ("STRING", {"default": "", "multiline": True, "tooltip": "Custom voices only; 2.0 library voices use context_texts instead."}),
+            **{name: (doubao_tts.OPTIONAL_BOOLEAN, {"default": "api_default"}) for name in doubao_tts.BOOLEANS},
+            **{name: ("STRING", {"default": ""}) for name in doubao_tts.STRINGS},
+        }, "optional": {"api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            return doubao_tts.validate(kwargs, strict)
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def execute(self, skip_error=False, **kwargs):
+        try:
+            body = doubao_tts.payload(kwargs)
+            config = get_config(kwargs.get("api_config"))
+            pbar = _make_progress_bar(100)
+            update = lambda value: pbar.update_absolute(int(value), 100) if pbar is not None else None
+            task = submit_audio_task(body, config, logger_prefix="Doubao_Seed_TTS_2_0")
+            update(20)
+            final = poll_audio_task(task, config, logger_prefix="Doubao_Seed_TTS_2_0", on_progress=lambda value: update(20 + value * .75))
+            url = extract_audio_url(final)
+            audio, audio_path = download_audio(url, output_format=kwargs.get("output_format", "mp3"),
+                                              sample_rate=int(kwargs.get("sample_rate", "24000")), logger_prefix="Doubao_Seed_TTS_2_0")
+            update(100)
+            response = json.dumps(final, ensure_ascii=False, indent=2)
+            return {"ui": {"text": [url, audio_path, response]}, "result": (audio, url, audio_path, body["metadata"]["speaker"], task, response)}
+        except Exception as error:
+            if not skip_error:
+                raise
+            response = json.dumps({"error": str(error)}, ensure_ascii=False)
+            return {"ui": {"text": [response]}, "result": (make_silent_audio(24000, 1.0), "", "", "", "", response)}
 
 
 class DoubaoSeedAudio:
@@ -16604,6 +16785,11 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Doubao_Seed_TTS_2_0": DoubaoSeedTTS20,
+    "Minimax_H3_ComfyUI_CharSwap": MinimaxH3ComfyUICharSwap,
+    "Minimax_H3_ComfyUI_Wuxi": MinimaxH3ComfyUIWuxi,
+    "Minimax_H3_ComfyUI_Max_10020": MinimaxH3ComfyUIWF,
+    "Minimax_H3_ComfyUI_Max_10021": MinimaxH3ComfyUISelfLift,
     "Seedance_LLM_API": SeedanceLLMAPI,
     "Minimax_H3_ComfyUI_Max": MinimaxH3ComfyUIMax,
     "Minimax_H3_Image": MinimaxH3Image,
@@ -16777,6 +16963,11 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Doubao_Seed_TTS_2_0": "Doubao Seed TTS 2.0 语音合成 / 音色库",
+    "Minimax_H3_ComfyUI_CharSwap": "MiniMax H3 ComfyUI 人物替换",
+    "Minimax_H3_ComfyUI_Wuxi": "MiniMax H3 ComfyUI 武戏",
+    "Minimax_H3_ComfyUI_Max_10020": "MiniMax H3 ComfyUI WF 动态漫（10020）",
+    "Minimax_H3_ComfyUI_Max_10021": "MiniMax H3 ComfyUI JY 自举（10021）",
     "Seedance_LLM_API": "Seedance LLM API 文本/图像对话",
     "Minimax_H3_ComfyUI_Max": "MiniMax H3 ComfyUI Max 视频生成",
     "Minimax_H3_Image": "MiniMax H3 Image 文生图/图像编辑",
@@ -16802,7 +16993,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Seedance_TextToVideo": "Seedance 文生视频 (Text to Video)",
     "Seedance_ImageToVideo": "Seedance 图生视频 (Image to Video)",
     "Seedance_MultimodalVideo": "Seedance 多模态视频 (Multimodal Video)",
-    "Seedance_2_5_Video": "Seedance 2.5 Standard 视频生成（6 合 1）",
+    "Seedance_2_5_Video": "Seedance 2.5 Standard / Flash 视频生成（12 合 1）",
     "Seedream_V5_Pro_Image": "Seedream / Dola Seedream V5 Pro/Flash 图像生成/编辑（8 合 1）",
     "Seedream_V5_Pro_Layer_Decomposition": "Seedream / Dola Seedream V5 Pro/Flash 图层拆分（4 合 1）",
     "Zhenzhen_Image_G2": "Zhenzhen Image G 图像生成/编辑",

@@ -4,6 +4,23 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.6 - 2026-11-17
+
+- Existing `Seedance_2_5_Video` now includes six domestic/global Flash T2V, I2V and Multi models, preserving Standard defaults and workflow ports. Flash supports 4-30 seconds or automatic duration and 480p/720p. I2V accepts first/optional last frames with adaptive ratio. Multi accepts ten images, five videos and five audios: each audio/video is 2-30 seconds and their combined duration is at most 30 seconds. Reference/edit/extend are supported; Flash has no draft mode.
+- Added four independent H3 ComfyUI video nodes and their concurrent-submit wrappers, using `/v1/video/generations`, reliable downloads, `skip_error`, standard seed controls and the existing ten-slot video collector.
+- Added `zhenzhen-fb-5.2` and `zhenzhen/g6.1-sol` to the channel-specific LLM node, bringing its documented chat list to 21 models, and an independent `Doubao_Seed_TTS_2_0`, leaving voice cloning/ICL unchanged. `Voice Library` searches 473 published voices by name/ID and filters gender, language and use. Selection writes the actual speaker ID; custom IDs remain editable. Instructions, rate, loudness, pitch and advanced controls are supported, with native AUDIO and Save Audio output.
+- Added 21 credential-free workflows in [examples](examples): eight Flash, nine H3, two Fable and two TTS. Their filenames begin with the corresponding model IDs. Restart ComfyUI and hard-refresh the browser.
+- Passed 823 offline regressions, 62 bundled-Python focused tests, fourteen frontend suites and 31 runtime syntax checks. Actual canvas coverage includes all 21 new examples and eight legacy Standard examples, sixteen serial/concurrent reference profiles with 180 continuous connections, and voice search/filter/reload plus desktop/mobile layout. Audits confirmed 102 other legacy class implementations unchanged and 370 credential-free workflows with intact links.
+
+| Independent H3 Node | Contract |
+| --- | --- |
+| `Minimax_H3_ComfyUI_CharSwap` | 1-9 images and exactly one MP4, retaining source audio. 5-15 seconds OR frames 22-362 in steps of 17. Resolution 480p/768p/1088p/auto, with resolution-specific ratios. |
+| `Minimax_H3_ComfyUI_Wuxi` | Nine images, three audios, three MP4s; video references require an image. 5-15 seconds, seven resolution tiers from 480p to 2160p, six ratios, native seed. Describe audio in words. |
+| `Minimax_H3_ComfyUI_Max_10020` | Six images, three audios, no videos. 3-15 seconds; 480p/608p/672p/768p; portrait/landscape; Picture/Audio tags. Cache-only seed. |
+| `Minimax_H3_ComfyUI_Max_10021` | Nine images, three audios, no videos; audio requires an image. Same duration/resolution/ratio/tag controls as 10020; cache-only seed. |
+
+Actual tests: all three domestic Flash modes, global Flash Multi, Wuxi, 10020 and 10021 completed generation, download and video decoding. Fable returned text; TTS downloaded and decoded valid 24 kHz audio. Global Flash T2V/I2V failed terminal output-audio copyright review; CharSwap submission returned HTTP 503 without an ID and was not replayed. These three paths are not verified successful. Higher resolutions, reference-count boundaries and the entire voice catalog were checked offline, not individually invoked.
+
 ## v0.28.5 - 2026-11-16
 
 - Tripo multiview generation now shows all four fixed front/left/back/right sockets immediately when `input_mode=views` is selected, rather than initially showing two. Existing 2-4 references, upstream task-ID reuse, socket order and connections remain compatible. Other nodes retain their existing progressive expansion.
@@ -314,7 +331,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Seedance_TextToVideo` | Seedance text-to-video |
 | `Seedance_ImageToVideo` | Seedance first-frame and optional last-frame video |
 | `Seedance_MultimodalVideo` | Seedance image/video/audio reference generation |
-| `Seedance_2_5_Video` | Six Seedance 2.5 domestic/global T2V, I2V, and Multi models |
+| `Seedance_2_5_Video` | Twelve Seedance 2.5 Standard/Flash domestic/global T2V, I2V, and Multi models |
 | `Wan_3_0_Video` | Eight Wan 3.0 standard/Prime domestic/global I2V and R2V models |
 | `Wan_2_7_Spicy_I2V` | Wan 2.7 Spicy image-to-video |
 | `HappyHorse_1_1_Video` | HappyHorse T2V, I2V, and reference video |

@@ -199,7 +199,7 @@ class DraftTests(unittest.TestCase):
     def test_existing_seedance25_widget_prefix_and_draft_default(self):
         schema = nodes.Seedance25Video.INPUT_TYPES()
         self.assertFalse(schema["optional"]["draft"][1]["default"])
-        self.assertEqual(list(schema["optional"])[-5:], ["generate_audio", "seed", "api_config", "skip_error", "draft"])
+        self.assertEqual(list(schema["optional"])[-6:], ["generate_audio", "seed", "api_config", "skip_error", "draft", "omni_reference_task_type"])
         self.assertEqual(nodes.Seedance25Video.RETURN_NAMES, ("video", "video_url", "task_id", "response"))
         base = {"model": nodes.SEEDANCE25_T2V_MODELS[0], "prompt": "A blue ball rolls slowly", "seconds": "4", "resolution": "native1080p", "ratio": "16:9"}
         normal = nodes.Seedance25Video().build_payload(base, {})
@@ -210,7 +210,7 @@ class DraftTests(unittest.TestCase):
         self.assertEqual(draft["metadata"]["resolution"], "480p")
 
     def test_all_six_draft_source_models_keep_original_media_contract(self):
-        for model in nodes.SEEDANCE25_MODELS:
+        for model in nodes.SEEDANCE25_MODELS[:6]:
             base = {"model": model, "prompt": "A blue ball rolls slowly", "seconds": "4", "resolution": "4k", "ratio": "16:9", "draft": True}
             media = {"images": [URL]} if model.endswith("i2v") else {"content": [{"type": "image_url", "image_url": {"url": URL}}]} if model.endswith("multi") else {}
             result = nodes.Seedance25Video().build_payload(base, media)

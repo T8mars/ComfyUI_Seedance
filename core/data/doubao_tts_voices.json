@@ -1,0 +1,6299 @@
+{
+  "official_source": "https://docs.volcengine.com/docs/doubao-voice/tone-list-3?lang=zh",
+  "published_catalog": "https://api.seedance.nz/static/js/async/42695.dd0817052a.js",
+  "source_sha256": "c9c752769e006a2ef7c0830421e3e28785bf87aea3be6605bdbacc5f43ebc479",
+  "voices": [
+    {
+      "id": "zh_female_tuanzi_uranus_bigtts",
+      "name": "\u56e2\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions"
+      ]
+    },
+    {
+      "id": "zh_female_vv_uranus_bigtts",
+      "name": "Vivi",
+      "lang": [
+        "zh",
+        "ja",
+        "id",
+        "es-MX"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual",
+        "dialects"
+      ]
+    },
+    {
+      "id": "zh_female_xiaohe_uranus_bigtts",
+      "name": "\u5c0f\u4f55",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual",
+        "dialects"
+      ]
+    },
+    {
+      "id": "zh_male_m191_uranus_bigtts",
+      "name": "\u4e91\u821f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual",
+        "dialects"
+      ]
+    },
+    {
+      "id": "zh_male_taocheng_uranus_bigtts",
+      "name": "\u5c0f\u5929",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual",
+        "dialects"
+      ]
+    },
+    {
+      "id": "zh_male_liufei_uranus_bigtts",
+      "name": "\u5218\u98de",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_sophie_uranus_bigtts",
+      "name": "\u9b45\u529b\u82cf\u83f2",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_qingxinnvsheng_uranus_bigtts",
+      "name": "\u6e05\u65b0\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_cancan_uranus_bigtts",
+      "name": "\u77e5\u6027\u707f\u707f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_sajiaoxuemei_uranus_bigtts",
+      "name": "\u6492\u5a07\u5b66\u59b9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_tianmeixiaoyuan_uranus_bigtts",
+      "name": "\u751c\u7f8e\u5c0f\u6e90",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_tianmeitaozi_uranus_bigtts",
+      "name": "\u751c\u7f8e\u6843\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_shuangkuaisisi_uranus_bigtts",
+      "name": "\u723d\u5feb\u601d\u601d",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_peiqi_uranus_bigtts",
+      "name": "\u4f69\u5947\u732a",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_linjianvhai_uranus_bigtts",
+      "name": "\u90bb\u5bb6\u5973\u5b69",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_shaonianzixin_uranus_bigtts",
+      "name": "\u5c11\u5e74\u6893\u8f9b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_sunwukong_uranus_bigtts",
+      "name": "\u7334\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_yingyujiaoxue_uranus_bigtts",
+      "name": "Tina\u8001\u5e08",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "education"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_kefunvsheng_uranus_bigtts",
+      "name": "\u6696\u9633\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_xiaoxue_uranus_bigtts",
+      "name": "\u513f\u7ae5\u7ed8\u672c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_dayi_uranus_bigtts",
+      "name": "\u5927\u58f9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_mizai_uranus_bigtts",
+      "name": "\u9ed1\u732b\u4fa6\u63a2\u793e\u54aa\u4ed4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_jitangnv_uranus_bigtts",
+      "name": "\u9e21\u6c64\u5973",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_meilinvyou_uranus_bigtts",
+      "name": "\u9b45\u529b\u5973\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_liuchangnv_uranus_bigtts",
+      "name": "\u6d41\u7545\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_ruyayichen_uranus_bigtts",
+      "name": "\u5112\u96c5\u9038\u8fb0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "en_male_tim_uranus_bigtts",
+      "name": "Tim",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "cap": [
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_dacey_uranus_bigtts",
+      "name": "Dacey",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "cap": [
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_stokie_uranus_bigtts",
+      "name": "Stokie",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "cap": [
+        "instructions"
+      ]
+    },
+    {
+      "id": "zh_female_wenroumama_uranus_bigtts",
+      "name": "\u6e29\u67d4\u5988\u5988",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_jieshuoxiaoming_uranus_bigtts",
+      "name": "\u89e3\u8bf4\u5c0f\u660e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_tvbnv_uranus_bigtts",
+      "name": "TVB\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_yizhipiannan_uranus_bigtts",
+      "name": "\u8bd1\u5236\u7247\u7537",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_qiaopinv_uranus_bigtts",
+      "name": "\u4fcf\u76ae\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_zhishuaiyingzi_uranus_bigtts",
+      "name": "\u76f4\u7387\u82f1\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_linjiananhai_uranus_bigtts",
+      "name": "\u90bb\u5bb6\u7537\u5b69",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_silang_uranus_bigtts",
+      "name": "\u56db\u90ce",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_ruyaqingnian_uranus_bigtts",
+      "name": "\u5112\u96c5\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "fanqie",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_qingcang_uranus_bigtts",
+      "name": "\u64ce\u82cd",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "fanqie",
+        "doubao",
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_xionger_uranus_bigtts",
+      "name": "\u718a\u4e8c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_yingtaowanzi_uranus_bigtts",
+      "name": "\u6a31\u6843\u4e38\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_wennuanahu_uranus_bigtts",
+      "name": "\u6e29\u6696\u963f\u864e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_naiqimengwa_uranus_bigtts",
+      "name": "\u5976\u6c14\u840c\u5a03",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "capcut",
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_female_popo_uranus_bigtts",
+      "name": "\u5a46\u5a46",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_gaolengyujie_uranus_bigtts",
+      "name": "\u9ad8\u51b7\u5fa1\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_aojiaobazong_uranus_bigtts",
+      "name": "\u50b2\u5a07\u9738\u603b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_lanyinmianbao_uranus_bigtts",
+      "name": "\u61d2\u97f3\u7ef5\u5b9d",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_fanjuanqingnian_uranus_bigtts",
+      "name": "\u53cd\u5377\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_wenroushunv_uranus_bigtts",
+      "name": "\u6e29\u67d4\u6dd1\u5973",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "fanqie",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_gufengshaoyu_uranus_bigtts",
+      "name": "\u53e4\u98ce\u5c11\u5fa1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_huolixiaoge_uranus_bigtts",
+      "name": "\u6d3b\u529b\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_baqiqingshu_uranus_bigtts",
+      "name": "\u9738\u6c14\u9752\u53d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "fanqie",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_xuanyijieshuo_uranus_bigtts",
+      "name": "\u60ac\u7591\u89e3\u8bf4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_mengyatou_uranus_bigtts",
+      "name": "\u840c\u4e2b\u5934",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_tiexinnvsheng_uranus_bigtts",
+      "name": "\u8d34\u5fc3\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_jitangmei_uranus_bigtts",
+      "name": "\u9e21\u6c64\u59b9\u59b9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_cixingjieshuonan_uranus_bigtts",
+      "name": "\u78c1\u6027\u89e3\u8bf4\u7537\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_liangsangmengzai_uranus_bigtts",
+      "name": "\u4eae\u55d3\u840c\u4ed4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_kailangjiejie_uranus_bigtts",
+      "name": "\u5f00\u6717\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_gaolengchenwen_uranus_bigtts",
+      "name": "\u9ad8\u51b7\u6c89\u7a33",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "zh_male_shenyeboke_uranus_bigtts",
+      "name": "\u6df1\u591c\u64ad\u5ba2",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_lubanqihao_uranus_bigtts",
+      "name": "\u9c81\u73ed\u4e03\u53f7",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_jiaochuannv_uranus_bigtts",
+      "name": "\u5a07\u5598\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_linxiao_uranus_bigtts",
+      "name": "\u6797\u6f47",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_lingling_uranus_bigtts",
+      "name": "\u73b2\u73b2\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_chunribu_uranus_bigtts",
+      "name": "\u6625\u65e5\u90e8\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_tangseng_uranus_bigtts",
+      "name": "\u5510\u50e7",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_zhuangzhou_uranus_bigtts",
+      "name": "\u5e84\u5468",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_kailangdidi_uranus_bigtts",
+      "name": "\u5f00\u6717\u5f1f\u5f1f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_zhubajie_uranus_bigtts",
+      "name": "\u732a\u516b\u6212",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_ganmaodianyin_uranus_bigtts",
+      "name": "\u611f\u5192\u7535\u97f3\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_chanmeinv_uranus_bigtts",
+      "name": "\u8c04\u5a9a\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_nvleishen_uranus_bigtts",
+      "name": "\u5973\u96f7\u795e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "capcut",
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_female_qinqienv_uranus_bigtts",
+      "name": "\u4eb2\u5207\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_kuailexiaodong_uranus_bigtts",
+      "name": "\u5feb\u4e50\u5c0f\u4e1c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_kailangxuezhang_uranus_bigtts",
+      "name": "\u5f00\u6717\u5b66\u957f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_youyoujunzi_uranus_bigtts",
+      "name": "\u60a0\u60a0\u541b\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_female_wenjingmaomao_uranus_bigtts",
+      "name": "\u6587\u9759\u6bdb\u6bdb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_female_zhixingnv_uranus_bigtts",
+      "name": "\u77e5\u6027\u5973\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_qingshuangnanda_uranus_bigtts",
+      "name": "\u6e05\u723d\u7537\u5927",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "zh_male_yuanboxiaoshu_uranus_bigtts",
+      "name": "\u6e0a\u535a\u5c0f\u53d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_yangguangqingnian_uranus_bigtts",
+      "name": "\u9633\u5149\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_qingchezizi_uranus_bigtts",
+      "name": "\u6e05\u6f88\u6893\u6893",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_tianmeiyueyue_uranus_bigtts",
+      "name": "\u751c\u7f8e\u60a6\u60a6",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_xinlingjitang_uranus_bigtts",
+      "name": "\u5fc3\u7075\u9e21\u6c64",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_wenrouxiaoge_uranus_bigtts",
+      "name": "\u6e29\u67d4\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_roumeinvyou_uranus_bigtts",
+      "name": "\u67d4\u7f8e\u5973\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_dongfanghaoran_uranus_bigtts",
+      "name": "\u4e1c\u65b9\u6d69\u7136",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_wenrouxiaoya_uranus_bigtts",
+      "name": "\u6e29\u67d4\u5c0f\u96c5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_male_tiancaitongsheng_uranus_bigtts",
+      "name": "\u5929\u624d\u7ae5\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "zh_female_wuzetian_uranus_bigtts",
+      "name": "\u6b66\u5219\u5929",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_gujie_uranus_bigtts",
+      "name": "\u987e\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "douyin",
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_male_guanggaojieshuo_uranus_bigtts",
+      "name": "\u5e7f\u544a\u89e3\u8bf4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ],
+      "app": [
+        "capcut"
+      ]
+    },
+    {
+      "id": "zh_female_shaoergushi_uranus_bigtts",
+      "name": "\u5c11\u513f\u6545\u4e8b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "instructions",
+        "multilingual"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_female_charlie_tob",
+      "name": "Charlie",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_ethan_tob",
+      "name": "Ethan",
+      "lang": [
+        "en-AU"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_alastor_tob",
+      "name": "Alastor",
+      "lang": [
+        "en-GB"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_chucky_tob",
+      "name": "Chucky",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_noah_tob",
+      "name": "Noah",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_jigsaw_tob",
+      "name": "Jigsaw",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_clown_man_tob",
+      "name": "Clown Man",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_cartoon_chef_tob",
+      "name": "Cartoon Chef",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_frosty_man_tob",
+      "name": "Frosty Man",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_male_the_grinch_tob",
+      "name": "The Grinch",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_male_kevin_mccallister_tob",
+      "name": "Kevin McCallister",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_male_michael_tob",
+      "name": "Michael",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_male_big_boogie_tob",
+      "name": "Big Boogie",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_en_male_xavier_tob",
+      "name": "Xavier",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_en_male_zayne_tob",
+      "name": "Zayne",
+      "lang": [
+        "en-US"
+      ],
+      "scene": []
+    },
+    {
+      "id": "ICL_uranus_zh_female_kefuwanjun_tob",
+      "name": "\u5ba2\u670d\u5a49\u541b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_yingxiaokefu_v2_tob",
+      "name": "\u8425\u9500\u5c0f\u6960",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhuanyefuwu_xiaodai_tob",
+      "name": "\u5ba2\u670d\u963f\u8bda",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_cuishouxieshang_tob",
+      "name": "\u6c89\u7a33\u60a0\u60a0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_cuishoutixing_dongbei_tob",
+      "name": "\u5916\u547c\u963f\u660e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_kefuhuoliyingxiao_v1_tob",
+      "name": "\u6d3b\u529b\u5c0f\u6ee1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_kefuyanlicuishou_v1_tob",
+      "name": "\u51cc\u5389\u971c\u971c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_guwenzhuanhua_4vo_v1_tob",
+      "name": "\u5ba2\u670d\u4e66\u6db5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_aojiaonvyou_tob",
+      "name": "\u50b2\u5a07\u5973\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_aomanjiaosheng_tob",
+      "name": "\u50b2\u6162\u5a07\u58f0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_xiemeinvwang_tob",
+      "name": "\u90aa\u9b45\u5973\u738b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_bingjiaojiejie_tob",
+      "name": "\u75c5\u5a07\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_bingjiaomengmei_tob",
+      "name": "\u75c5\u5a07\u840c\u59b9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_bingruoshaonv_tob",
+      "name": "\u75c5\u5f31\u5c11\u5973",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_chengshuwenrou_tob",
+      "name": "\u6210\u719f\u6e29\u67d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_chengshujiejie_tob",
+      "name": "\u6210\u719f\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_chunzhenshaonv_tob",
+      "name": "\u7eaf\u771f\u5c11\u5973",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_chunchenvsheng_tob",
+      "name": "\u7eaf\u6f88\u5973\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wumeikeren_tob",
+      "name": "\u59a9\u5a9a\u53ef\u4eba",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_guaiqiaokeer_tob",
+      "name": "\u4e56\u5de7\u53ef\u513f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_heainainai_tob",
+      "name": "\u548c\u853c\u5976\u5976",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_huopodiaoman_tob",
+      "name": "\u6d3b\u6cfc\u5201\u86ee",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_huoponvhai_tob",
+      "name": "\u6d3b\u6cfc\u5973\u5b69",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_jiaohannvwang_tob",
+      "name": "\u5a07\u61a8\u5973\u738b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_jiaoruoluoli_tob",
+      "name": "\u5a07\u5f31\u841d\u8389",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_jiaxiaozi_tob",
+      "name": "\u5047\u5c0f\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_jinglingxiangdao_tob",
+      "name": "\u7cbe\u7075\u5411\u5bfc",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_kailangtingting_tob",
+      "name": "\u5f00\u6717\u5a77\u5a77",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_kefunvshengwenhecuishou_tob",
+      "name": "\u5916\u547c\u51cc\u51cc",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_kaixinxiaohong_tob",
+      "name": "\u5f00\u5fc3\u5c0f\u9e3f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_keainvsheng_tob",
+      "name": "\u53ef\u7231\u5973\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_lingdongxinxin_tob",
+      "name": "\u7075\u52a8\u6b23\u6b23",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_linjuayi_tob",
+      "name": "\u90bb\u5c45\u963f\u59e8",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tianmeijiaoqiao_tob",
+      "name": "\u751c\u7f8e\u5a07\u4fcf",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qinglenggaoya_tob",
+      "name": "\u6e05\u51b7\u9ad8\u96c5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_lixingyuanzi_tob",
+      "name": "\u7406\u6027\u5706\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_xingganmeihuo_tob",
+      "name": "\u6027\u611f\u9b45\u60d1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_nuanxinqianqian_tob",
+      "name": "\u6696\u5fc3\u831c\u831c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_nuanxinxuejie_tob",
+      "name": "\u6696\u5fc3\u5b66\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qingtianmeimei_tob",
+      "name": "\u6e05\u751c\u8393\u8393",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qingtiantaotao_tob",
+      "name": "\u6e05\u751c\u6843\u6843",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qingxixiaoxue_tob",
+      "name": "\u6e05\u6670\u5c0f\u96ea",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qingxinshaonv_tob",
+      "name": "\u503e\u5fc3\u5c11\u5973",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_rouguhunshi_tob",
+      "name": "\u67d4\u9aa8\u9b42\u5e08",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_ruanmengtangtang_tob",
+      "name": "\u8f6f\u840c\u7cd6\u7cd6",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_ruanmengtuanzi_tob",
+      "name": "\u8f6f\u840c\u56e2\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tianmeihuopo_tob",
+      "name": "\u751c\u7f8e\u6d3b\u6cfc",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tianmeixiaoju_tob",
+      "name": "\u751c\u7f8e\u5c0f\u6a58",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tianmeixiaoyu_tob",
+      "name": "\u751c\u7f8e\u5c0f\u96e8",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tiaopigongzhu_tob",
+      "name": "\u8c03\u76ae\u516c\u4e3b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tiexinnvyou_tob",
+      "name": "\u8d34\u5fc3\u5973\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wenrounvshen_tob",
+      "name": "\u6e29\u67d4\u5973\u795e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wenrouwenya_tob",
+      "name": "\u6e29\u67d4\u6587\u96c5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_zhixinjiejie_tob",
+      "name": "\u77e5\u5fc3\u59d0\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wumeiyujie_tob",
+      "name": "\u59a9\u5a9a\u5fa1\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_yuanqitianmei_tob",
+      "name": "\u5143\u6c14\u751c\u59b9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_xiemeiyujie_tob",
+      "name": "\u90aa\u9b45\u5fa1\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_xingganyujie_tob",
+      "name": "\u6027\u611f\u5fa1\u59d0",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_xiuliqianqian_tob",
+      "name": "\u79c0\u4e3d\u5029\u5029",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tiexinguimi_tob",
+      "name": "\u8d34\u5fc3\u95fa\u871c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_tiexinmeimei_tob",
+      "name": "\u8d34\u5fc3\u59b9\u59b9",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wenroubaiyueguang_tob",
+      "name": "\u6e29\u67d4\u767d\u6708\u5149",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_chuliannvyou_tob",
+      "name": "\u521d\u604b\u5973\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_zhixingwenwan_tob",
+      "name": "\u77e5\u6027\u6e29\u5a49",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_aoqilingren_tob",
+      "name": "\u50b2\u6c14\u51cc\u4eba",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_anrenqinzhu_tob",
+      "name": "\u9eef\u5203\u79e6\u4e3b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_aojiaogongzi_tob",
+      "name": "\u50b2\u5a07\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_aojiaojingying_tob",
+      "name": "\u50b2\u5a07\u7cbe\u82f1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_aomanqingnian_tob",
+      "name": "\u50b2\u6162\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_aomanshaoye_tob",
+      "name": "\u50b2\u6162\u5c11\u7237",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhenbiandiyu_tob",
+      "name": "\u6795\u8fb9\u4f4e\u8bed",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "douyin"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_badaoshaoye_tob",
+      "name": "\u9738\u9053\u5c11\u7237",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_badaozongcai_tob",
+      "name": "\u9738\u9053\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingjiaobailian_tob",
+      "name": "\u75c5\u5a07\u767d\u83b2",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingjiaodidi_tob",
+      "name": "\u75c5\u5a07\u5f1f\u5f1f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingjiaogege_tob",
+      "name": "\u75c5\u5a07\u54e5\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingjiaonanyou_tob",
+      "name": "\u75c5\u5a07\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingjiaoshaonian_tob",
+      "name": "\u75c5\u5a07\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingruogongzi_tob",
+      "name": "\u75c5\u5f31\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bingruoshaonian_tob",
+      "name": "\u75c5\u5f31\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_bujiqingnian_tob",
+      "name": "\u4e0d\u7f81\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chunhoudiyin_tob",
+      "name": "\u9187\u539a\u4f4e\u97f3",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_paoxiaoxiaoge_tob",
+      "name": "\u5486\u54ee\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "dubbing"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_yangyang_tob",
+      "name": "\u7080\u7080",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chanruoshaoye_tob",
+      "name": "\u5b71\u5f31\u5c11\u7237",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chengshuzongcai_tob",
+      "name": "\u6210\u719f\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chenwenmingzai_tob",
+      "name": "\u6c89\u7a33\u660e\u4ed4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingyisugan_tob",
+      "name": "\u6e05\u9038\u82cf\u611f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chunzhenxuedi_tob",
+      "name": "\u7eaf\u771f\u5b66\u5f1f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_cixingnansang_tob",
+      "name": "\u78c1\u6027\u7537\u55d3",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_cujingnansheng_tob",
+      "name": "\u918b\u7cbe\u7537\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_cujingnanyou_tob",
+      "name": "\u918b\u7cbe\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_diyinchenyu_tob",
+      "name": "\u4f4e\u97f3\u6c89\u90c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_fengfashaonian_tob",
+      "name": "\u98ce\u53d1\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_ruyagongzi_tob",
+      "name": "\u5112\u96c5\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_fuheigongzi_tob",
+      "name": "\u8179\u9ed1\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_ganjingshaonian_tob",
+      "name": "\u5e72\u51c0\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_gaolengzongcai_tob",
+      "name": "\u9ad8\u51b7\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_guaogongzi_tob",
+      "name": "\u5b64\u50b2\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_gugaogongzi_tob",
+      "name": "\u5b64\u9ad8\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_guiyishenmi_tob",
+      "name": "\u8be1\u5f02\u795e\u79d8",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_guzhibingjiao_tob",
+      "name": "\u56fa\u6267\u75c5\u5a07",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_hanhoudunshi_tob",
+      "name": "\u61a8\u539a\u6566\u5b9e",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_huoliqingnian_tob",
+      "name": "\u6d3b\u529b\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_huoponanyou_tob",
+      "name": "\u6d3b\u6cfc\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_huoposhuanglang_tob",
+      "name": "\u6d3b\u6cfc\u723d\u6717",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_huzishushu_tob",
+      "name": "\u80e1\u5b50\u53d4\u53d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_jijiazhineng_tob",
+      "name": "\u673a\u7532\u667a\u80fd",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_jingyingqingnian_tob",
+      "name": "\u7cbe\u82f1\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_junyigongzi_tob",
+      "name": "\u4fca\u9038\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_kailangqingkuai_tob",
+      "name": "\u5f00\u6717\u8f7b\u5feb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_kailangqingnian_tob",
+      "name": "\u5f00\u6717\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lanyincaohunshi_tob",
+      "name": "\u84dd\u94f6\u8349\u9b42\u5e08",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengaozongcai_tob",
+      "name": "\u51b7\u50b2\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengdanshuli_tob",
+      "name": "\u51b7\u6de1\u758f\u79bb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengjungaozhi_tob",
+      "name": "\u51b7\u5cfb\u9ad8\u667a",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengjunshangsi_tob",
+      "name": "\u51b7\u5cfb\u4e0a\u53f8",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengkugege_tob",
+      "name": "\u51b7\u9177\u54e5\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lenglianxiongzhang_tob",
+      "name": "\u51b7\u8138\u5144\u957f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lenglianxueba_tob",
+      "name": "\u51b7\u8138\u5b66\u9738",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengmonanyou_tob",
+      "name": "\u51b7\u6f20\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lengmoxiongzhang_tob",
+      "name": "\u51b7\u6f20\u5144\u957f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lingyunqingnian_tob",
+      "name": "\u51cc\u4e91\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qinglengjingui_tob",
+      "name": "\u6e05\u51b7\u77dc\u8d35",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_lvchaxiaoge_tob",
+      "name": "\u7eff\u8336\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_mengdongqingnian_tob",
+      "name": "\u61f5\u61c2\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_menyoupingxiaoge_tob",
+      "name": "\u95f7\u6cb9\u74f6\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_xiaozhangxiaoge_tob",
+      "name": "\u56a3\u5f20\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_nianrennanyou_tob",
+      "name": "\u7c98\u4eba\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_neiliancaijun_tob",
+      "name": "\u5185\u655b\u624d\u4fca",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_nuanxintitie_tob",
+      "name": "\u6696\u5fc3\u4f53\u8d34",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_pianpiangongzi_tob",
+      "name": "\u7fe9\u7fe9\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_chenwenyouya_tob",
+      "name": "\u6c89\u7a33\u4f18\u96c5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingsexiaosheng_tob",
+      "name": "\u9752\u6da9\u5c0f\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingseqingnian_tob",
+      "name": "\u9752\u6da9\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingshuangshaonian_tob",
+      "name": "\u6e05\u723d\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingxinbobo_tob",
+      "name": "\u6e05\u65b0\u6ce2\u6ce2",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qinqieqingnian_tob",
+      "name": "\u4eb2\u5207\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qinqiexiaozhuo_tob",
+      "name": "\u4eb2\u5207\u5c0f\u5353",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qinglangwenrun_tob",
+      "name": "\u6e05\u6717\u6e29\u6da6",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_rexueshaonian_tob",
+      "name": "\u70ed\u8840\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_ruyacaijun_tob",
+      "name": "\u5112\u96c5\u624d\u4fca",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_ruyajunzi_tob",
+      "name": "\u5112\u96c5\u541b\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_ruyazongcai_tob",
+      "name": "\u5112\u96c5\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_sajiaonansheng_tob",
+      "name": "\u6492\u5a07\u7537\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_sajiaonanyou_tob",
+      "name": "\u6492\u5a07\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_sajiaonianren_tob",
+      "name": "\u6492\u5a07\u7c98\u4eba",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_satuoqingnian_tob",
+      "name": "\u6d12\u8131\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shaonianjiangjun_tob",
+      "name": "\u5c11\u5e74\u5c06\u519b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shenchenzongcai_tob",
+      "name": "\u6df1\u6c89\u603b\u88c1",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_jilingxiaohuo_tob",
+      "name": "\u673a\u7075\u5c0f\u4f19",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shenmifashi_tob",
+      "name": "\u795e\u79d8\u6cd5\u5e08",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shuaizhenxiaohuo_tob",
+      "name": "\u7387\u771f\u5c0f\u4f19",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "general"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shuanglangxiaoyang_tob",
+      "name": "\u723d\u6717\u5c0f\u9633",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_dichenqianquan_tob",
+      "name": "\u4f4e\u6c89\u7f31\u7efb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_siwenqingnian_tob",
+      "name": "\u65af\u6587\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_tianxinanyou_tob",
+      "name": "\u751c\u7cfb\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_tiexinnanyou_tob",
+      "name": "\u8d34\u5fc3\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenrounantongzhuo_tob",
+      "name": "\u6e29\u67d4\u7537\u540c\u684c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenrounanyou_tob",
+      "name": "\u6e29\u67d4\u7537\u53cb",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenrouxuezhang_tob",
+      "name": "\u6e29\u67d4\u5b66\u957f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenrunxuezhe_tob",
+      "name": "\u6e29\u6da6\u5b66\u8005",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenshunshaonian_tob",
+      "name": "\u6e29\u987a\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_guayanxiaoge_tob",
+      "name": "\u5be1\u8a00\u5c0f\u54e5",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_xiaohouye_tob",
+      "name": "\u5c0f\u4faf\u7237",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_naiqixiaosheng_tob",
+      "name": "\u5976\u6c14\u5c0f\u751f",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_xiaosasuixing_tob",
+      "name": "\u6f47\u6d12\u968f\u6027",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wenrouneilian_tob",
+      "name": "\u6e29\u67d4\u5185\u655b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_xuebanantongzhuo_tob",
+      "name": "\u5b66\u9738\u7537\u540c\u684c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_xuebatongzhuo_tob",
+      "name": "\u5b66\u9738\u540c\u684c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_yangguangyangyang_tob",
+      "name": "\u9633\u5149\u6d0b\u6d0b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_wennuanshaonian_tob",
+      "name": "\u6e29\u6696\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "audiobook"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_yiqishaonian_tob",
+      "name": "\u610f\u6c14\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_younidashu_tob",
+      "name": "\u6cb9\u817b\u5927\u53d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_youmodaye_tob",
+      "name": "\u5e7d\u9ed8\u5927\u7237",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_youmoshushu_tob",
+      "name": "\u5e7d\u9ed8\u53d4\u53d4",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_youroubangzhu_tob",
+      "name": "\u4f18\u67d4\u5e2e\u4e3b",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_yourougongzi_tob",
+      "name": "\u4f18\u67d4\u516c\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "doubao",
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_yuanqishaonian_tob",
+      "name": "\u5143\u6c14\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhangjianjunzi_tob",
+      "name": "\u4ed7\u5251\u541b\u5b50",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhangjianxiake_tob",
+      "name": "\u4ed7\u5251\u4fa0\u5ba2",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhengzhiqingnian_tob",
+      "name": "\u6b63\u76f4\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "app": [
+        "maoxiang"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhishuaiqingnian_tob",
+      "name": "\u76f4\u7387\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zhongerqingnian_tob",
+      "name": "\u4e2d\u4e8c\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zifuqingnian_tob",
+      "name": "\u81ea\u8d1f\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_zixinqingnian_tob",
+      "name": "\u81ea\u4fe1\u9752\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_tiancaitongzhuo_tob",
+      "name": "\u5929\u624d\u540c\u684c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_qingxinmumu_tob",
+      "name": "\u6e05\u65b0\u6c90\u6c90",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_wenwanshanshan_tob",
+      "name": "\u6e29\u5a49\u73ca\u73ca",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_reqingaina_tob",
+      "name": "\u70ed\u60c5\u827e\u5a1c",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_male_shuanglangshaonian_tob",
+      "name": "\u723d\u6717\u5c11\u5e74",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "roleplay"
+      ]
+    },
+    {
+      "id": "ICL_uranus_zh_female_qingyingduoduo_tob",
+      "name": "\u8f7b\u76c8\u6735\u6735",
+      "lang": [
+        "zh"
+      ],
+      "scene": [
+        "service"
+      ]
+    },
+    {
+      "id": "id_female_cesna_uranus_bigtts",
+      "name": "Cesna",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_ikbal_uranus_bigtts",
+      "name": "Ikbal",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_f01507b_uranus_bigtts",
+      "name": "Hannah",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_male_mariano_uranus_bigtts",
+      "name": "Mariano",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_female_romina_uranus_bigtts",
+      "name": "Romina",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ms_male_hazeem_uranus_bigtts",
+      "name": "Hazeem",
+      "lang": [
+        "ms"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ms_female_qis_uranus_bigtts",
+      "name": "Qis",
+      "lang": [
+        "ms"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_male_angpao_uranus_bigtts",
+      "name": "Angpao",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_elle_uranus_bigtts",
+      "name": "Elle",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_cake_uranus_bigtts",
+      "name": "Cake",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "th_male_paran_uranus_bigtts",
+      "name": "Paran",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "id_female_prisma_uranus_bigtts",
+      "name": "Prisma",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_ryan_uranus_bigtts",
+      "name": "Ryan",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "ja_male_yusuke_uranus_bigtts",
+      "name": "Yusuke",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "tl_male_jonathan-palad_uranus_bigtts",
+      "name": "Jonathan-Palad",
+      "lang": [
+        "fil"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "mx_male_migu_uranus_bigtts",
+      "name": "Migu",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "it_male_luca_uranus_bigtts",
+      "name": "Luca",
+      "lang": [
+        "it"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "it_male_enzo2_uranus_bigtts",
+      "name": "Enzo2",
+      "lang": [
+        "it"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "pt_male_eduardo-s_uranus_bigtts",
+      "name": "Eduardo-S",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "es_male_angel_uranus_bigtts",
+      "name": "Angel",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "es_male_francisc_uranus_bigtts",
+      "name": "Francisc",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "ar_female_dina_uranus_bigtts",
+      "name": "Dina",
+      "lang": [
+        "ar-EG"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ar_female_fatma_uranus_bigtts",
+      "name": "Fatma",
+      "lang": [
+        "ar"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ar_male_youssef_uranus_bigtts",
+      "name": "Youssef",
+      "lang": [
+        "ar"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "de_female_bv081_uranus_bigtts",
+      "name": "Stella",
+      "lang": [
+        "de"
+      ],
+      "scene": [
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "de_male_sven_uranus_bigtts",
+      "name": "Sven",
+      "lang": [
+        "de"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_adam-imitation_uranus_bigtts",
+      "name": "Rowan",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_alberto_uranus_bigtts",
+      "name": "Alberto",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_alex_uranus_bigtts",
+      "name": "Alex",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_allison_uranus_bigtts",
+      "name": "Allison",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_authoritative-british_uranus_bigtts",
+      "name": "Charlotte",
+      "lang": [
+        "en-GB"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_authoritative-informative_uranus_bigtts",
+      "name": "Margaret",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_bill-jones_uranus_bigtts",
+      "name": "Jones",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_bill_jones_corey_uranus_bigtts",
+      "name": "Bill",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_brad_pitt_p1_uranus_bigtts",
+      "name": "Brad_Pitt",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_brittney_uranus_bigtts",
+      "name": "Brittney",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_brittney_pimintel_uranus_bigtts",
+      "name": "Zoe",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_bruce_uranus_bigtts",
+      "name": "Adrian",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_chandler_p1_uranus_bigtts",
+      "name": "Leo",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_cowboy-bob_uranus_bigtts",
+      "name": "Bob",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_cowboy_john_b_uranus_bigtts",
+      "name": "John",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_david_uranus_bigtts",
+      "name": "David",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_deep-voice_uranus_bigtts",
+      "name": "Orion",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_diyuwenrounan_uranus_bigtts",
+      "name": "Julian",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_evil-guy-oxley_uranus_bigtts",
+      "name": "Harrison",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_excited-male-voice_uranus_bigtts",
+      "name": "Jasper",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_father-christmas_uranus_bigtts",
+      "name": "Alfred",
+      "lang": [
+        "en-GB"
+      ],
+      "scene": [
+        "general",
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_female_tutor_ms-jenny_uranus_bigtts",
+      "name": "Holly",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_fernando-martinez_uranus_bigtts",
+      "name": "Felix",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_godfather_uranus_bigtts",
+      "name": "Godfather",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_gollum_uranus_bigtts",
+      "name": "Gollum",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_hades_uranus_bigtts",
+      "name": "Beau",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_hayley_uranus_bigtts",
+      "name": "Hayley",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_jamie_uranus_bigtts",
+      "name": "Jamie",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_jane_uranus_bigtts",
+      "name": "Jane",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_jenny_uranus_bigtts",
+      "name": "Jenny",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_jidongchuanjiaoshi_uranus_bigtts",
+      "name": "Blaze",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_jimmy_uranus_bigtts",
+      "name": "Jimmy",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_joanne_uranus_bigtts",
+      "name": "Joanne",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_joker_uranus_bigtts",
+      "name": "Joker",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_josh_uranus_bigtts",
+      "name": "Josh",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_josh_coery_uranus_bigtts",
+      "name": "Josiah",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_kevin_uranus_bigtts",
+      "name": "Kevin",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_knightley_uranus_bigtts",
+      "name": "Knightley",
+      "lang": [
+        "en-GB"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_lana_del_rey_kelley_d_p1_uranus_bigtts",
+      "name": "Lynn",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_lana_del_rey_parky_s_p1_uranus_bigtts",
+      "name": "Ivy",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_marcus_uranus_bigtts",
+      "name": "Marcus",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_mel_uranus_bigtts",
+      "name": "Mel",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_michael_uranus_bigtts",
+      "name": "Hank",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_michael-mouse_uranus_bigtts",
+      "name": "Chip",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_michael_kevin_uranus_bigtts",
+      "name": "Michael_Kevin",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_male_motivational-coach_uranus_bigtts",
+      "name": "Rory",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_myra_uranus_bigtts",
+      "name": "Myra",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_myra_cmb_uranus_bigtts",
+      "name": "Sunny",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_female_nadia_uranus_bigtts",
+      "name": "Blair",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_natasha_uranus_bigtts",
+      "name": "Natasha",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_pleasant-female_uranus_bigtts",
+      "name": "Elaine",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_rachel_p1_uranus_bigtts",
+      "name": "Rachel",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_ronald_uranus_bigtts",
+      "name": "Ronald",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_russell_uranus_bigtts",
+      "name": "Russell",
+      "lang": [
+        "en-GB"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_scarlet_p1_uranus_bigtts",
+      "name": "Scarlet",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_sharron_uranus_bigtts",
+      "name": "Sharron",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_simba_p1_uranus_bigtts",
+      "name": "Simba",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_skye_uranus_bigtts",
+      "name": "Skye",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_tom_hiddleston_p1_uranus_bigtts",
+      "name": "Tom",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_valentino_uranus_bigtts",
+      "name": "Valentino",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_valentino_corey_uranus_bigtts",
+      "name": "Clark",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "en_female_wenrouzhishijieshuonv_uranus_bigtts",
+      "name": "Megan",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_xinwenjieshuonv_uranus_bigtts",
+      "name": "Kayla",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_male_yangguangjieshuonan_uranus_bigtts",
+      "name": "Dylan",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "en_female_zendaya_p1_uranus_bigtts",
+      "name": "Zendaya",
+      "lang": [
+        "en-US"
+      ],
+      "scene": [
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_female_bv084_uranus_bigtts",
+      "name": "Gracie",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_male_dani_uranus_bigtts",
+      "name": "Dani",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_male_guillem_uranus_bigtts",
+      "name": "Guillem",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "es_female_ht_mx_f6_uranus_bigtts",
+      "name": "Marisol",
+      "lang": [
+        "es"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "fr_female_fr_bv078_uranus_bigtts",
+      "name": "Simone",
+      "lang": [
+        "fr"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "fr_female_fr_f47_uranus_bigtts",
+      "name": "Camille",
+      "lang": [
+        "fr"
+      ],
+      "scene": [
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "fr_male_fr_m29_uranus_bigtts",
+      "name": "Maurice",
+      "lang": [
+        "fr"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "fr_male_usseau_uranus_bigtts",
+      "name": "Usseau",
+      "lang": [
+        "fr"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "id_male_bv160_uranus_bigtts",
+      "name": "Rocco",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_bv160dialogue_uranus_bigtts",
+      "name": "Jude",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_bv160narration_uranus_bigtts",
+      "name": "Hugo",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_bv161_uranus_bigtts",
+      "name": "Clara",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_bv161dialogue_uranus_bigtts",
+      "name": "Sylvia",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_bv161narration_uranus_bigtts",
+      "name": "Celeste",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_bv164_uranus_bigtts",
+      "name": "Crew",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_bv164dialogue_uranus_bigtts",
+      "name": "Elian",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_bv164narration_uranus_bigtts",
+      "name": "Ronan",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_f20_uranus_bigtts",
+      "name": "Chloe",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_male_han_uranus_bigtts",
+      "name": "Han",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions",
+        "context"
+      ]
+    },
+    {
+      "id": "id_male_m08_uranus_bigtts",
+      "name": "Kyle",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "id_female_phulia_uranus_bigtts",
+      "name": "Phulia",
+      "lang": [
+        "id"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_bv024_uranus_bigtts",
+      "name": "Bonnie",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_bv520_uranus_bigtts",
+      "name": "Poppy",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "dubbing",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_bv521_uranus_bigtts",
+      "name": "Aoi",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_bv522_uranus_bigtts",
+      "name": "Hana",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "general",
+        "education",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_bv523_uranus_bigtts",
+      "name": "Lily",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "accent",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_male_bv524_uranus_bigtts",
+      "name": "Ken",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ja_female_minimi_uranus_bigtts",
+      "name": "Minimi",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "ja_female_shirou_uranus_bigtts",
+      "name": "Shirou",
+      "lang": [
+        "ja"
+      ],
+      "scene": [
+        "dubbing",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ko_male_bv545_uranus_bigtts",
+      "name": "Jay",
+      "lang": [
+        "ko"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ko_female_bv546_uranus_bigtts",
+      "name": "Momo",
+      "lang": [
+        "ko"
+      ],
+      "scene": [
+        "dubbing",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ko_male_m03_uranus_bigtts",
+      "name": "Minho",
+      "lang": [
+        "ko"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ko_male_shane_uranus_bigtts",
+      "name": "Shane",
+      "lang": [
+        "ko"
+      ],
+      "scene": [
+        "audiobook",
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "ms_male_ham_uranus_bigtts",
+      "name": "Ham",
+      "lang": [
+        "ms"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ms_male_naim_uranus_bigtts",
+      "name": "Naim",
+      "lang": [
+        "ms"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_female_bv065_uranus_bigtts",
+      "name": "Irene",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_male_bv165dialogue_uranus_bigtts",
+      "name": "Diego",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_male_bv165narrator_uranus_bigtts",
+      "name": "Marcos",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_female_bv166dialogue_uranus_bigtts",
+      "name": "Lucy",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_female_bv166emotion_uranus_bigtts",
+      "name": "Rosa",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_female_bv166narrator_uranus_bigtts",
+      "name": "Freya",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_male_felipe_uranus_bigtts",
+      "name": "Felipe",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "general",
+        "audiobook"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "mx_male_ht_mx_m012_uranus_bigtts",
+      "name": "Derek",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_female_leslie_uranus_bigtts",
+      "name": "Leslie",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "mx_male_marcelo_uranus_bigtts",
+      "name": "Marcelo",
+      "lang": [
+        "es-MX"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_bv172_uranus_bigtts",
+      "name": "Sam",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_bv172dialogue_uranus_bigtts",
+      "name": "Walter",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_bv172emotion_uranus_bigtts",
+      "name": "Vincent",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_bv172narrator_uranus_bigtts",
+      "name": "Miles",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "audiobook",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_bv173_uranus_bigtts",
+      "name": "Diana",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_bv173dialogue_uranus_bigtts",
+      "name": "Elena",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_bv173emotion_uranus_bigtts",
+      "name": "Lola",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_bv173narrator_uranus_bigtts",
+      "name": "Emma",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_bv530_uranus_bigtts",
+      "name": "Sofia",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_bv531_uranus_bigtts",
+      "name": "Arthur",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_female_mari_uranus_bigtts",
+      "name": "Mari",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "pt_male_martins_uranus_bigtts",
+      "name": "Toby",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    },
+    {
+      "id": "pt_male_rael_uranus_bigtts",
+      "name": "Rael",
+      "lang": [
+        "pt-BR"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ru_female_af07_uranus_bigtts",
+      "name": "Amelia",
+      "lang": [
+        "ru"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ru_female_irinae_uranus_bigtts",
+      "name": "Irinae",
+      "lang": [
+        "ru"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ru_male_pavel_uranus_bigtts",
+      "name": "Pavel",
+      "lang": [
+        "ru"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ru_female_sophie_uranus_bigtts",
+      "name": "Ksenia",
+      "lang": [
+        "ru"
+      ],
+      "scene": [
+        "general"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "ru_male_vlad_uranus_bigtts",
+      "name": "Silas",
+      "lang": [
+        "ru"
+      ],
+      "scene": [
+        "accent"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_angry_uranus_bigtts",
+      "name": "Valeria",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "education",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_fear_uranus_bigtts",
+      "name": "Iris",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_happy_uranus_bigtts",
+      "name": "Zara",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_hate_uranus_bigtts",
+      "name": "Valentina",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_neutral_uranus_bigtts",
+      "name": "Mildred",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_sad_uranus_bigtts",
+      "name": "Lydia",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "th_female_bv568_suprise_uranus_bigtts",
+      "name": "Phoebe",
+      "lang": [
+        "th"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "tl_female_annika_uranus_bigtts",
+      "name": "Annika",
+      "lang": [
+        "fil"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "tl_male_ed_uranus_bigtts",
+      "name": "Ed",
+      "lang": [
+        "fil"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "tl_female_hervie_uranus_bigtts",
+      "name": "Hervie",
+      "lang": [
+        "fil"
+      ],
+      "scene": [
+        "audiobook",
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_hong_uranus_bigtts",
+      "name": "Hong",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_ling_uranus_bigtts",
+      "name": "Ling",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_linh_uranus_bigtts",
+      "name": "Linh",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_partner_uranus_bigtts",
+      "name": "Partner",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "dubbing",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_ruan_uranus_bigtts",
+      "name": "Ruan",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "audiobook",
+        "roleplay"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_female_wu_uranus_bigtts",
+      "name": "Wu",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "dubbing"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "vi_male_wumg_uranus_bigtts",
+      "name": "Wumg",
+      "lang": [
+        "vi"
+      ],
+      "scene": [
+        "general",
+        "service"
+      ],
+      "cap": [
+        "emotion",
+        "instructions"
+      ]
+    },
+    {
+      "id": "it_male_enzo_uranus_bigtts",
+      "name": "Enzo",
+      "lang": [
+        "it"
+      ],
+      "scene": [
+        "general",
+        "education"
+      ],
+      "cap": [
+        "emotion",
+        "context"
+      ]
+    }
+  ]
+}

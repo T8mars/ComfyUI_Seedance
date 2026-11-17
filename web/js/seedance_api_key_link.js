@@ -3,6 +3,7 @@ import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
 import {
     resizeSeedanceNode,
     setSeedanceInputVisible,
+    setSeedanceWidgetVisible,
 } from "./dynamic_widget_ui.js";
 
 const PLUGIN_MODULE = "custom_nodes.ComfyUI_Seedance";
@@ -35,7 +36,7 @@ function seedance25MediaInput(name) {
     return { family: match[1], index: Number(match[2]) };
 }
 
-function seedance25NextVisibleSlots(node) {
+function seedance25NextVisibleSlots(node, limits = SEEDANCE25_MEDIA_LIMITS) {
     const highestConnected = { image: 0, video: 0, audio: 0 };
     for (const input of node.inputs ?? []) {
         const media = seedance25MediaInput(input.name);
@@ -47,14 +48,14 @@ function seedance25NextVisibleSlots(node) {
         }
     }
     return Object.fromEntries(
-        Object.entries(SEEDANCE25_MEDIA_LIMITS).map(([family, limit]) => [
+        Object.entries(limits).map(([family, limit]) => [
             family,
             Math.min(highestConnected[family] + 1, limit),
         ]),
     );
 }
 
-function seedance25InputAllowed(mode, name, nextVisible) {
+function seedance25InputAllowed(mode, name, nextVisible, limits = SEEDANCE25_MEDIA_LIMITS) {
     if (name === "api_config") {
         return true;
     }
@@ -65,7 +66,7 @@ function seedance25InputAllowed(mode, name, nextVisible) {
         const media = seedance25MediaInput(name);
         return Boolean(
             media
-            && media.index <= SEEDANCE25_MEDIA_LIMITS[media.family]
+            && media.index <= limits[media.family]
             && media.index <= nextVisible[media.family]
         );
     }
@@ -75,7 +76,34 @@ function seedance25InputAllowed(mode, name, nextVisible) {
 function refreshSeedance25Node(node) {
     const model = String(widgetByName(node, "model")?.value ?? "");
     const mode = seedance25Mode(model);
-    const nextVisible = seedance25NextVisibleSlots(node);
+    const flash = model.includes("-flash-");
+    const limits = flash ? { image: 10, video: 5, audio: 5 } : SEEDANCE25_MEDIA_LIMITS;
+    const linked = (name) => node.inputs?.some((input) => input.name === name && input.link != null);
+    const setOptions = (name, values) => {
+        const widget = widgetByName(node, name);
+        if (!widget) return;
+        widget.options ??= {};
+        widget.options.values = values;
+        if (!values.includes(widget.value) && !linked(name) && !Object.hasOwn(widget, "origType")) {
+            widget.value = values[0]; widget.callback?.(widget.value);
+        }
+    };
+    setOptions("resolution", flash ? ["480p", "720p"] : ["480p", "720p", "1080p", "2k", "4k", "native1080p"]);
+    setOptions("ratio", flash && mode === "i2v" ? ["adaptive"] : ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16", "21:9"]);
+    const draft = widgetByName(node, "draft");
+    if (flash && draft?.value && !linked("draft") && !Object.hasOwn(draft, "origType")) {
+        draft.value = false; draft.callback?.(false);
+    }
+    setSeedanceWidgetVisible(draft, !flash);
+    setSeedanceWidgetVisible(widgetByName(node, "omni_reference_task_type"), mode === "multi");
+    const taskType = widgetByName(node, "omni_reference_task_type")?.value;
+    if (mode === "multi" && ["edit", "extend"].includes(taskType)) {
+        const ratio = widgetByName(node, "ratio");
+        if (ratio && !linked("ratio") && !Object.hasOwn(ratio, "origType")) ratio.value = "adaptive";
+        const seconds = widgetByName(node, "seconds");
+        if (taskType === "edit" && seconds && !linked("seconds") && !Object.hasOwn(seconds, "origType")) seconds.value = "-1";
+    }
+    const nextVisible = seedance25NextVisibleSlots(node, limits);
     for (const input of node.inputs ?? []) {
         if (!seedance25MediaInput(input.name) && input.name !== "api_config") {
             continue;
@@ -83,7 +111,7 @@ function refreshSeedance25Node(node) {
         setSeedanceInputVisible(
             node,
             input,
-            seedance25InputAllowed(mode, input.name, nextVisible),
+            seedance25InputAllowed(mode, input.name, nextVisible, limits),
         );
     }
     const visibleInputs = (node.inputs ?? []).filter(
@@ -120,6 +148,12 @@ function scheduleSeedance25Refresh(node) {
     node.seedance25RefreshFrame = requestAnimationFrame(() => {
         node.seedance25RefreshFrame = null;
         wrapSeedance25ModelRefresh(node);
+        const taskType = widgetByName(node, "omni_reference_task_type");
+        if (taskType && !taskType.seedance25Callback) {
+            const previous = taskType.callback;
+            taskType.callback = function (...args) { const result = previous?.apply(this, args); refreshSeedance25Node(node); return result; };
+            taskType.seedance25Callback = true;
+        }
         refreshSeedance25Node(node);
     });
 }

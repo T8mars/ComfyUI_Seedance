@@ -73,6 +73,25 @@ class LLMTests(unittest.TestCase):
             with self.assertRaisesRegex(SeedanceAPIError, "401"):
                 llm.catalog(CONFIG, force=True)
 
+    def test_g61_sol_is_available_without_changing_default_or_sending_cache_seed(self):
+        model = "zhenzhen/g6.1-sol"
+        schema = nodes.SeedanceLLMAPI.INPUT_TYPES()
+        self.assertIn(model, schema["required"]["model"][0])
+        self.assertEqual(schema["required"]["model"][1]["default"], "qwen/qwen3.8-flash-next")
+        for stream in (False, True):
+            body = llm.payload({"model": model, "prompt": "Describe the image.", "image1": IMAGE, "stream": stream, "seed": 42})
+            self.assertEqual(body["model"], model)
+            self.assertEqual(body["stream"], stream)
+            self.assertEqual(body["messages"][-1]["content"][1]["type"], "image_url")
+            self.assertNotIn("seed", body)
+
+    def test_g61_sol_catalog_refresh_preserves_exact_id_and_excludes_media(self):
+        model = "zhenzhen/g6.1-sol"
+        with patch.object(llm, "_session") as session:
+            session.return_value.get.return_value = response({"data": [{"id": model}, {"id": "moss-image", "supported_endpoint_types": ["openai"]}, {"id": model}]})
+            self.assertEqual(llm.catalog(CONFIG, force=True), [model])
+            self.assertEqual(session.return_value.get.call_args.args[0], "https://api.seedance.nz/v1/models")
+
     def test_empty_or_invalid_catalog_is_rejected(self):
         for body in ({"data": []}, {"data": [{"id": "video-model"}]}, {"data": {}}, []):
             with patch.object(llm, "_session") as session:

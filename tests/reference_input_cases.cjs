@@ -25,7 +25,7 @@ const cases = [
 
 function limitsFor(key, model, capacity, mode = "image") {
     const empty = Object.fromEntries(Object.keys(capacity).map((family) => [family, 0]));
-    if (key === "Seedance_2_5_Video") return model.endsWith("-multi") ? capacity : { ...empty, image: model.endsWith("-i2v") ? 2 : 0 };
+    if (key === "Seedance_2_5_Video") return model.endsWith("-multi") ? model.includes("-flash-") ? { image: 10, video: 5, audio: 5 } : capacity : { ...empty, image: model.endsWith("-i2v") ? 2 : 0 };
     if (key === "Wan_3_0_Video") return model.endsWith("-r2v") ? capacity : { ...empty, image: 2 };
     if (key === "Flux_3_Video" || key === "Krea_V3_Image" || key === "Flux_3_Image_Variants" || key === "Seedream_5_5_Image") {
         return model.endsWith("-i2v") || model.endsWith("-i2i") ? capacity : empty;

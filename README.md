@@ -24,6 +24,24 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.6（2026-11-17）
+
+- 现有 `Seedance_2_5_Video` 增加国内/海外 Flash 的 T2V、I2V、Multi 共六个模型，原 Standard 型号、默认值和工作流端口不变。Flash 支持 4-30 秒或自动时长、480p/720p；I2V 支持首帧及可选尾帧，比例为 adaptive。Multi 最多 10 图、5 视频、5 音频，单段音视频 2-30 秒，合计不超过 30 秒；支持参考、编辑和续写，Flash 不支持 draft。
+- 增加四个独立 H3 ComfyUI 视频节点，均有对应并发提交节点，沿用 10 路接收、可靠下载、`skip_error` 和标准种子控制。接口使用 `/v1/video/generations`，不是 `/v1/videos`。
+- `Seedance_LLM_API` 增加本渠道模型 `zhenzhen-fb-5.2`、`zhenzhen/g6.1-sol`，文档确认的聊天模型列表共 21 个，仍可刷新当前 Key 可用的模型。
+- 增加独立 `Doubao_Seed_TTS_2_0`，不替换原有音色克隆/ICL 节点。点击 `Voice Library` 可搜索并按性别、语种、用途筛选 473 个公开音色，选择后写入真实 speaker ID；也可手填自定义音色。支持语音指令、语速、音量、音调和展开的高级参数，输出原生 AUDIO，并连接 Save Audio 保存。
+- 保存 21 份空密钥示例：八份 Flash、九份 H3、两份 Fable、两份 TTS。文件名分别以 `seedance-2.5-…flash-`、`minimax-h3-comfyui-charswap/wuxi/max-10020/max-10021`、`zhenzhen-fb-5.2`、`doubao-seed-tts-2.0` 开头，均位于 [examples](examples)。重启 ComfyUI 后强制刷新浏览器加载前端更新。
+- 823 项离线回归、62 项整合包 Python 专项、14 组前端回归和 31 个运行时脚本语法检查通过。实际画布覆盖 21 份新示例及 8 份旧 Standard 示例、16 个普通/并发素材配置的 180 路连续接线，以及音色搜索、筛选、保存重载和桌面/手机布局。原有 102 个其他节点类实现与 370 份示例的空密钥、连线审计通过。
+
+| H3 独立节点 | 素材与参数 |
+| --- | --- |
+| `Minimax_H3_ComfyUI_CharSwap` | 1-9 张参考图与恰好一个 MP4；保留原视频音频。5-15 秒，或帧数 22-362、步长 17，二者互斥。480p/768p/1088p/auto；比例随分辨率变化。 |
+| `Minimax_H3_ComfyUI_Wuxi` | 最多 9 图、3 音频、3 MP4；视频参考需有图。5-15 秒，480p 至 2160p 七档，六种比例。支持原生 seed；音频用自然语言描述。 |
+| `Minimax_H3_ComfyUI_Max_10020` | 最多 6 图、3 音频，不接受视频。3-15 秒，480p/608p/672p/768p，横竖屏，支持 Picture/Audio 标签；seed 只控制缓存。 |
+| `Minimax_H3_ComfyUI_Max_10021` | 最多 9 图、3 音频，不接受视频；音频需配图。时长、分辨率、比例及标签同 10020；seed 只控制缓存。 |
+
+真实验证范围：国内 Flash 三种模式、海外 Flash 多参、Wuxi、10020、10021 已完成生成、下载及视频解码；Fable 返回非空回答，TTS 下载并解码为有效 24 kHz 音频。海外 Flash 文生/图生终态返回输出音频版权审核失败；CharSwap 提交返回 HTTP 503 且无任务 ID，未自动重发。不能将这三项标记为已跑通。高分辨率、满数量素材与全部音色仅做离线边界检查，未逐项调用 API。
+
 ## v0.28.5（2026-11-16）
 
 - Tripo 多视图生成使用四个固定视图接口：选择多视图与 `input_mode=views` 后直接显示 `front / left / back / right`，不再只初始显示两个。原有 2-4 张参考图、任务 ID 复用、接口顺序和已有连线保持兼容；其他节点仍按原规则逐张展开。

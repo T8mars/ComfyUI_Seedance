@@ -61,6 +61,10 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Minimax_H3_ComfyUI_CharSwap",
+    "Minimax_H3_ComfyUI_Wuxi",
+    "Minimax_H3_ComfyUI_Max_10020",
+    "Minimax_H3_ComfyUI_Max_10021",
     "Minimax_H3_ComfyUI_Max",
     "Seedance_2_5_Draft_To_Video",
     "Muse_Video",

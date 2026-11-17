@@ -166,7 +166,7 @@ class H3TurboTests(unittest.TestCase):
             self.assertIsNotNone(good.future.result(timeout=10))
 
     def test_eight_workflows_have_blank_keys_and_native_save_nodes(self):
-        examples = [p for p in (ROOT/"examples").glob("*.json") if p.name.startswith(("minimax-h3-comfyui-max", "minimax-h3-image", "qwen-image-2.1-turbo"))]
+        examples = [p for p in (ROOT/"examples").glob("*.json") if p.name.startswith(("minimax-h3-comfyui-max", "minimax-h3-image", "qwen-image-2.1-turbo")) and not p.name.startswith(("minimax-h3-comfyui-max-10020", "minimax-h3-comfyui-max-10021"))]
         self.assertEqual(len(examples), 8)
         for path in examples:
             graph = json.loads(path.read_text(encoding="utf-8"))
