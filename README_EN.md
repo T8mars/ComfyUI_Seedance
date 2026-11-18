@@ -4,6 +4,16 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.7 - 2026-11-19
+
+- Independent `Kling_V4_Image`: text or up to ten references, 2k/4k, 1-9 independent images or a related group of 2-4. Returns ordered IMAGE and URL lists; connect Save Image to save every result.
+- Independent `MAI_Image_2_7`: Standard and Flash, 1k/2k, preset/custom aspect ratios, exact pixel dimensions, and up to five references. Editing dimensions are server-controlled. Comes with a concurrent-submit node and leaves MAI 2.6 unchanged.
+- Independent `Qwen_Audio_3_1_TTS`: Flash has 69 system voices and Plus has four. Next supports description-based generation and up to three local or public audio references cited as `@voice1` through `@voice3`. The earlier Qwen3 TTS node is unchanged.
+- Added `zhenzhen/g6.2-astra` and `zhenzhen/g6.2-sol` to the existing Seedance-only LLM node, without changing its default.
+- Added 13 credential-free [example workflows](examples) covering the image modes, speech synthesis, Next references, and GPT-6.2 text/streamed vision. Restart ComfyUI and refresh the browser.
+
+Nine live checks across all eight new IDs succeeded. Kling returned one reference image and a separate two-image group at 2048x2048; MAI standard text and Flash editing returned 1024x1024. Flash/Plus decoded at 22.05 kHz mono and Next with an audio reference at 24 kHz stereo. Astra returned text and Sol correctly identified a reference color through streaming. Maximum input counts, 4k and other output formats were not individually submitted.
+
 ## v0.28.6 - 2026-11-17
 
 - Existing `Seedance_2_5_Video` now includes six domestic/global Flash T2V, I2V and Multi models, preserving Standard defaults and workflow ports. Flash supports 4-30 seconds or automatic duration and 480p/720p. I2V accepts first/optional last frames with adaptive ratio. Multi accepts ten images, five videos and five audios: each audio/video is 2-30 seconds and their combined duration is at most 30 seconds. Reference/edit/extend are supported; Flash has no draft mode.

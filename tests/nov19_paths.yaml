@@ -1,0 +1,4 @@
+seedance_test:
+  custom_nodes: |
+    ../..
+    .

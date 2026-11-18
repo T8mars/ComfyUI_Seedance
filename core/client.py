@@ -2172,14 +2172,14 @@ def _load_wav_audio(audio_path: str) -> Dict[str, Any]:
     return {"waveform": waveform, "sample_rate": int(sample_rate)}
 
 
-def _load_pcm_audio(audio_path: str, sample_rate: int) -> Dict[str, Any]:
+def _load_pcm_audio(audio_path: str, sample_rate: int, channels: int = 1) -> Dict[str, Any]:
     import numpy as np
     import torch
 
     with open(audio_path, "rb") as f:
         raw = f.read()
     data = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
-    waveform = torch.from_numpy(data.copy()).unsqueeze(0).unsqueeze(0)
+    waveform = torch.from_numpy(data.reshape(-1, channels).T.copy()).unsqueeze(0)
     return {"waveform": waveform, "sample_rate": int(sample_rate)}
 
 
@@ -2255,7 +2255,7 @@ def _decode_audio_with_ffmpeg(audio_path: str) -> Dict[str, Any]:
             pass
 
 
-def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) -> Dict[str, Any]:
+def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str, *, pcm_channels: int = 1) -> Dict[str, Any]:
     last_error: Optional[Exception] = None
     try:
         import torchaudio
@@ -2273,7 +2273,7 @@ def _decode_audio_file(audio_path: str, sample_rate: int, logger_prefix: str) ->
         if ext == "wav":
             return _load_wav_audio(audio_path)
         if ext == "pcm":
-            return _load_pcm_audio(audio_path, sample_rate)
+            return _load_pcm_audio(audio_path, sample_rate, pcm_channels)
     except Exception as e:
         last_error = e
 
@@ -2308,6 +2308,8 @@ def download_audio(
     timeout: int = _AUDIO_DOWNLOAD_TIMEOUT,
     max_retries: int = 3,
     logger_prefix: str = "Doubao_Seed_Audio",
+    *,
+    pcm_channels: int = 1,
 ) -> Tuple[Any, str]:
     """Download result audio into ComfyUI's output dir and return (AUDIO, path)."""
     try:
@@ -2327,6 +2329,8 @@ def download_audio(
 
     def decode_download(path: str) -> Any:
         try:
+            if pcm_channels != 1:
+                return _decode_audio_file(path, int(sample_rate), logger_prefix, pcm_channels=pcm_channels)
             return _decode_audio_file(path, int(sample_rate), logger_prefix)
         except Exception as error:
             raise _ResultDownloadTransportError(

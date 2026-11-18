@@ -289,7 +289,7 @@ class DoubaoTTS20Tests(unittest.TestCase):
 
     def test_new_llm_model_positive_catalog_and_payload(self):
         self.assertIn("zhenzhen-fb-5.2", llm.MODELS)
-        self.assertEqual(len(llm.MODELS), 21)
+        self.assertEqual(len(llm.MODELS), 23)
 
     def test_voice_catalog_route_is_local_idempotent_and_credential_free(self):
         from ComfyUI_Seedance.core import tts_routes

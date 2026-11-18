@@ -56,6 +56,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Zhenzhen_Image_NB_2_1",
     "Zhenzhen_Image_NB_Lowprice",
     "MAI_Image_2_6",
+    "MAI_Image_2_7",
     "Moss_Image",
     "VOSR2_Image_Upscale",
 )
