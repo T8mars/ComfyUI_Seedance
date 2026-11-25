@@ -1671,7 +1671,7 @@ def poll_3d_task(
             _log(logger_prefix, f"  3D task completed in {int(elapsed)}s")
             return response_data
         if status in _3D_FAILURE_STATUSES:
-            reason = _extract_error_message(status_source, "3D generation failed")
+            reason = status_source.get("fail_reason") or _extract_error_message(status_source, "3D generation failed")
             raise SeedanceAPIError(f"3D task failed: {reason} [task_id: {task_id}]")
         if status and status not in _3D_RUNNING_STATUSES:
             _log(logger_prefix, f"  Unknown 3D status '{status}', continue polling...")

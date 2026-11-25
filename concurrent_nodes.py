@@ -31,6 +31,7 @@ IMAGE_ENV_NAME = "SEEDANCE_IMAGE_CONCURRENCY"
 VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 
 PURE_IMAGE_NODE_KEYS = (
+    "Kling_V4_Long_Image",
     "Minimax_H3_Image",
     "Qwen_Image_2_1_Turbo",
     "Seedream_5_5_Image",
@@ -62,6 +63,12 @@ PURE_IMAGE_NODE_KEYS = (
 )
 
 PURE_VIDEO_NODE_KEYS = (
+    "Magi_2_Video",
+    "Minimax_H3_ComfyUI_Max_10020_Token",
+    "Minimax_H3_ComfyUI_Max_10021_Token",
+    "Minimax_H3_ComfyUI_CharSwap_Token",
+    "Minimax_H3_ComfyUI_Digital_Human_Token",
+    "HeyGen_Avatar_6",
     "Minimax_H3_ComfyUI_CharSwap",
     "Minimax_H3_ComfyUI_Wuxi",
     "Minimax_H3_ComfyUI_Max_10020",

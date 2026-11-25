@@ -26,6 +26,8 @@ MODELS = [
     "zhenzhen/g5.6-sol", "zhenzhen/g5.6-terra", "zhenzhen/g5.6-luna",
     "zhenzhen/g5.5", "zhenzhen/gm-3.8-flash", "zhenzhen/gm-4-argon", "zhenzhen-op-5.5", "zhenzhen-fb-5.2",
     "zhenzhen/g6.1-sol", "zhenzhen/g6.2-astra", "zhenzhen/g6.2-sol",
+    "zhenzhen/gm-4-hydrogen", "zhenzhen/gm-4-carbon", "zhenzhen/gm-4-neon", "zhenzhen/hy-4-flash",
+    "moonshotai/kimi-k3.1-pro", "zhenzhen/gk-4.7",
 ]
 _catalog_cache = {}
 _catalog_lock = threading.Lock()

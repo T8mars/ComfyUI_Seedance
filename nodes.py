@@ -79,6 +79,7 @@ from .core.client import (
 from .core.geometry import file3d_from_path, placeholder_file3d
 from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, h3_comfy, seedance25_flash, doubao_tts, llm
 from .core import image_nov19, qwen_audio31
+from .core import h3_token, magi2, nov21_models
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -10118,6 +10119,146 @@ class MinimaxH3ComfyUISelfLift(_H3ComfyVideo):
     KIND = "selflift"
 
 
+class _LegacyReferenceVideo(SeedanceVideoNodeBase):
+    """Submit documented legacy video tasks after preparing every local reference."""
+
+    def _execute_inner(self, **kwargs):
+        body, media = self.prepare(kwargs)
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+        for index, (field, filename, mime, data) in enumerate(media, 1):
+            location = body if field == "images" else body["metadata"]
+            location.setdefault(field, []).append(upload_media(data, filename, mime, config, logger_prefix=self._log_prefix))
+            self._update_progress(pbar, 15 * index / len(media))
+        task = submit_legacy_video_task(body, config, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 20)
+        final = poll_legacy_video_task(task, config, logger_prefix=self._log_prefix,
+                                      on_progress=lambda value: self._update_progress(pbar, 20 + value * .75))
+        url = extract_legacy_video_url(final)
+        video = download_video(url, logger_prefix=self._log_prefix)
+        self._update_progress(pbar, 100)
+        return self._make_success_result(video, url, task, final)
+
+
+class Magi2Video(_LegacyReferenceVideo):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (magi2.MODELS, {"default": magi2.MODELS[0]}),
+            "generation_type": (magi2.MODES, {"default": "auto", "tooltip":
+                "Auto uses 1-2 images as frames. Pick reference to use them as reference images. | 自动模式下 1-2 张图为首尾帧；参考图请选 reference。"}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "seconds": ("INT", {"default": 5, "min": 4, "max": 30}),
+            "ratio": (magi2.RATIOS, {"default": "api_default", "tooltip":
+                "API default follows the first frame in frame mode. | 图生模式下 api_default 跟随首帧比例。"}),
+            "generate_audio": ("BOOLEAN", {"default": True}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+        }, "optional": {
+            **{f"{family}{i}": (type_, {"tooltip": tooltip})
+               for family, type_, tooltip in (
+                   ("image", "IMAGE", "One image per socket; in frame mode image1 is start, image2 is end. | 每路一张图；首尾帧模式按顺序连接。"),
+                   ("video", "VIDEO", "2-30 s per clip, up to 30 s total. | 每段 2-30 秒，视频合计不超过 30 秒。"),
+                   ("audio", "AUDIO", "2-30 s per clip, up to 30 s total. | 每段 2-30 秒，音频合计不超过 30 秒。"),
+               ) for i in range(1, magi2.CAPS[family] + 1)},
+            "api_config": ("SEEDANCE_CONFIG",),
+            "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            magi2.request(kwargs, strict=strict)
+        except SeedanceAPIError as exc:
+            return str(exc)
+        return True
+
+    prepare = staticmethod(magi2.prepare)
+
+
+class _H3Fixed768(_LegacyReferenceVideo):
+    @classmethod
+    def INPUT_TYPES(cls):
+        _, images, audio, videos, seconds = h3_token.PROFILES[cls.KIND]
+        ratios = ["auto"] if cls.KIND == "charswap" else h3_token.RATIOS
+        required = {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "seconds": ([str(i) for i in range(seconds, 16)], {"default": "5"}),
+            "ratio": (ratios, {"default": ratios[0]}),
+        }
+        if cls.KIND == "charswap":
+            required.update(duration_mode=(["seconds", "frames"], {"default": "seconds"}),
+                            frames=(h3_token.FRAMES, {"default": 124}))
+        optional = {
+            **{f"image{i}": ("IMAGE",) for i in range(1, images + 1)},
+            **{f"audio{i}": ("AUDIO",) for i in range(1, audio + 1)},
+            **{f"video{i}": ("VIDEO",) for i in range(1, videos + 1)},
+        }
+        if videos:
+            optional["video_urls"] = ("STRING", {"default": "", "tooltip": "One public MP4 URL instead of a local video."})
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            h3_token.plan(cls.KIND, kwargs, strict)
+            return True
+        except (SeedanceAPIError, ValueError) as error:
+            return str(error)
+
+    def prepare(self, kwargs):
+        body, refs = h3_token.plan(self.KIND, kwargs, strict=True)
+        return body, h3_token.encode(self.KIND, body, refs)
+
+
+class MinimaxH3WFToken(_H3Fixed768):
+    KIND = "wf"
+
+
+class MinimaxH3JYToken(_H3Fixed768):
+    KIND = "jy"
+
+
+class MinimaxH3CharSwapToken(_H3Fixed768):
+    KIND = "charswap"
+
+
+class MinimaxH3DigitalHumanToken(_H3Fixed768):
+    KIND = "digital"
+
+
+class HeyGenAvatar6(_LegacyReferenceVideo):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (nov21_models.HEYGEN, {"default": nov21_models.HEYGEN[0]}),
+            "avatar": ("STRING", {"default": "Abigail Sofa Front", "tooltip": "Use an available avatar name from the model Playground."}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "voice": ("STRING", {"default": "Warm Pro Narrator"}),
+            "motion_prompt": ("STRING", {"default": "", "multiline": True}),
+            "ratio": (nov21_models.HEYGEN_RATIOS, {"default": "16:9"}),
+            "resolution": (["1080p", "2k"], {"default": "1080p"}),
+        }, "optional": {
+            "audio": ("AUDIO",),
+            "audio_url": ("STRING", {"default": "", "tooltip": "Public HTTPS MP3/WAV/M4A; overrides text and voice. Do not also connect audio."}),
+            "api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            nov21_models.heygen(kwargs, strict)
+            return True
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def prepare(self, kwargs):
+        body = nov21_models.heygen(kwargs, strict=True)
+        audio = kwargs.get("audio")
+        media = [("audio_urls", "speech.wav", "audio/wav", nov21_models.audio_bytes(audio))] if audio is not None else []
+        return body, media
+
+
 class QwenImageGlobal21(SeedanceImageNodeBase):
     """One-image Qwen 2.1 generation or editing with up to ten references."""
 
@@ -11164,6 +11305,85 @@ class Meshy6Global(_Image3DGeneration):
             "enable_prompt_expansion": ("BOOLEAN", {"default": False}),
         })
         return inputs
+
+
+class Miora3D:
+    CATEGORY = "Seedance/3D"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("FILE_3D", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("model_3d", "model_url", "local_path", "task_id", "response", "files_json")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "generate_type": (["normal", "geometry"], {"default": "normal"}),
+            "face_count": ("INT", {"default": 500000, "min": 3000, "max": 1500000}),
+            "enable_pbr": ("BOOLEAN", {"default": False}),
+        }, "optional": {
+            **{f"image{i}": ("IMAGE", {"tooltip": f"View {i}: {view}"})
+               for i, view in enumerate(nov21_models.MIORA_VIEWS, 1)},
+            "api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            nov21_models.miora(kwargs, strict)
+            return True
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def execute(self, skip_error=False, **kwargs):
+        config = None
+        prefix = "Miora_3D"
+        try:
+            body, images = nov21_models.miora(kwargs, strict=True)
+            materials = []
+            for index, image in images:
+                name = nov21_models.MIORA_VIEWS[index - 1]
+                materials.append((name, nov21_models.image_bytes(image, name, 10_000_000)))
+            config = get_config(kwargs.get("api_config"))
+            pbar = _make_progress_bar(100)
+
+            def progress(value):
+                if pbar is not None:
+                    pbar.update_absolute(int(value), 100)
+
+            for index, (name, data) in enumerate(materials, 1):
+                body.setdefault("images", []).append(upload_media(data, f"{name}.png", "image/png", config, logger_prefix=prefix))
+                progress(15 * index / len(materials))
+            task = submit_3d_task(body, config, logger_prefix=prefix)
+            progress(20)
+            final = poll_3d_task(task, config, logger_prefix=prefix, on_progress=lambda value: progress(20 + value * .70))
+            urls = nov21_models.miora_urls(final)
+            primary = None
+            files = []
+            for index, url in enumerate(urls, 1):
+                path = download_file(url, filename_prefix=f"miora_{index}", default_extension="bin", logger_prefix=prefix)
+                entry = {"url": url, "local_path": path}
+                if primary is None:
+                    try:
+                        model_path, format_ = hitem_meshy.prepare_model(path)
+                    except SeedanceAPIError:
+                        pass
+                    else:
+                        primary = (file3d_from_path(model_path, file_format=format_), url, model_path)
+                        entry.update(model_path=model_path, format=format_)
+                files.append(entry)
+                progress(90 + 10 * index / len(urls))
+            if primary is None:
+                raise SeedanceAPIError("Miora files were saved, but none contained a valid GLB or OBJ model")
+            response = json.dumps(final, ensure_ascii=False, indent=2)
+            return {"ui": {"text": [primary[1], primary[2], response]},
+                    "result": (*primary, task, response, json.dumps(files, ensure_ascii=False))}
+        except Exception as error:
+            if not skip_error:
+                raise
+            message = llm.safe_error(error, config)
+            response = json.dumps({"error": message}, ensure_ascii=False)
+            return {"ui": {"text": [response]}, "result": (placeholder_file3d(message), "", "", "", response, "[]")}
 
 
 class SeedanceLLMAPI:
@@ -12316,6 +12536,64 @@ class MAIImage27(_NovemberImageNode):
         return {"required": required, "optional": optional}
 
 
+class Kling4LongImage(SeedanceImageNodeBase):
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response")
+    _log_prefix = "Kling_V4_Long_Image"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "skill": (["ecommerce", "webpage"], {"default": "ecommerce"}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "resolution": (["1k", "2k"], {"default": "1k"}),
+            "length": (["medium", "short", "long"], {"default": "medium"}),
+            "nsfw_check": ("BOOLEAN", {"default": False}),
+        }, "optional": {
+            **{f"image{i}": ("IMAGE",) for i in range(1, 4)},
+            "style_image": ("IMAGE",), "subject_image": ("IMAGE",),
+            "api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            nov21_models.long_image(kwargs, strict)
+            return True
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def _execute_inner(self, **kwargs):
+        body, refs = nov21_models.long_image(kwargs, strict=True)
+        materials = [(name, nov21_models.image_bytes(image, name)) for name, image in refs]
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+
+        def progress(value):
+            if pbar is not None:
+                pbar.update_absolute(int(value), 100)
+
+        for index, (name, data) in enumerate(materials, 1):
+            url = upload_media(data, f"{name}.png", "image/png", config, logger_prefix=self._log_prefix)
+            if body["skill"] == "ecommerce":
+                body.setdefault("images", []).append(url)
+            else:
+                body.setdefault("image_with_roles", []).append({"url": url, "role": name})
+            progress(15 * index / len(materials))
+        task = submit_image_task(body, config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll_image_task(task, config, logger_prefix=self._log_prefix,
+                                on_progress=lambda value: progress(20 + value * .75))
+        url = extract_image_url(final)
+        image = download_image(url, logger_prefix=self._log_prefix)
+        progress(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [url, response]}, "result": (image, url, task, response)}
+
+
 class ZhenzhenImageNBLowprice(SeedanceImageNodeBase):
     """Independent NB Pro/2.1 Lowprice text generation and 14-image editing."""
 
@@ -13353,6 +13631,58 @@ class DoubaoSeedAudio:
 # ---------------------------------------------------------------------------
 # Qwen3 TTS
 # ---------------------------------------------------------------------------
+
+class Gemini25TTS:
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (nov21_models.GEMINI_TTS, {"default": nov21_models.GEMINI_TTS[1]}),
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "voice": (nov21_models.GEMINI_VOICES, {"default": "Kore"}),
+            "instructions": ("STRING", {"default": "", "multiline": True}),
+        }, "optional": {"api_config": ("SEEDANCE_CONFIG",), "skip_error": ("BOOLEAN", {"default": False})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            nov21_models.gemini_tts(kwargs, strict)
+            return True
+        except SeedanceAPIError as error:
+            return str(error)
+
+    def execute(self, skip_error=False, **kwargs):
+        config = None
+        prefix = "Gemini_2_5_TTS"
+        try:
+            body = nov21_models.gemini_tts(kwargs, strict=True)
+            config = get_config(kwargs.get("api_config"))
+            task = submit_audio_task(body, config, logger_prefix=prefix)
+            pbar = _make_progress_bar(100)
+
+            def progress(value):
+                if pbar is not None:
+                    pbar.update_absolute(int(value), 100)
+
+            progress(20)
+            final = poll_audio_task(task, config, logger_prefix=prefix,
+                                    on_progress=lambda value: progress(20 + value * .75))
+            url = extract_audio_url(final)
+            audio, path = download_audio(url, output_format="wav", sample_rate=24000, logger_prefix=prefix)
+            progress(100)
+            response = json.dumps(final, ensure_ascii=False, indent=2)
+            return {"ui": {"text": [url, path, response]}, "result": (audio, url, path, task, response)}
+        except Exception as error:
+            if not skip_error:
+                raise
+            response = json.dumps({"error": llm.safe_error(error, config)}, ensure_ascii=False)
+            return {"ui": {"text": [response]}, "result": (make_silent_audio(24000, 1.0), "", "", "", response)}
+
 
 class QwenAudio31TTS:
     CATEGORY = "Seedance"
@@ -16976,6 +17306,15 @@ class MidjourneyMultiAction:
 # ---------------------------------------------------------------------------
 
 NODE_CLASS_MAPPINGS = {
+    "Magi_2_Video": Magi2Video,
+    "Kling_V4_Long_Image": Kling4LongImage,
+    "Gemini_2_5_TTS": Gemini25TTS,
+    "Minimax_H3_ComfyUI_Max_10020_Token": MinimaxH3WFToken,
+    "Minimax_H3_ComfyUI_Max_10021_Token": MinimaxH3JYToken,
+    "Minimax_H3_ComfyUI_CharSwap_Token": MinimaxH3CharSwapToken,
+    "Minimax_H3_ComfyUI_Digital_Human_Token": MinimaxH3DigitalHumanToken,
+    "HeyGen_Avatar_6": HeyGenAvatar6,
+    "Miora_3D": Miora3D,
     "Kling_V4_Image": Kling4Image,
     "MAI_Image_2_7": MAIImage27,
     "Qwen_Audio_3_1_TTS": QwenAudio31TTS,
@@ -17157,6 +17496,15 @@ for _node_class in NODE_CLASS_MAPPINGS.values():
         _install_generation_seed_control(_node_class)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Magi_2_Video": "MAGI-2 文生 / 首尾帧 / 参考生视频",
+    "Kling_V4_Long_Image": "Kling 4.0 长图 · 商品详情 / 网页",
+    "Gemini_2_5_TTS": "Gemini 2.5 TTS 语音合成",
+    "Minimax_H3_ComfyUI_Max_10020_Token": "MiniMax H3 WF · 固定 768p",
+    "Minimax_H3_ComfyUI_Max_10021_Token": "MiniMax H3 JY · 固定 768p",
+    "Minimax_H3_ComfyUI_CharSwap_Token": "MiniMax H3 人物替换 · 固定 768p",
+    "Minimax_H3_ComfyUI_Digital_Human_Token": "MiniMax H3 数字人 · 固定 768p",
+    "HeyGen_Avatar_6": "HeyGen Avatar 6 / Turbo 数字人口播",
+    "Miora_3D": "Miora 3D 文生 / 多视图生成",
     "Kling_V4_Image": "Kling 4.0 图像生成 / 组图",
     "MAI_Image_2_7": "MAI Image 2.7 / Flash 图像生成与编辑",
     "Qwen_Audio_3_1_TTS": "Qwen Audio 3.1 语音合成",

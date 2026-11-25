@@ -2,7 +2,11 @@ import { app } from "../../../scripts/app.js";
 import { originalSeedanceNodeName } from "./concurrent_node_ui.js";
 import { resizeSeedanceNode, setSeedanceInputVisible, setSeedanceWidgetVisible } from "./dynamic_widget_ui.js";
 
-const KEYS = new Set(["Minimax_H3_ComfyUI_CharSwap", "Minimax_H3_ComfyUI_Wuxi", "Minimax_H3_ComfyUI_Max_10020", "Minimax_H3_ComfyUI_Max_10021"]);
+const KEYS = new Set([
+    "Minimax_H3_ComfyUI_CharSwap", "Minimax_H3_ComfyUI_Wuxi", "Minimax_H3_ComfyUI_Max_10020", "Minimax_H3_ComfyUI_Max_10021",
+    "Minimax_H3_ComfyUI_Max_10020_Token", "Minimax_H3_ComfyUI_Max_10021_Token",
+    "Minimax_H3_ComfyUI_CharSwap_Token", "Minimax_H3_ComfyUI_Digital_Human_Token",
+]);
 const INSTALLED = Symbol("seedanceH3ComfyUI");
 
 function refresh(node, key) {
@@ -12,10 +16,12 @@ function refresh(node, key) {
         const last = Math.max(0, ...inputs.filter((input) => input.link != null).map((input) => Number(input.name.slice(family.length))));
         for (const input of inputs) setSeedanceInputVisible(node, input, Number(input.name.slice(family.length)) <= last + 1);
     }
-    if (key === "Minimax_H3_ComfyUI_CharSwap") {
+    if (key === "Minimax_H3_ComfyUI_CharSwap" || key === "Minimax_H3_ComfyUI_CharSwap_Token") {
         const frames = widget("duration_mode")?.value === "frames";
         setSeedanceWidgetVisible(widget("seconds"), !frames);
         setSeedanceWidgetVisible(widget("frames"), frames);
+    }
+    if (key === "Minimax_H3_ComfyUI_CharSwap") {
         const resolution = widget("resolution")?.value, ratio = widget("ratio");
         const values = resolution === "auto" ? ["auto"] : ["auto", "16:9", "9:16", ...(resolution === "768p" ? ["1:1", "4:3", "3:4", "21:9"] : [])];
         if (ratio) {

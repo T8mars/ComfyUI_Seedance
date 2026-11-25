@@ -4,6 +4,24 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.8 - 2026-11-25
+
+- `Magi_2_Video` groups `magi-2` and `magi-2-global`: 1080p text, first/last frame, and mixed-reference video, with a native seed, audio toggle, and concurrent submission. Reference mode accepts up to 10 images, 5 video clips, and 5 audio clips.
+- `Seedance_LLM_API` adds `moonshotai/kimi-k3.1-pro` and `zhenzhen/gk-4.7` to the existing text, image, and streaming paths. Includes 8 credential-free [example workflows](examples).
+
+Live checks: domestic text-to-video and global mixed image/video/audio references both produced downloadable, decodable 1920×1080 MP4s with 120 frames. Kimi text and GK 4.7 streaming image Q&A succeeded. First/last-frame mode passed payload and ComfyUI queue validation without an additional live generation.
+
+- `Kling_V4_Long_Image` generates a single full-length PNG at 1024 or 2048 pixels wide. Ecommerce requires one to three product images and offers three page lengths. Webpage mode accepts optional style and subject references.
+- `Gemini_2_5_TTS` combines Pro and Flash with 30 voices and delivery instructions, producing WAV and native ComfyUI AUDIO.
+- Four independent fixed-768p H3 nodes: WF, JY, Character Swap and Digital Human. WF/JY require 1-6 images and accept up to three audio tracks; JY also accepts one MP4. Character Swap requires 1-5 images and one MP4 and selects duration by seconds or frames. Digital Human requires one image and one driving audio track.
+- `HeyGen_Avatar_6` combines Avatar 6 and Turbo and accepts spoken text plus a voice, or local/HTTPS speech audio for lip sync. It supports 1080p/2k and documented official avatar names.
+- `Miora_3D` automatically chooses text-to-3D or image-to-3D with up to eight ordered views: front, left, right, back, top, bottom, front-left and front-right. Outputs native FILE_3D and a list of downloaded files.
+- The existing LLM node adds `zhenzhen/gm-4-hydrogen`, `zhenzhen/gm-4-carbon`, `zhenzhen/gm-4-neon` and `zhenzhen/hy-4-flash`, keeping its current text, vision and streaming path. Added 21 credential-free [example workflows](examples). Restart ComfyUI and refresh the browser.
+
+Live verification as of 2026-11-21 16:32 China time: all 14 model IDs were available to the test key; 12 paths across 10 IDs completed. Kling produced 1024x4663 ecommerce and 1024x5376 webpage images. Both Gemini TTS models decoded at 24 kHz mono. All four LLMs returned valid answers. H3 WF/JY each decoded to 1376x768, 124 frames, with audio. Miora succeeded with image-to-geometry and default textured text-to-3D and rendered a native GLB preview. The initial geometry text-to-3D task explicitly failed with a service-unavailable result. Both HeyGen jobs were accepted and remained in progress; H3 Character Swap and Digital Human were accepted but still queued. No video result was verified for those four endpoints. No pending upstream task was replayed or canceled.
+
+All 851 offline tests and 14 bundled-Python tests passed, alongside real canvas checks of all 21 new examples, concurrent queue validation, 31 progressive connections, resize/reload checks, and native orbit interaction for the live Miora model.
+
 ## v0.28.7 - 2026-11-19
 
 - Independent `Kling_V4_Image`: text or up to ten references, 2k/4k, 1-9 independent images or a related group of 2-4. Returns ordered IMAGE and URL lists; connect Save Image to save every result.

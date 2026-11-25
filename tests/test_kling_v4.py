@@ -261,7 +261,7 @@ class Kling4Tests(unittest.TestCase):
 
     def test_all_workflow_links_widgets_and_credentials(self):
         paths = list((ROOT / "examples").glob("kling-v4-*.json"))
-        self.assertEqual(len(paths), 14)
+        self.assertEqual(len(paths), 17)
         for path in paths:
             source = path.read_text(encoding="utf-8")
             workflow = json.loads(source)

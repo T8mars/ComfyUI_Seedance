@@ -21,7 +21,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
         await page.waitForTimeout(1000); await page.keyboard.press("Escape");
         const directory = path.join(__dirname, "..", "examples");
         const files = fs.readdirSync(directory).filter((name) => /^seedance-2\.5-.*flash-/.test(name)
-            || /^minimax-h3-comfyui-(charswap|wuxi|max-10020|max-10021)-/.test(name)
+            || /^minimax-h3-comfyui-(charswap|wuxi|max-10020|max-10021)-/.test(name) && !name.includes("-token")
             || /^(zhenzhen-fb-5\.2|doubao-seed-tts-2\.0)-/.test(name));
         assert.equal(files.length, 21);
         const legacy = fs.readdirSync(directory).filter((name) => /^seedance-2\.5-(global-)?standard-/.test(name)
