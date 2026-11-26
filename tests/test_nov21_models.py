@@ -123,7 +123,7 @@ class AudioAndVideoTests(unittest.TestCase):
         body, inputs = h3_token.plan("digital", values, True)
         self.assertEqual(body["seconds"], "3")
         self.assertEqual(len(h3_token.encode("digital", body, inputs)), 2)
-        for changes in ({"audio1": None}, {"image2": IMAGE}, {"audio2": AUDIO}, {"video1": object()}):
+        for changes in ({"audio1": None}, {"image4": IMAGE}, {"audio2": AUDIO}, {"video1": object()}):
             with self.assertRaises(client.SeedanceAPIError):
                 h3_token.plan("digital", {**values, **changes}, True)
         with patch.object(nodes, "upload_media") as upload, self.assertRaisesRegex(client.SeedanceAPIError, "cover"):
@@ -198,7 +198,8 @@ class MioraAndExamplesTests(unittest.TestCase):
         prefixes = ("kling-v4-long-image-", "heygen-avatar-6-", "miora-3d-", "zhenzhen-gm-2.5-",
                     "zhenzhen-gm-4-hydrogen-", "zhenzhen-gm-4-carbon-", "zhenzhen-gm-4-neon-", "zhenzhen-hy-4-")
         paths = [p for p in (ROOT / "examples").glob("*.json")
-                 if p.name.startswith(prefixes) or p.name.startswith("minimax-h3-comfyui-") and "-token" in p.name]
+                 if p.name.startswith(prefixes) or p.name.startswith("minimax-h3-comfyui-") and "-token" in p.name
+                 and not p.name.endswith("-3refs.json")]
         self.assertEqual(len(paths), 21)
         for path in paths:
             raw = path.read_text(encoding="utf-8")

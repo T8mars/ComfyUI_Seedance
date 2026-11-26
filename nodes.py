@@ -340,6 +340,7 @@ ZHENZHEN_IMAGE_GK_V15_MODELS = [
 ]
 ZHENZHEN_IMAGE_GK_V15_SIZES = ["1:1", "16:9", "9:16", "3:2", "2:3"]
 ZHENZHEN_IMAGE_GK_V15_PROMPT_MAX_LENGTH = 20000
+MAX_ZHENZHEN_IMAGE_GK_V15_EDIT_IMAGES = 5
 ZHENZHEN_IMAGE_GK_V2_MODEL = "zhenzhen-image-gk-v2"
 ZHENZHEN_IMAGE_GK_V2_EDIT_MODEL = "zhenzhen-image-gk-v2-edit"
 ZHENZHEN_IMAGE_GK_V2_SEGMENT_MODEL = "zhenzhen-image-gk-v2-segment"
@@ -10049,13 +10050,15 @@ class _H3ComfyVideo(SeedanceVideoNodeBase):
         spec = h3_comfy.PROFILES[cls.KIND]
         required = {
             "prompt": ("STRING", {"default": "", "multiline": True,
-                "tooltip": "Use <Picture n> for images. WF/SelfLift also support <Audio n>; Wuxi/CharSwap use audio descriptions."}),
+                "tooltip": ("Use <Picture n> for views of the same person. Speech comes from the driving audio."
+                            if cls.KIND == "digital" else
+                            "Use <Picture n> for images. WF/SelfLift also support <Audio n>; Wuxi/CharSwap use audio descriptions.")}),
             "seconds": ([str(i) for i in range(spec["min_seconds"], 16)], {"default": "5"}),
             "resolution": (spec["resolutions"], {"default": spec["default"]}),
             "ratio": (h3_comfy.ratios(cls.KIND, "768p" if cls.KIND == "charswap" else spec["default"]),
-                      {"default": "auto" if cls.KIND == "charswap" else "16:9"}),
+                      {"default": "auto" if cls.KIND in h3_comfy.DURATION_MODES else "16:9"}),
         }
-        if cls.KIND == "charswap":
+        if cls.KIND in h3_comfy.DURATION_MODES:
             required.update(duration_mode=(["seconds", "frames"], {"default": "seconds"}),
                             frames=(h3_comfy.FRAMES, {"default": 124}))
         if spec["seed"]:
@@ -10067,6 +10070,9 @@ class _H3ComfyVideo(SeedanceVideoNodeBase):
             optional["video_urls"] = ("STRING", {"default": "", "multiline": True,
                 "tooltip": "Public MP4 URLs, one per line. Local videos are submitted first; combined count uses the model limit."})
         optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        if cls.KIND == "digital":
+            optional["prompt_extend"] = ("BOOLEAN", {"default": True,
+                "tooltip": "Use the API's default prompt expansion; turn off to send prompt_extend=false."})
         return {"required": required, "optional": optional}
 
     @classmethod
@@ -10117,6 +10123,10 @@ class MinimaxH3ComfyUIWF(_H3ComfyVideo):
 
 class MinimaxH3ComfyUISelfLift(_H3ComfyVideo):
     KIND = "selflift"
+
+
+class MinimaxH3ComfyUIDigitalHuman(_H3ComfyVideo):
+    KIND = "digital"
 
 
 class _LegacyReferenceVideo(SeedanceVideoNodeBase):
@@ -10189,13 +10199,16 @@ class _H3Fixed768(_LegacyReferenceVideo):
             required.update(duration_mode=(["seconds", "frames"], {"default": "seconds"}),
                             frames=(h3_token.FRAMES, {"default": 124}))
         optional = {
-            **{f"image{i}": ("IMAGE",) for i in range(1, images + 1)},
+            **{f"image{i}": ("IMAGE",) for i in range(1, (1 if cls.KIND == "digital" else images) + 1)},
             **{f"audio{i}": ("AUDIO",) for i in range(1, audio + 1)},
             **{f"video{i}": ("VIDEO",) for i in range(1, videos + 1)},
         }
         if videos:
             optional["video_urls"] = ("STRING", {"default": "", "tooltip": "One public MP4 URL instead of a local video."})
         optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        if cls.KIND == "digital":
+            # Append sockets so the original image1/audio1/api_config links retain their indexes.
+            optional.update({f"image{i}": ("IMAGE",) for i in range(2, images + 1)})
         return {"required": required, "optional": optional}
 
     @classmethod
@@ -10681,8 +10694,8 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
                     "default": ZHENZHEN_IMAGE_GK_V15_MODEL,
                     "tooltip": (
                         "zhenzhen-image-gk-v15 for text-to-image; "
-                        "zhenzhen-image-gk-v15-edit requires image1. | "
-                        "文生图使用 gk-v15；图像编辑使用 gk-v15-edit 并连接 image1。"
+                        "zhenzhen-image-gk-v15-edit requires 1-5 reference images. | "
+                        "文生图使用 gk-v15；图像编辑使用 gk-v15-edit，连接 1 到 5 张参考图。"
                     ),
                 }),
                 "prompt": ("STRING", {
@@ -10704,7 +10717,7 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
             },
             "optional": {
                 "image1": ("IMAGE", {
-                    "tooltip": "Required for zhenzhen-image-gk-v15-edit; only the first image is submitted. | gk-v15-edit 必填，仅提交第一张图。",
+                    "tooltip": "First reference for gk-v15-edit. | gk-v15-edit 的第一张参考图。",
                 }),
                 "api_config": ("SEEDANCE_CONFIG", {
                     "tooltip": "Connect Seedance API Config; otherwise SEEDANCE_API_KEY is used.",
@@ -10713,6 +10726,7 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
                     "default": False,
                     "tooltip": "On failure return a placeholder image instead of stopping the workflow. | 失败时输出占位图片而不中断工作流。",
                 }),
+                **{f"image{i}": ("IMAGE",) for i in range(2, MAX_ZHENZHEN_IMAGE_GK_V15_EDIT_IMAGES + 1)},
             },
         }
 
@@ -10743,8 +10757,13 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
             n_int = int(n)
             if not 1 <= n_int <= 10:
                 return "n must be between 1 and 10 | n 必须在 1 到 10 之间"
-        if strict and model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL and image1 is None:
-            return "image1 is required for zhenzhen-image-gk-v15-edit | gk-v15-edit 必须连接 image1"
+        if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL:
+            try:
+                references = preview_models.references({"image1": image1, **kwargs}, MAX_ZHENZHEN_IMAGE_GK_V15_EDIT_IMAGES)
+            except SeedanceAPIError as error:
+                return str(error)
+            if strict and not references:
+                return "gk-v15-edit requires 1-5 reference images | gk-v15-edit 需要 1 到 5 张参考图"
         return True
 
     @property
@@ -10766,6 +10785,8 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
         n: int,
         images: List[str],
     ) -> Dict[str, Any]:
+        if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL and len(images) > MAX_ZHENZHEN_IMAGE_GK_V15_EDIT_IMAGES:
+            raise SeedanceAPIError("gk-v15-edit supports up to 5 reference images")
         validation = self.VALIDATE_INPUTS(
             model=model,
             prompt=prompt,
@@ -10784,7 +10805,7 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
             "size": size,
         }
         if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL:
-            payload["images"] = images[:1]
+            payload["images"] = list(images)
         return payload
 
     def _execute_inner(
@@ -10795,6 +10816,7 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
         n: int,
         image1=None,
         api_config=None,
+        **kwargs,
     ):
         prompt_text = str(prompt or "").strip()
         validation = self.VALIDATE_INPUTS(
@@ -10804,6 +10826,7 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
             n=n,
             image1=image1,
             strict=True,
+            **kwargs,
         )
         if validation is not True:
             raise SeedanceAPIError(validation)
@@ -10814,14 +10837,11 @@ class ZhenzhenImageGKV15(SeedanceImageNodeBase):
 
         image_urls: List[str] = []
         if model == ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL:
-            image_url = upload_media(
-                image_to_png_bytes(image1),
-                "zhenzhen_image_gk_v15_reference.png",
-                "image/png",
-                config,
-                logger_prefix=self._log_prefix,
-            )
-            image_urls.append(image_url)
+            references = preview_models.references({"image1": image1, **kwargs}, MAX_ZHENZHEN_IMAGE_GK_V15_EDIT_IMAGES)
+            encoded = [(i, nov21_models.image_bytes(image, f"image{i}")) for i, image in references]
+            for i, data in encoded:
+                image_urls.append(upload_media(data, f"zhenzhen_image_gk_v15_reference_{i}.png",
+                                               "image/png", config, logger_prefix=self._log_prefix))
         self._update_progress(pbar, 15)
 
         payload = self._build_payload(model, prompt_text, size, n, image_urls)
@@ -17320,6 +17340,7 @@ NODE_CLASS_MAPPINGS = {
     "Qwen_Audio_3_1_TTS": QwenAudio31TTS,
     "Doubao_Seed_TTS_2_0": DoubaoSeedTTS20,
     "Minimax_H3_ComfyUI_CharSwap": MinimaxH3ComfyUICharSwap,
+    "Minimax_H3_ComfyUI_Digital_Human": MinimaxH3ComfyUIDigitalHuman,
     "Minimax_H3_ComfyUI_Wuxi": MinimaxH3ComfyUIWuxi,
     "Minimax_H3_ComfyUI_Max_10020": MinimaxH3ComfyUIWF,
     "Minimax_H3_ComfyUI_Max_10021": MinimaxH3ComfyUISelfLift,
@@ -17510,6 +17531,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Qwen_Audio_3_1_TTS": "Qwen Audio 3.1 语音合成",
     "Doubao_Seed_TTS_2_0": "Doubao Seed TTS 2.0 语音合成 / 音色库",
     "Minimax_H3_ComfyUI_CharSwap": "MiniMax H3 ComfyUI 人物替换",
+    "Minimax_H3_ComfyUI_Digital_Human": "MiniMax H3 ComfyUI 数字人",
     "Minimax_H3_ComfyUI_Wuxi": "MiniMax H3 ComfyUI 武戏",
     "Minimax_H3_ComfyUI_Max_10020": "MiniMax H3 ComfyUI WF 动态漫（10020）",
     "Minimax_H3_ComfyUI_Max_10021": "MiniMax H3 ComfyUI JY 自举（10021）",

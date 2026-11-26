@@ -1,4 +1,4 @@
-"""Individual contracts for the four documented H3 ComfyUI video workflows."""
+"""Individual contracts for the H3 ComfyUI video workflows."""
 
 import io
 import re
@@ -10,11 +10,15 @@ import torch
 
 from .client import SeedanceAPIError
 from .media import audio_to_wav_bytes, video_to_bytes
+from .nov21_models import audio_bytes
 from .preview_models import references
 
 
 MIB = 1024 * 1024
 PROFILES = {
+    "digital": {"model": "minimax-h3-comfyui-digital-human", "images": 3, "audios": 1, "videos": 0,
+                "resolutions": ["480p", "608p", "768p", "1536p", "auto"], "default": "608p", "min_seconds": 3,
+                "image_mb": 10, "total_mb": 30, "seed": True},
     "charswap": {"model": "minimax-h3-comfyui-charswap", "images": 9, "audios": 0, "videos": 1,
                  "resolutions": ["480p", "768p", "1088p", "auto"], "default": "768p", "min_seconds": 5,
                  "image_mb": 10, "total_mb": 50, "seed": True},
@@ -29,11 +33,14 @@ PROFILES = {
                  "image_mb": 20, "total_mb": 80, "seed": False},
 }
 FRAMES = list(range(22, 363, 17))
+DURATION_MODES = ("charswap", "digital")
 
 
 def ratios(kind, resolution):
     if kind in ("wf", "selflift"):
         return ["16:9", "9:16"]
+    if kind == "digital":
+        return ["auto", "9:16", "16:9"]
     if kind == "charswap":
         result = ["auto"]
         if resolution != "auto":
@@ -79,7 +86,7 @@ def validate(kind, kwargs, strict=False):
         raise SeedanceAPIError("Unsupported H3 resolution")
     if kwargs.get("ratio", ratios(kind, resolution)[0]) not in ratios(kind, resolution):
         raise SeedanceAPIError("Unsupported H3 aspect ratio for this resolution")
-    duration_mode = kwargs.get("duration_mode", "seconds") if kind == "charswap" else "seconds"
+    duration_mode = kwargs.get("duration_mode", "seconds") if kind in DURATION_MODES else "seconds"
     if duration_mode not in ("seconds", "frames"):
         raise SeedanceAPIError("duration_mode must be seconds or frames")
     if duration_mode == "frames":
@@ -92,6 +99,8 @@ def validate(kind, kwargs, strict=False):
         seed = kwargs.get("seed", -1)
         if type(seed) is not int or not -1 <= seed <= 2147483647:
             raise SeedanceAPIError("seed must be -1 (omit) or 0..2147483647")
+    if kind == "digital" and type(kwargs.get("prompt_extend", True)) is not bool:
+        raise SeedanceAPIError("prompt_extend must be boolean")
     images = references(kwargs, spec["images"])
     audios = slots(kwargs, "audio", spec["audios"])
     videos = slots(kwargs, "video", spec["videos"])
@@ -101,13 +110,16 @@ def validate(kind, kwargs, strict=False):
     if strict:
         if kind == "charswap" and (not images or len(videos) + len(urls) != 1):
             raise SeedanceAPIError("Character replacement requires 1-9 images and exactly one source video")
+        if kind == "digital" and (not images or len(audios) != 1):
+            raise SeedanceAPIError("Digital human requires 1-3 images and exactly one driving audio track")
         if kind == "wuxi" and (videos or urls) and not images:
             raise SeedanceAPIError("Wuxi video references require at least one image")
         if kind == "selflift" and audios and not images:
             raise SeedanceAPIError("SelfLift audio references require at least one image")
         for family, count in (("Picture", len(images)), ("Audio", len(audios))):
-            for index in re.findall(r"<" + family + r"\s+(\d+)>", prompt):
-                if family == "Audio" and kind in ("charswap", "wuxi"):
+            flags = re.I if kind == "digital" else 0
+            for index in re.findall(r"<" + family + r"\s+(\d+)>", prompt, flags):
+                if family == "Audio" and kind in ("charswap", "wuxi", "digital"):
                     raise SeedanceAPIError("Describe audio in words; this workflow does not support <Audio n> tags")
                 if not 1 <= int(index) <= count:
                     raise SeedanceAPIError(f"<{family} {index}> exceeds the supplied reference count")
@@ -131,6 +143,11 @@ def encode_media(kind, kwargs):
     if sum(len(data) for _, data, _ in encoded) > spec["total_mb"] * MIB:
         raise SeedanceAPIError("Reference images exceed this workflow's combined size limit")
     for index, audio in slots(kwargs, "audio", spec["audios"]):
+        if kind == "digital":
+            duration = (kwargs.get("frames", 124) / 24 if kwargs.get("duration_mode") == "frames"
+                        else int(kwargs.get("seconds", "5")))
+            encoded.append((f"audio{index}", audio_bytes(audio, 10 * MIB, duration), "audio/wav"))
+            continue
         waveform = audio.get("waveform") if isinstance(audio, dict) else None
         rate = audio.get("sample_rate") if isinstance(audio, dict) else None
         if not isinstance(waveform, torch.Tensor) or waveform.ndim != 3 or waveform.shape[0] != 1 or not 1 <= waveform.shape[1] <= 2 or waveform.shape[2] < 1:
@@ -158,12 +175,14 @@ def payload(kind, kwargs, images, audios, videos):
     metadata = {"resolution": kwargs.get("resolution", spec["default"]),
                 "ratio": kwargs.get("ratio", ratios(kind, kwargs.get("resolution", spec["default"]))[0])}
     body = {"model": spec["model"], "prompt": kwargs["prompt"].strip(), "metadata": metadata}
-    if kind == "charswap" and kwargs.get("duration_mode", "seconds") == "frames":
+    if kind in DURATION_MODES and kwargs.get("duration_mode", "seconds") == "frames":
         metadata["frames"] = kwargs.get("frames", 124)
     else:
         body["seconds"] = kwargs.get("seconds", "5")
     if spec["seed"] and kwargs.get("seed", -1) >= 0:
         metadata["seed"] = kwargs["seed"]
+    if kind == "digital" and not kwargs.get("prompt_extend", True):
+        metadata["prompt_extend"] = False
     if images:
         body["images"] = list(images)
     if audios:

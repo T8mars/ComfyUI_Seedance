@@ -4,6 +4,12 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.9 - 2026-11-26
+
+- `Minimax_H3_ComfyUI_Digital_Human` accepts 1–3 views of the same person and one driving audio track, with duration in seconds or frames. The existing Digital Human Token node also exposes up to three image inputs and keeps its original audio socket and single-image workflows.
+- `zhenzhen-image-gk-v15-edit` sends 1–5 references in socket order. The text-to-image mode of the shared node is unchanged.
+- Blank-key examples: [Digital Human](examples/minimax-h3-comfyui-digital-human-3refs.json), [Digital Human Token](examples/minimax-h3-comfyui-digital-human-token-3refs.json), and [GK v1.5 Edit](examples/zhenzhen-image-gk-v15-edit-5refs.json). The expanded Token and GK limits follow the model update notice; full-capacity live generation has not been verified.
+
 ## v0.28.8 - 2026-11-25
 
 - `Magi_2_Video` groups `magi-2` and `magi-2-global`: 1080p text, first/last frame, and mixed-reference video, with a native seed, audio toggle, and concurrent submission. Reference mode accepts up to 10 images, 5 video clips, and 5 audio clips.
@@ -401,7 +407,7 @@ All nodes appear under the `Seedance` category. The table uses stable node regis
 | `Zhenzhen_Image_G2` | Zhenzhen Image G generation and editing |
 | `Zhenzhen_Image_G25_Lowprice` | Zhenzhen Image G v2.5 LowPrice generation and up-to-15-image editing |
 | `Zhenzhen_Image_G25_Official` | Flare/Sunburst Image G v2.5 generation and up-to-16-image editing |
-| `Zhenzhen_Image_GK_V15` | Zhenzhen Image GK v1.5 generation and editing |
+| `Zhenzhen_Image_GK_V15` | Zhenzhen Image GK v1.5 generation and editing (1–5 edit references) |
 | `Zhenzhen_Image_GK_V2` | Zhenzhen Image GK v2 text-to-image |
 | `Zhenzhen_Image_GK_V2_Edit` | Zhenzhen Image GK v2 one-to-three-image editing |
 | `Zhenzhen_Image_GK_V2_Segment` | Zhenzhen Image GK v2 segmentation |

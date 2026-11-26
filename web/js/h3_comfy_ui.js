@@ -5,7 +5,7 @@ import { resizeSeedanceNode, setSeedanceInputVisible, setSeedanceWidgetVisible }
 const KEYS = new Set([
     "Minimax_H3_ComfyUI_CharSwap", "Minimax_H3_ComfyUI_Wuxi", "Minimax_H3_ComfyUI_Max_10020", "Minimax_H3_ComfyUI_Max_10021",
     "Minimax_H3_ComfyUI_Max_10020_Token", "Minimax_H3_ComfyUI_Max_10021_Token",
-    "Minimax_H3_ComfyUI_CharSwap_Token", "Minimax_H3_ComfyUI_Digital_Human_Token",
+    "Minimax_H3_ComfyUI_CharSwap_Token", "Minimax_H3_ComfyUI_Digital_Human", "Minimax_H3_ComfyUI_Digital_Human_Token",
 ]);
 const INSTALLED = Symbol("seedanceH3ComfyUI");
 
@@ -16,7 +16,8 @@ function refresh(node, key) {
         const last = Math.max(0, ...inputs.filter((input) => input.link != null).map((input) => Number(input.name.slice(family.length))));
         for (const input of inputs) setSeedanceInputVisible(node, input, Number(input.name.slice(family.length)) <= last + 1);
     }
-    if (key === "Minimax_H3_ComfyUI_CharSwap" || key === "Minimax_H3_ComfyUI_CharSwap_Token") {
+    if (key === "Minimax_H3_ComfyUI_CharSwap" || key === "Minimax_H3_ComfyUI_CharSwap_Token"
+        || key === "Minimax_H3_ComfyUI_Digital_Human") {
         const frames = widget("duration_mode")?.value === "frames";
         setSeedanceWidgetVisible(widget("seconds"), !frames);
         setSeedanceWidgetVisible(widget("frames"), frames);

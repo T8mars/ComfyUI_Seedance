@@ -22,7 +22,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
         await page.keyboard.press("Escape");
         const directory = path.join(__dirname, "..", "examples");
         const candidates = fs.readdirSync(directory).filter((n) => /^(kling-v4-long-image-|heygen-avatar-6-|miora-3d-|zhenzhen-gm-2\.5-|zhenzhen-gm-4-(hydrogen|carbon|neon)-|zhenzhen-hy-4-)/.test(n)
-            || n.startsWith("minimax-h3-comfyui-") && n.includes("-token"));
+            || n.startsWith("minimax-h3-comfyui-") && n.includes("-token") && !n.endsWith("-3refs.json"));
         assert.equal(candidates.length, 21);
         for (const name of candidates) {
             const result = await page.evaluate(async (workflow) => {

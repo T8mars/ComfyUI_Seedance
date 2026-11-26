@@ -1077,7 +1077,7 @@ class ImageNodeTests(unittest.TestCase):
         self.assertNotIn("images", payload)
         self.assertNotIn("metadata", payload)
 
-    def test_zhenzhen_image_gk_v15_edit_payload_uses_first_image(self):
+    def test_zhenzhen_image_gk_v15_edit_payload_keeps_references_in_order(self):
         node = nodes.ZhenzhenImageGKV15()
         payload = node._build_payload(
             nodes.ZHENZHEN_IMAGE_GK_V15_EDIT_MODEL,
@@ -1088,7 +1088,7 @@ class ImageNodeTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["model"], "zhenzhen-image-gk-v15-edit")
-        self.assertEqual(payload["images"], ["https://cdn.test/a.png"])
+        self.assertEqual(payload["images"], ["https://cdn.test/a.png", "https://cdn.test/b.png"])
         self.assertEqual(payload["size"], "1:1")
         self.assertEqual(payload["n"], 1)
 

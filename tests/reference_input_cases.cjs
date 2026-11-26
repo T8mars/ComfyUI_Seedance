@@ -21,6 +21,9 @@ const cases = [
     ["kling_v4_ui.js", "Zhenzhen_Video_G_Omni_1_2_Flash_Lowprice", { image: 10, video: 1 }, []],
     ["tripo_ui.js", "Tripo_Generate", { image: 4 }, ["tripo-h-v3.1-multiview-to-3d", "tripo-h-v3.1-image-to-3d", "tripo-h-v3.1-text-to-3d"]],
     ["seedream55_ui.js", "Seedream_5_5_Image", { image: 10 }, ["seedream-v5.5-i2i", "dola-seedream-5.5-i2i", "seedream-v5.5-t2i", "dola-seedream-5.5-t2i"]],
+    ["latest_image_audio_ui.js", "Zhenzhen_Image_GK_V15", { image: 5 }, ["zhenzhen-image-gk-v15", "zhenzhen-image-gk-v15-edit"]],
+    ["h3_comfy_ui.js", "Minimax_H3_ComfyUI_Digital_Human", { image: 3, audio: 1 }, []],
+    ["h3_comfy_ui.js", "Minimax_H3_ComfyUI_Digital_Human_Token", { image: 3, audio: 1 }, []],
 ];
 
 function limitsFor(key, model, capacity, mode = "image") {
@@ -32,6 +35,7 @@ function limitsFor(key, model, capacity, mode = "image") {
     }
     if (key === "Vidu_Q4_Preview_Video") return model.endsWith("-r2v") ? capacity : { image: 1, audio: 0 };
     if (key === "Zhenzhen_Image_G26") return mode === "gif" ? empty : capacity;
+    if (key === "Zhenzhen_Image_GK_V15") return model.endsWith("-edit") ? capacity : empty;
     if (key.startsWith("Hitem3D") || key === "Tripo_Generate") return { image: model.includes("text-to") ? 0 : model.includes("multi") ? 4 : 1 };
     if (key === "Meshy_6_Global") return { image: model.includes("text-to") ? 0 : 1 };
     return capacity;

@@ -19,7 +19,7 @@ class ReferenceInputContractTests(unittest.TestCase):
             input=json.dumps(schemas), text=True, encoding="utf-8", capture_output=True, timeout=90,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("22 families", result.stdout)
+        self.assertIn("25 families", result.stdout)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ PROFILES = {
     "wf": ("minimax-h3-comfyui-max-10020-token", 6, 3, 0, 5),
     "jy": ("minimax-h3-comfyui-max-10021-token", 6, 3, 1, 5),
     "charswap": ("minimax-h3-comfyui-charswap-token", 5, 0, 1, 5),
-    "digital": ("minimax-h3-comfyui-digital-human-token", 1, 1, 0, 3),
+    "digital": ("minimax-h3-comfyui-digital-human-token", 3, 1, 0, 3),
 }
 RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"]
 

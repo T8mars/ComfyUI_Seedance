@@ -70,6 +70,7 @@ PURE_VIDEO_NODE_KEYS = (
     "Minimax_H3_ComfyUI_Digital_Human_Token",
     "HeyGen_Avatar_6",
     "Minimax_H3_ComfyUI_CharSwap",
+    "Minimax_H3_ComfyUI_Digital_Human",
     "Minimax_H3_ComfyUI_Wuxi",
     "Minimax_H3_ComfyUI_Max_10020",
     "Minimax_H3_ComfyUI_Max_10021",

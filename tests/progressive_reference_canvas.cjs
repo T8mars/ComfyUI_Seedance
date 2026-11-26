@@ -22,8 +22,11 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
         await page.waitForTimeout(1000);
         await page.keyboard.press("Escape");
         const info = await (await page.request.get(new URL("/object_info", page.url()).href)).json();
+        const filter = process.env.SEEDANCE_REFERENCE_NODE_FILTER;
+        const selected = filter ? cases.filter(([, key]) => new RegExp(filter).test(key)) : cases;
+        if (filter) assert.ok(selected.length, "No cases match SEEDANCE_REFERENCE_NODE_FILTER");
         let count = 0;
-        for (const [, base, capacity, fallback] of process.env.SEEDANCE_REFERENCE_MOUSE_ONLY ? [] : cases) {
+        for (const [, base, capacity, fallback] of process.env.SEEDANCE_REFERENCE_MOUSE_ONLY ? [] : selected) {
             for (const key of [base, `SeedanceConcurrent_${base}_Submit`].filter((name) => info[name])) {
                 const fields = { ...info[key].input.required, ...info[key].input.optional };
                 const models = Array.isArray(fields.model?.[0]) ? fields.model[0] : fallback.length ? fallback : [""];
@@ -101,12 +104,16 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
                 }
             }
         }
-        for (const [key, model] of [["Zhenzhen_Image_NB_Lowprice", "zhenzhen-image-nb-pro-lowprice"], ["Tripo_Generate", "tripo-h-v3.1-multiview-to-3d"]]) {
+        const mouseCases = filter ? selected.flatMap(([, key, { image }, fallback]) =>
+            [key, `SeedanceConcurrent_${key}_Submit`].filter((name) => info[name]).map((name) => [name, fallback.at(-1), image]))
+            : [["Zhenzhen_Image_NB_Lowprice", "zhenzhen-image-nb-pro-lowprice", 3], ["Tripo_Generate", "tripo-h-v3.1-multiview-to-3d", 3]];
+        for (const [key, model, max] of mouseCases) {
             await page.evaluate(async ({ key, model }) => {
                 const app = window.__refApp; app.graph.clear();
                 const source = LiteGraph.createNode("EmptyImage"); app.graph.add(source); source.pos = [80, 80];
                 const target = LiteGraph.createNode(key); app.graph.add(target); target.pos = [650, 80];
-                const widget = target.widgets.find((widget) => widget.name === "model"); widget.value = model; widget.callback?.(model);
+                const widget = target.widgets.find((widget) => widget.name === "model");
+                if (widget && model) { widget.value = model; widget.callback?.(model); }
                 await new Promise((r) => setTimeout(r, 100));
                 const workflow = app.graph.serialize();
                 const saved = workflow.nodes.find((node) => node.type === key);
@@ -115,7 +122,7 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
                 await app.loadGraphData(workflow);
                 app.canvas.ds.scale = .8; app.canvas.ds.offset[0] = 0; app.canvas.ds.offset[1] = 0; app.canvas.setDirty(true, true);
             }, { key, model });
-            for (let index = 1; index <= 3; index++) {
+            for (let index = 1; index <= max; index++) {
                 await page.waitForTimeout(120);
                 const points = await page.evaluate(({ key, index }) => {
                     const app = window.__refApp, source = app.graph._nodes.find((node) => node.comfyClass === "EmptyImage"), target = app.graph._nodes.find((node) => node.comfyClass === key);
@@ -129,11 +136,33 @@ const { chromium } = require(path.join(process.env.SEEDANCE_BROWSER_MODULE_DIR, 
                 await page.waitForTimeout(120);
                 assert.equal(await page.evaluate(({ key, index }) => window.__refApp.graph._nodes.find((node) => node.comfyClass === key).inputs.find((input) => input.name === `image${index}`).link != null, { key, index }), true, `${key}: real mouse connection image${index}`);
             }
-            console.log(`MOUSE PASS ${key}: connect images 1, 2, 3 with old hidden state; third port appears and accepts drag connection`);
+            console.log(`MOUSE PASS ${key}: connected images 1 through ${max}`);
             if (process.env.SEEDANCE_REFERENCE_SCREENSHOTS) {
                 fs.mkdirSync(process.env.SEEDANCE_REFERENCE_SCREENSHOTS, { recursive: true });
                 await page.screenshot({ path: path.join(process.env.SEEDANCE_REFERENCE_SCREENSHOTS, key + "-mouse.png") });
             }
+        }
+        for (const filename of process.env.SEEDANCE_REFERENCE_WORKFLOWS?.split(";") ?? []) {
+            const graph = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "examples", filename), "utf8"));
+            await page.evaluate(async (workflow) => {
+                const app = window.__refApp;
+                await app.loadGraphData(workflow);
+                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                const { output } = await app.graphToPrompt();
+                for (const saved of workflow.nodes.filter((node) => /Digital_Human|Image_GK_V15/.test(node.type))) {
+                    const restored = app.graph.getNodeById(saved.id);
+                    for (const original of saved.inputs.filter((slot) => slot.link != null)) {
+                        if (restored.inputs.find((slot) => slot.name === original.name)?.link !== original.link
+                            || !output[saved.id]?.inputs[original.name]) throw new Error(`Lost ${original.name} link in ${saved.type}`);
+                    }
+                    for (let i = 0; i < saved.widgets_values.length; i++) {
+                        if (app.graph.serialize().nodes.find((node) => node.id === saved.id).widgets_values[i] !== saved.widgets_values[i]) {
+                            throw new Error(`Changed widget ${i} in ${saved.type}`);
+                        }
+                    }
+                }
+            }, graph);
+            console.log(`WORKFLOW PASS ${filename}`);
         }
         assert.deepEqual(errors, []);
         console.log(`PASS ${count} model profiles plus physical mouse connections; zero page errors and no generation requests`);

@@ -9,6 +9,7 @@ import {
 const WAN_NODE_NAME = "Wan_2_7_Global_Image";
 const QWEN_TTS_NODE_NAME = "Qwen3_TTS";
 const MINIMAX_AUDIO_NODE_NAME = "Minimax_Audio";
+const GK_V15_NODE_NAME = "Zhenzhen_Image_GK_V15";
 
 const MINIMAX_MUSIC_FIELDS = new Set([
     "model", "prompt", "lyrics", "is_instrumental", "lyrics_optimizer",
@@ -41,6 +42,14 @@ function refreshWan(node) {
         }
     }
     resizeSeedanceNode(node, 400);
+}
+
+function refreshGKV15(node) {
+    const edit = widgetByName(node, "model")?.value === "zhenzhen-image-gk-v15-edit";
+    const inputs = (node.inputs ?? []).filter((input) => /^image[1-5]$/.test(input.name));
+    const last = Math.max(0, ...inputs.filter((input) => input.link != null).map((input) => Number(input.name.slice(5))));
+    for (const input of inputs) setInputVisible(node, input, edit && Number(input.name.slice(5)) <= last + 1);
+    resizeSeedanceNode(node, 380);
 }
 
 function refreshQwenTTS(node) {
@@ -109,6 +118,7 @@ app.registerExtension({
             [WAN_NODE_NAME]: refreshWan,
             [QWEN_TTS_NODE_NAME]: refreshQwenTTS,
             [MINIMAX_AUDIO_NODE_NAME]: refreshMinimaxAudio,
+            [GK_V15_NODE_NAME]: refreshGKV15,
         }[originalName];
         if (!refresh) {
             return;

@@ -24,6 +24,12 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.9（2026-11-26）
+
+- 新增 `Minimax_H3_ComfyUI_Digital_Human`，支持同一人物的 1–3 张图和 1 段驱动音频，可按秒或按帧设置时长。现有数字人 Token 节点也可连接 1–3 张参考图，保留原单图工作流和音频端口。
+- `zhenzhen-image-gk-v15-edit` 可连接 1–5 张图，按输入槽位顺序提交；同节点的文生图模式不变。
+- 三图和五图用法见 [普通数字人](examples/minimax-h3-comfyui-digital-human-3refs.json)、[数字人 Token](examples/minimax-h3-comfyui-digital-human-token-3refs.json) 和 [GK v1.5 Edit](examples/zhenzhen-image-gk-v15-edit-5refs.json)。Token 三图、GK 五图上限按模型更新通知接入，尚未实测线上满张数生成。
+
 ## v0.28.8（2026-11-25）
 
 - 独立 `Magi_2_Video` 合并 `magi-2` 和 `magi-2-global`，支持 1080p 文生、首尾帧和混合参考视频，原生种子、音轨开关和并发提交。参考模式最多 10 张图片、5 段视频、5 段音频。
@@ -716,7 +722,7 @@ Motion Video 是素材输入的例外：只使用持久公网图片 URL，不会
 | `Zhenzhen Image G 图像生成/编辑` | G-2 / G v2 文生图和图像编辑；按 `model` 决定是否需要参考图 | `model`、`prompt`、`resolution=1k`、`ratio`、可选参考图 |
 | `Zhenzhen Image G v2.5 LowPrice 生成/编辑` | G v2.5 文生图与最多 15 图参考编辑 | `prompt`、`resolution`、`size`、`nsfw_check`、可选参考图 |
 | `Zhenzhen Image G v2.5 Official 生成/编辑（2 合 1）` | Flare / Sunburst 文生图与最多 16 图参考编辑 | `model`、`prompt`、尺寸、质量、数量、格式、背景、可选参考图 |
-| `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑模型需要 `image1` | `model`、`prompt`、`size`、`n`、可选参考图 |
+| `Zhenzhen Image GK v1.5 图像生成/编辑` | GK v1.5 文生图和图像编辑；编辑支持 1–5 张参考图 | `model`、`prompt`、`size`、`n`、参考图 |
 | `Zhenzhen Image GK v2 文生图` | GK v2 文生图，支持 7 种固定比例和单次 1 到 12 张请求 | `prompt`、`size`、`n` |
 | `Zhenzhen Image GK v2 图像编辑（1-3 图）` | GK v2 多图参考编辑，独立于文生图请求结构 | `prompt`、1 到 3 张参考图、`aspect_ratio`、`resolution`、`n` |
 | `Zhenzhen Image Nano Banana 生成/编辑` | 4 个 Nano Banana 模型的文生图和最多 14 图参考编辑 | `model`、`prompt`、`resolution`、`size`、`n`、可选参考图 |
@@ -998,7 +1004,7 @@ Zhenzhen Image GK v1.5 图片生成或编辑：
 1. 添加 `Zhenzhen Image GK v1.5 图像生成/编辑`。
 2. 选择 `zhenzhen-image-gk-v15` 生成图片，或选择 `zhenzhen-image-gk-v15-edit` 编辑参考图。
 3. 填写提示词，选择 `size`，按需设置 `n`。
-4. 使用编辑模型时连接 `image1`；节点会按文档只提交第一张参考图。
+4. 编辑模式从 `image1` 开始连接 1–5 张参考图，连接后逐个展开，按槽位编号顺序提交。
 5. 将 `image` 输出连接到 `Preview Image` 或 `Save Image`。
 
 Zhenzhen Image Nano Banana 图片生成或编辑：
@@ -1187,7 +1193,7 @@ Zhenzhen Image GK v1.5 节点使用同一个 `/v1/image/generations` 图片端�
 | 模型 | 用途 | 参数 |
 | --- | --- | --- |
 | `zhenzhen-image-gk-v15` | 文生图 | `prompt` 必填；`size` 为 `1:1`、`16:9`、`9:16`、`3:2` 或 `2:3`；`n` 为 1 到 10 |
-| `zhenzhen-image-gk-v15-edit` | 图像编辑 | `prompt` 必填；`image1` 必填且只提交第一张；`size` 和 `n` 使用同上 |
+| `zhenzhen-image-gk-v15-edit` | 图像编辑 | `prompt` 必填；提交 1–5 张参考图；`size` 和 `n` 使用同上 |
 
 Zhenzhen Image Nano Banana 节点使用同一个 `/v1/image/generations` 图片端点：
 
@@ -1467,7 +1473,7 @@ Zhenzhen Image GK v1.5 参数：
 | `prompt` | 必填，最多 20000 字符 |
 | `size` | `1:1`、`16:9`、`9:16`、`3:2` 或 `2:3` |
 | `n` | 1 到 10，节点下载网关返回的主结果 |
-| `image1` | 编辑模型必填；文生图模型不使用 |
+| `image1`–`image5` | 编辑模型需要 1–5 张参考图；文生图模型不使用 |
 | `api_config` | 可选，复用 `Seedance API Config` 的地址与 API key |
 
 Zhenzhen Image Nano Banana 参数：
