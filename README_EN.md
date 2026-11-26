@@ -4,6 +4,10 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.10 - 2026-11-27
+
+- `Anima_V1_T2I` (`Anima-v1-t2i`) takes a prompt and aspect ratio and returns one image. It accepts no reference images and its seed only controls the ComfyUI cache. Includes concurrent submission and a [blank-key workflow](examples/Anima-v1-t2i%E6%96%87%E7%94%9F%E5%9B%BE.json).
+
 ## v0.28.9 - 2026-11-26
 
 - `Minimax_H3_ComfyUI_Digital_Human` accepts 1–3 views of the same person and one driving audio track, with duration in seconds or frames. The existing Digital Human Token node also exposes up to three image inputs and keeps its original audio socket and single-image workflows.

@@ -9612,6 +9612,39 @@ class ZImageT2I(_ReferenceImageGeneration):
         }
 
 
+class AnimaV1T2I(_ReferenceImageGeneration):
+    MODEL = "Anima-v1-t2i"
+    MAX_REFERENCES = 0
+
+    @classmethod
+    def controls(cls):
+        return {
+            "prompt": ("STRING", {"default": "", "multiline": True}),
+            "ratio": (image_models_26.RATIOS, {"default": "1:1"}),
+        }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, prompt=None, ratio="1:1", strict=False, **kwargs):
+        if prompt is not None and not isinstance(prompt, str):
+            return "prompt must be text"
+        if strict and not (prompt or "").strip():
+            return "Anima requires a non-empty prompt | Anima 必须填写提示词"
+        if ratio not in image_models_26.RATIOS:
+            return "Unsupported Anima aspect ratio | Anima 不支持该比例"
+        try:
+            preview_models.references(kwargs, cls.MAX_REFERENCES)
+        except SeedanceAPIError:
+            return "Anima is text-to-image only | Anima 不支持参考图"
+        return True
+
+    @classmethod
+    def build_payload(cls, kwargs, images):
+        if images:
+            raise SeedanceAPIError("Anima is text-to-image only")
+        return {"model": cls.MODEL, "prompt": kwargs["prompt"].strip(),
+                "metadata": {"ratio": kwargs.get("ratio", "1:1")}}
+
+
 class KreaV3Image(_ReferenceImageGeneration):
     KIND = "krea"
     MAX_REFERENCES = 8
@@ -17383,6 +17416,7 @@ NODE_CLASS_MAPPINGS = {
     "Muse_Image": MuseImage,
     "Zhenzhen_Image_G26": ZhenzhenImageG26,
     "Z_Image_T2I": ZImageT2I,
+    "Anima_V1_T2I": AnimaV1T2I,
     "Krea_V3_Image": KreaV3Image,
     "Muse_Video": MuseVideo,
     "Zhenzhen_Image_GK_V15": ZhenzhenImageGKV15,
@@ -17574,6 +17608,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Muse_Image": "Muse Image 图像生成/合成",
     "Zhenzhen_Image_G26": "Zhenzhen Image G 2.6 图像 / GIF",
     "Z_Image_T2I": "Z-image 文生图",
+    "Anima_V1_T2I": "Anima v1 文生图",
     "Krea_V3_Image": "Krea V3 图像生成/编辑",
     "Muse_Video": "Muse Video 文生/参考生视频",
     "Zhenzhen_Image_GK_V15": "Zhenzhen Image GK v1.5 图像生成/编辑",

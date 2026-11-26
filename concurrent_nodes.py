@@ -37,6 +37,7 @@ PURE_IMAGE_NODE_KEYS = (
     "Seedream_5_5_Image",
     "Zhenzhen_Image_G26",
     "Z_Image_T2I",
+    "Anima_V1_T2I",
     "Krea_V3_Image",
     "Seedream_V5_Pro_Image",
     "Zhenzhen_Image_G2",
