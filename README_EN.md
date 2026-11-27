@@ -4,6 +4,10 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.11 - 2026-11-28
+
+- `Seed_TTS_3_0` (`bytedance-seed/seed-tts-3-0`) adds 502 searchable official voices and a short-name or full-ID override. Supports delivery instructions and 0.5–2× speed. Returns 24 kHz mono WAV and native ComfyUI `AUDIO`, with a [blank-key example](examples/seed-tts-3-0.json).
+
 ## v0.28.10 - 2026-11-27
 
 - `Anima_V1_T2I` (`Anima-v1-t2i`) takes a prompt and aspect ratio and returns one image. It accepts no reference images and its seed only controls the ComfyUI cache. Includes concurrent submission and a [blank-key workflow](examples/Anima-v1-t2i%E6%96%87%E7%94%9F%E5%9B%BE.json).

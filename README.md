@@ -24,6 +24,10 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.11（2026-11-28）
+
+- 新增独立节点 `Seed_TTS_3_0`（`bytedance-seed/seed-tts-3-0`）：可搜索 502 个官方音色，也可填写音色短名或完整 ID；支持表达指令和 0.5–2 倍语速，输出 24 kHz 单声道 WAV 和 ComfyUI `AUDIO`。附[空密钥示例](examples/seed-tts-3-0.json)。
+
 ## v0.28.10（2026-11-27）
 
 - 新增独立节点 `Anima_V1_T2I`（`Anima-v1-t2i`）：输入提示词和比例，单次输出一张图；不上传参考图，种子只用于 ComfyUI 缓存。支持并发提交，附 [空密钥工作流](examples/Anima-v1-t2i%E6%96%87%E7%94%9F%E5%9B%BE.json)。

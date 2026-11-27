@@ -79,7 +79,7 @@ from .core.client import (
 from .core.geometry import file3d_from_path, placeholder_file3d
 from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, h3_comfy, seedance25_flash, doubao_tts, llm
 from .core import image_nov19, qwen_audio31
-from .core import h3_token, magi2, nov21_models
+from .core import h3_token, magi2, nov21_models, seed_tts30
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -13360,6 +13360,64 @@ class DoubaoSeedTTS20:
             return {"ui": {"text": [response]}, "result": (make_silent_audio(24000, 1.0), "", "", "", "", response)}
 
 
+class SeedTTS30:
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("audio", "audio_url", "audio_path", "task_id", "response")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": "Text to speak, 1-5000 characters."}),
+            "voice": (seed_tts30.VOICES, {"default": seed_tts30.DEFAULT_VOICE}),
+            "instructions": ("STRING", {"default": "", "multiline": True,
+                "tooltip": "Optional tone, pace, emotion or accent instructions, up to 1000 characters."}),
+            "speed": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0, "step": 0.01}),
+        }, "optional": {
+            "voice_id": ("STRING", {"default": "", "tooltip": "Optional short name or full ID; overrides voice."}),
+            "api_config": ("SEEDANCE_CONFIG",),
+            "skip_error": ("BOOLEAN", {"default": False}),
+        }}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, strict=False, **kwargs):
+        try:
+            seed_tts30.payload(kwargs, strict)
+        except SeedanceAPIError as error:
+            return str(error)
+        return True
+
+    def execute(self, skip_error=False, **kwargs):
+        prefix = "Seed_TTS_3_0"
+        config = None
+        try:
+            body = seed_tts30.payload(kwargs, strict=True)
+            config = get_config(kwargs.get("api_config"))
+            pbar = _make_progress_bar(100)
+
+            def progress(value):
+                if pbar is not None:
+                    pbar.update_absolute(int(value), 100)
+
+            task = submit_audio_task(body, config, logger_prefix=prefix)
+            progress(20)
+            final = poll_audio_task(task, config, logger_prefix=prefix,
+                                    on_progress=lambda value: progress(20 + value * .75))
+            url = extract_audio_url(final)
+            audio, path = download_audio(url, output_format="wav", sample_rate=seed_tts30.SAMPLE_RATE, logger_prefix=prefix)
+            progress(100)
+            response = json.dumps(final, ensure_ascii=False, indent=2)
+            return {"ui": {"text": [url, path, response]}, "result": (audio, url, path, task, response)}
+        except Exception as error:
+            if not skip_error:
+                raise
+            response = json.dumps({"error": llm.safe_error(error, config)}, ensure_ascii=False)
+            return {"ui": {"text": [response]},
+                    "result": (make_silent_audio(seed_tts30.SAMPLE_RATE, 1.0), "", "", "", response)}
+
+
 class DoubaoSeedAudio:
     """Asynchronous doubao-seed-audio-1.0 generation via /v1/audio/generations."""
 
@@ -17372,6 +17430,7 @@ NODE_CLASS_MAPPINGS = {
     "MAI_Image_2_7": MAIImage27,
     "Qwen_Audio_3_1_TTS": QwenAudio31TTS,
     "Doubao_Seed_TTS_2_0": DoubaoSeedTTS20,
+    "Seed_TTS_3_0": SeedTTS30,
     "Minimax_H3_ComfyUI_CharSwap": MinimaxH3ComfyUICharSwap,
     "Minimax_H3_ComfyUI_Digital_Human": MinimaxH3ComfyUIDigitalHuman,
     "Minimax_H3_ComfyUI_Wuxi": MinimaxH3ComfyUIWuxi,
@@ -17564,6 +17623,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MAI_Image_2_7": "MAI Image 2.7 / Flash 图像生成与编辑",
     "Qwen_Audio_3_1_TTS": "Qwen Audio 3.1 语音合成",
     "Doubao_Seed_TTS_2_0": "Doubao Seed TTS 2.0 语音合成 / 音色库",
+    "Seed_TTS_3_0": "Seed-TTS 3.0 语音合成 / 音色库",
     "Minimax_H3_ComfyUI_CharSwap": "MiniMax H3 ComfyUI 人物替换",
     "Minimax_H3_ComfyUI_Digital_Human": "MiniMax H3 ComfyUI 数字人",
     "Minimax_H3_ComfyUI_Wuxi": "MiniMax H3 ComfyUI 武戏",
