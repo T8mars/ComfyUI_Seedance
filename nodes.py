@@ -79,7 +79,7 @@ from .core.client import (
 from .core.geometry import file3d_from_path, placeholder_file3d
 from .core import kling_v4, preview_models, flux3_variants, hitem_meshy, image_models_26, image_artifacts, gif_export, flash_video, tripo, tripo_artifacts, seedream55, h3_turbo, h3_comfy, seedance25_flash, doubao_tts, llm
 from .core import image_nov19, qwen_audio31
-from .core import h3_token, magi2, nov21_models, seed_tts30
+from .core import h3_token, magi2, nov21_models, seed_tts30, ideogram46
 from .core.media import (
     audio_to_mp3_bytes,
     audio_to_wav_bytes,
@@ -9645,6 +9645,88 @@ class AnimaV1T2I(_ReferenceImageGeneration):
                 "metadata": {"ratio": kwargs.get("ratio", "1:1")}}
 
 
+class _Ideogram46Base(SeedanceImageNodeBase):
+    """Shared image task handling for both Ideogram 4.6 nodes."""
+
+    CATEGORY = "Seedance"
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    EDIT = False
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING", "MASK")
+    RETURN_NAMES = ("image", "image_url", "task_id", "response", "mask")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        ratios = [ideogram46.SOURCE_RATIO, *ideogram46.RATIOS] if cls.EDIT else ideogram46.RATIOS
+        required = {
+            "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": "1–10000 characters | 1–10000 个字符"}),
+            "aspect_ratio": (ratios, {"default": ratios[0]}),
+            "resolution": (ideogram46.RESOLUTIONS, {"default": "1k"}),
+            "quality": (ideogram46.QUALITIES, {"default": "medium", "tooltip": "very_low: 1k / 2k only | 仅支持 1k / 2k"}),
+        }
+        optional = {}
+        if cls.EDIT:
+            required = {"image1": ("IMAGE", {"tooltip": "Base image to edit | 待编辑原图"}), **required}
+            required.update(
+                edit_precision=(ideogram46.PRECISIONS, {"default": "regular"}),
+                mask_url=("STRING", {"default": "", "tooltip": "Optional public mask URL, same size as image1. With a mask, use at most 3 additional references. | 公开蒙版 URL，尺寸须与原图一致；另可传最多 3 张参考图。"}),
+            )
+            optional.update({f"image{i}": ("IMAGE",) for i in range(2, ideogram46.MAX_IMAGES + 1)})
+        else:
+            required.update(background=(ideogram46.BACKGROUNDS, {"default": "opaque"}),
+                            enable_prompt_expansion=("BOOLEAN", {"default": False}))
+        optional.update(api_config=("SEEDANCE_CONFIG",), skip_error=("BOOLEAN", {"default": False}))
+        return {"required": required, "optional": optional}
+
+    @property
+    def _log_prefix(self):
+        return ideogram46.EDIT_MODEL if self.EDIT else ideogram46.TEXT_MODEL
+
+    def _make_error_result(self, error_msg):
+        fallback = super()._make_error_result(error_msg)
+        image = fallback["result"][0]
+        fallback["result"] += (image.new_zeros(image.shape[:3]),)
+        return fallback
+
+    def _execute_inner(self, **kwargs):
+        body = ideogram46.plan(kwargs, edit=self.EDIT)
+        encoded = preview_models.encode_references(kwargs, ideogram46.MAX_IMAGES) if self.EDIT else []
+        config = get_config(kwargs.get("api_config"))
+        pbar = _make_progress_bar(100)
+
+        def progress(value):
+            if pbar:
+                pbar.update_absolute(int(value), 100)
+
+        progress(0)
+        if self.EDIT:
+            body["images"] = []
+            for index, data in encoded:
+                body["images"].append(upload_media(data, f"ideogram_reference_{index}.png", "image/png", config,
+                                                   logger_prefix=self._log_prefix))
+                progress(len(body["images"]) / len(encoded) * 15)
+        task = submit_image_task(body, config, logger_prefix=self._log_prefix)
+        progress(20)
+        final = poll_image_task(task, config, logger_prefix=self._log_prefix,
+                                on_progress=lambda value: progress(20 + value * .75))
+        progress(95)
+        url = extract_image_url(final)
+        image, mask = download_image_with_mask(url, logger_prefix=self._log_prefix)
+        progress(100)
+        response = json.dumps(final, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [url, response]}, "result": (image, url, task, response, mask)}
+
+
+class Ideogram46(_Ideogram46Base):
+    """Ideogram 4.6 text-to-image with an optional transparent background."""
+
+
+class Ideogram46Edit(_Ideogram46Base):
+    """Edit one base image with optional style/content references."""
+
+    EDIT = True
+
+
 class KreaV3Image(_ReferenceImageGeneration):
     KIND = "krea"
     MAX_REFERENCES = 8
@@ -17442,6 +17524,8 @@ NODE_CLASS_MAPPINGS = {
     "Qwen_Image_2_1_Turbo": QwenImage21Turbo,
     "Seedance_2_5_Draft_To_Video": Seedance25DraftToVideo,
     "Seedream_5_5_Image": Seedream55Image,
+    "Ideogram_V4_6": Ideogram46,
+    "Ideogram_V4_6_Edit": Ideogram46Edit,
     "Seedream_5_5_Layer_Decomposition": Seedream55LayerDecomposition,
     "Tripo_Generate": TripoGenerate,
     "Tripo_Texture": TripoTexture,
@@ -17635,6 +17719,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Qwen_Image_2_1_Turbo": "Qwen Image 2.1 Turbo 文生图/图像编辑",
     "Seedance_2_5_Draft_To_Video": "Seedance 2.5 样片转高清成片",
     "Seedream_5_5_Image": "Seedream / Dola 5.5 图像生成与编辑",
+    "Ideogram_V4_6": "Ideogram 4.6 文生图",
+    "Ideogram_V4_6_Edit": "Ideogram 4.6 图像编辑",
     "Seedream_5_5_Layer_Decomposition": "Seedream / Dola 5.5 图像分层",
     "Tripo_Generate": "Tripo 文本 / 单图 / 多视图生成 (15合1)",
     "Tripo_Texture": "Tripo 重新贴图 (v3.0 / v2.5)",

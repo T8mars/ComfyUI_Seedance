@@ -4,6 +4,14 @@
 
 ComfyUI nodes for video, image, audio, speech, music, and 3D generation through [api.seedance.nz](https://api.seedance.nz). The plugin supports local ComfyUI media inputs, asynchronous task polling, resilient result downloads, standard seed controls, error skipping, and optional concurrent execution.
 
+## v0.28.12 - 2026-11-28
+
+Adds separate Ideogram 4.6 text-to-image and image-editing nodes, both with concurrent submission support.
+
+- [Text to image](examples/ideogram-v4.6.json): the transparent-background example joins `image` and `mask` with `JoinImageWithAlpha` before saving the PNG.
+- [Image editing](examples/ideogram-v4.6-edit.json): connect the base image to `image1` and up to four additional references. A public `mask_url` matching the base image dimensions lowers that limit to three additional references. Masked or high-precision edits keep the source aspect ratio.
+- The `seed` only controls ComfyUI caching and is not sent to the API. The `very_low` quality does not support `4k`. The concurrent receiver returns RGB only; use the regular node and the alpha connections in the example to save transparency.
+
 ## v0.28.11 - 2026-11-28
 
 - `Seed_TTS_3_0` (`bytedance-seed/seed-tts-3-0`) adds 502 searchable official voices and a short-name or full-ID override. Supports delivery instructions and 0.5–2× speed. Returns 24 kHz mono WAV and native ComfyUI `AUDIO`, with a [blank-key example](examples/seed-tts-3-0.json).

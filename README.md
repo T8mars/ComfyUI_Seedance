@@ -24,6 +24,14 @@ Seedance 2.0 / 2.5 / FLUX 3 Video / HappyHorse / Wan 2.7 / Wan 3.0 / Kling / Hai
 
 本插件提供视频、图片、音频、语音转写、Suno / Flow Music 与 Midjourney 工作流。Suno 使用一个 34 合 1 节点完成音乐生成、自定义模型训练、V6 公网音频翻唱/续写、歌词、素材导入、参考生成、混合、分轨、导出、编辑和分析；Flow Music 使用一个 9 合 1 节点完成生成、歌词、上传、续写、替换、改编、分轨、音频导出和音乐视频；Midjourney 使用一个 16 合 1 节点完成生成、融合、描述、编辑、放大、变体、扩图、局部重绘和图生视频；本地参考素材会自动上传到 API，不需要额外准备图床或外链。
 
+## v0.28.12（2026-11-28）
+
+新增两个独立节点：Ideogram 4.6 文生图和图像编辑，均支持并发提交。
+
+- [文生图](examples/ideogram-v4.6.json)：透明背景示例使用 `JoinImageWithAlpha` 将 `image` 和 `mask` 合成后保存 PNG。
+- [图像编辑](examples/ideogram-v4.6-edit.json)：`image1` 接待编辑原图，其后最多接 4 张参考图；填写同尺寸的公开 `mask_url` 时，额外参考图最多 3 张。蒙版模式或高精度模式下保持原图比例。
+- 两个节点的 `seed` 仅控制 ComfyUI 缓存，不会传给 API；`very_low` 不支持 `4k`。并发接收节点只返回 RGB，如需保留透明通道请使用普通节点和示例中的 Alpha 连线。
+
 ## v0.28.11（2026-11-28）
 
 - 新增独立节点 `Seed_TTS_3_0`（`bytedance-seed/seed-tts-3-0`）：可搜索 502 个官方音色，也可填写音色短名或完整 ID；支持表达指令和 0.5–2 倍语速，输出 24 kHz 单声道 WAV 和 ComfyUI `AUDIO`。附[空密钥示例](examples/seed-tts-3-0.json)。

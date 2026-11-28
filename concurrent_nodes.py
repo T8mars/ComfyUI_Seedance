@@ -31,6 +31,8 @@ IMAGE_ENV_NAME = "SEEDANCE_IMAGE_CONCURRENCY"
 VIDEO_ENV_NAME = "SEEDANCE_VIDEO_CONCURRENCY"
 
 PURE_IMAGE_NODE_KEYS = (
+    "Ideogram_V4_6",
+    "Ideogram_V4_6_Edit",
     "Kling_V4_Long_Image",
     "Minimax_H3_Image",
     "Qwen_Image_2_1_Turbo",
